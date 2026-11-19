@@ -95,7 +95,11 @@ document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",(
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 function communityCards(items){
   if(!items.length)return `<div class="empty">No communities to show yet. Create the first one!</div>`;
-  return items.map(c=>`<article class="card community-card"><div class="community-cover" ${c.cover_url?`style="background-image:url('${escapeHTML(c.cover_url)}')"`:""}></div><span class="pill">${escapeHTML(c.category||"Community")}</span><h3>${escapeHTML(c.name)}</h3><p>${escapeHTML(c.description||"")}</p><div class="card-actions"><button class="ghost" data-open-community="${escapeHTML(c.id)}">View community</button>${c.joined?`<span class="pill">${c.owner_id===state.user?.id?"Owner":"Joined"}</span>`:c.join_request_status==="pending"?`<span class="pill">Request pending</span>`:c.join_request_status==="declined"?`<span class="pill">Request declined</span>`:`<button class="primary small" data-join-community="${escapeHTML(c.id)}">${c.visibility==="private"?"Request to join":"Join"}</button>`}</div></article>`).join("");
+  return '<div class="amino-community-grid">'+items.map(c=>{
+   const cover=c.cover_url||c.icon_url||'';
+   const status=c.joined?(c.owner_id===state.user?.id?'Owner':'Joined'):c.join_request_status==='pending'?'Request pending':c.join_request_status==='declined'?'Request declined':'';
+   return '<article class="amino-community-card" style="'+(cover?'--community-cover:url(&quot;'+escapeHTML(cover)+'&quot;)':'')+'"><div class="amino-card-shade"></div><div class="amino-community-icon">'+(cover?'<img src="'+escapeHTML(cover)+'" alt="">':'<span>W</span>')+'</div><span class="amino-category">'+escapeHTML(c.category||'Community')+'</span><div class="amino-card-content"><h3>'+escapeHTML(c.name)+'</h3><p>'+escapeHTML(c.description||'')+'</p><div class="amino-card-actions"><button class="amino-enter" data-open-community="'+escapeHTML(c.id)+'">Enter community</button>'+(status?'<span class="amino-status">'+escapeHTML(status)+'</span>':c.visibility==='private'?'<button class="amino-join" data-join-community="'+escapeHTML(c.id)+'">Request</button>':'<button class="amino-join" data-join-community="'+escapeHTML(c.id)+'">Join</button>')+'</div></div></article>';
+  }).join('')+'</div>';
 }
 function renderDiscoveryResults(){
  const host=$("discoveryResults");if(!host)return;
