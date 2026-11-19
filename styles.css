@@ -46,3 +46,11 @@
 .profile-gallery-item{display:block}
 
 .post-image-preview{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;color:#c9b8dc;font-size:12px}.post-image-preview:empty{display:none}.post-image-preview span{background:#21152f;border:1px solid var(--line);padding:5px 9px;border-radius:9px}.post-media{max-width:100%;height:auto}
+
+/* Profile identity: always show the member's uploaded avatar in the profile header */
+.profile-summary-card{display:grid;grid-template-columns:76px 1fr;column-gap:16px;align-items:center}
+.profile-summary-card h3,.profile-summary-card p,.profile-summary-card button,.profile-summary-card .pill{grid-column:2}
+.profile-summary-avatar{grid-column:1;grid-row:1 / span 3;width:76px;height:76px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:linear-gradient(145deg,#9b5cff,#32154b);border:3px solid #c69aff;color:#fff;font-size:30px;font-weight:850}
+.profile-summary-avatar img{width:100%;height:100%;object-fit:cover}
+.profile-summary-card .hint{grid-column:1 / -1}
+@media(max-width:420px){.profile-summary-card{grid-template-columns:62px 1fr}.profile-summary-avatar{width:62px;height:62px}}
