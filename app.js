@@ -101,7 +101,7 @@ async function openCommunity(id){
  try{
   const c=state.communities.find(x=>x.id===id)||{id,name:'Community'};state.activeCommunity=c;state.page='community';state.activeCommunityRole=null;state.joinRequests=[];state.managerOpen=false;
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||null;
+  const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);
   if(state.activeCommunityRole){const d=await api('/communities/'+encodeURIComponent(id)+'/posts');state.posts=d.items||[];if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];}}else{state.posts=[];}
   renderCommunity();
  }catch(e){toast(errorText(e));}
