@@ -147,3 +147,28 @@
 .wired-edit-panel{margin:16px 18px 22px;background:#211942}
 .wired-edit-panel form{margin:14px 0}
 @media(max-width:600px){.wired-profile{margin:8px -5px 24px;border-radius:0 0 16px 16px}.wired-profile-cover{height:205px}.wired-profile-avatar{width:104px;height:104px;left:18px;bottom:-50px}.wired-profile-info{padding:62px 18px 17px}.wired-profile-info h2{font-size:26px}.wired-profile-posts{grid-template-columns:1fr;padding:12px}.wired-profile-tabs{padding:0 18px}.wired-edit-profile{right:14px;top:16px;padding:10px 13px}}
+
+
+/* WIRED communities hub inspired by the supplied Amino layout */
+.wired-community-top{display:flex;align-items:center;gap:10px;margin:0 0 28px}
+.wired-mini-avatar{width:48px;height:48px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dedee7;color:#776d94;font-size:27px;flex:none}
+.wired-mini-avatar img{width:100%;height:100%;object-fit:cover}
+.wired-community-top input{min-width:0;flex:1;border:0;border-radius:28px;background:#ffffff20;color:#fff;padding:14px 18px;font-size:16px}
+.wired-community-top input::placeholder{color:#c8c1d9}.wired-lang{color:#fff;font-weight:800;white-space:nowrap}.wired-notice{border:0;background:none;color:#fff;font-size:25px}
+.wired-page-title{font-size:30px;margin:18px 10px 24px}
+.wired-my-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:560px;margin:0 8px 30px}
+.wired-community-tile{height:300px;position:relative;overflow:hidden;border-radius:18px;background:#29234c var(--tile-image) center/cover no-repeat;box-shadow:0 7px 18px #0005}
+.wired-community-tile:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0b082522 0%,#0b082500 35%,#09051be8 100%);pointer-events:none}
+.wired-tile-open{position:absolute;inset:0;width:100%;border:0;background:transparent;z-index:1}
+.wired-tile-icon{position:absolute;z-index:2;left:10px;top:10px;width:62px;height:62px;border-radius:15px;overflow:hidden;background:#20164c;border:2px solid #12d7f5;display:grid;place-items:center;color:#fff;font-size:27px;font-weight:900}
+.wired-tile-icon img{width:100%;height:100%;object-fit:cover}
+.wired-tile-bottom{position:absolute;z-index:2;left:12px;right:12px;bottom:48px;text-align:center;color:#fff;text-shadow:0 2px 5px #000}
+.wired-tile-bottom h3{font-size:20px;line-height:1.2;margin:0 0 5px}.wired-tile-bottom span{font-size:11px;opacity:.8}
+.wired-tile-enter{position:absolute;z-index:3;bottom:8px;left:8%;width:84%;padding:8px;border:0;border-radius:6px;background:#14d82c;color:#fff;font-weight:700}
+.wired-join-tile{height:300px;border:0;border-radius:18px;background:#ffffff40;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:54px;padding:12px;font-size:22px;text-align:center}
+.wired-join-tile span{align-self:flex-start;border-radius:17px;background:#fff;color:#aaa;padding:12px 19px;font-size:30px}
+.wired-create-cta{display:flex;align-items:center;justify-content:center;gap:12px;width:82%;margin:0 auto 42px;padding:17px 12px;border:2px solid #00e9c6;border-radius:10px;background:transparent;color:#00e9c6;font-size:21px;font-weight:850}
+.wired-create-cta span{font-size:30px}.wired-recommended-head{display:flex;align-items:center;gap:18px;margin:0 0 20px;color:#c9c3d8}
+.wired-recommended-head span{height:1px;background:#c9c3d8;flex:1}.wired-recommended-head h3{font-size:21px;font-weight:500;margin:0}
+.wired-recommended-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.wired-recommended-grid .wired-community-tile{height:340px}.wired-community-tile[hidden]{display:none}
+@media(max-width:600px){.wired-community-top{gap:8px;margin:0 0 24px}.wired-mini-avatar{width:44px;height:44px}.wired-page-title{font-size:27px}.wired-my-grid{gap:12px;margin-left:6px;margin-right:6px}.wired-community-tile,.wired-join-tile{height:270px}.wired-tile-icon{width:54px;height:54px}.wired-tile-bottom h3{font-size:17px}.wired-create-cta{width:82%;font-size:18px}.wired-recommended-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.wired-recommended-grid .wired-community-tile{height:260px}.wired-recommended-grid .wired-tile-icon{width:42px;height:42px}.wired-recommended-grid .wired-tile-bottom{left:6px;right:6px}.wired-recommended-grid .wired-tile-bottom h3{font-size:14px}.wired-recommended-grid .wired-tile-enter{font-size:10px;padding:7px 3px}}
