@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[]};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[]};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -20,8 +20,44 @@ async function api(path,method="GET",body=null){
 }
 async function loadProfile(){
   if(!state.user){state.profile=null;return;}
-  const {data,error}=await sb.from("profiles").select("username,id_verified,bio,avatar_url").eq("id",state.user.id).maybeSingle();
+  const {data,error}=await sb.from("profiles").select("username,id_verified,bio,avatar_url,cover_url").eq("id",state.user.id).maybeSingle();
   if(error) throw error; state.profile=data;
+}
+async function loadProfileGallery(){
+ if(!state.user){state.profileImages=[];return;}
+ const {data,error}=await sb.from("profile_images").select("id,user_id,image_url,storage_path,created_at").eq("user_id",state.user.id).order("created_at",{ascending:false});
+ if(error)throw error;state.profileImages=data||[];
+}
+function checkProfileImage(file){
+ if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type))throw new Error("Choose a JPG, PNG, WEBP, or GIF image.");
+ if(file.size>10*1024*1024)throw new Error("Images must be under 10 MB each.");
+}
+async function uploadProfileImage(event,kind){
+ const file=event.target.files?.[0];if(!file)return;
+ try{checkProfileImage(file);const ext=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"})[file.type];
+ const path=state.user.id+"/"+kind+"-"+crypto.randomUUID()+"."+ext;
+ const {error:upErr}=await sb.storage.from("profile-media").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});if(upErr)throw upErr;
+ const url=sb.storage.from("profile-media").getPublicUrl(path).data.publicUrl;
+ const field=kind==="avatar"?"avatar_url":"cover_url";const {error}=await sb.from("profiles").update({[field]:url}).eq("id",state.user.id);if(error)throw error;
+ state.profile={...(state.profile||{}),[field]:url};toast(kind==="avatar"?"Profile photo saved!":"Cover image saved!");render();
+ }catch(err){toast(errorText(err));}finally{event.target.value="";}
+}
+async function uploadGalleryImages(event){
+ const files=Array.from(event.target.files||[]);if(!files.length)return;
+ try{if((state.profileImages||[]).length+files.length>30)throw new Error("Your gallery can contain up to 30 photos.");
+ for(const file of files){checkProfileImage(file);const ext=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"})[file.type];
+ const path=state.user.id+"/gallery-"+crypto.randomUUID()+"."+ext;
+ const {error:upErr}=await sb.storage.from("profile-media").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});if(upErr)throw upErr;
+ const url=sb.storage.from("profile-media").getPublicUrl(path).data.publicUrl;
+ const {error}=await sb.from("profile_images").insert({user_id:state.user.id,image_url:url,storage_path:path});if(error)throw error;
+ } await loadProfileGallery();toast("Photos added to your gallery!");render();
+ }catch(err){toast(errorText(err));}finally{event.target.value="";}
+}
+async function deleteGalleryImage(id){
+ const item=(state.profileImages||[]).find(x=>x.id===id);if(!item)return;if(!confirm("Remove this photo from your profile?"))return;
+ try{const {error}=await sb.from("profile_images").delete().eq("id",id);if(error)throw error;
+ const {error:storageError}=await sb.storage.from("profile-media").remove([item.storage_path]);if(storageError)console.warn(storageError);
+ state.profileImages=state.profileImages.filter(x=>x.id!==id);toast("Photo removed.");render();}catch(err){toast(errorText(err));}
 }
 async function loadCommunities(){
   if(!state.user){state.communities=[];return;}
@@ -30,11 +66,11 @@ async function loadCommunities(){
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
   state.user=session?.user||null;
-  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});}
+  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileGallery().catch(()=>{});}
   else {state.profile=null;state.communities=[];}
   render();
 }
-function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();}
+function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileGallery()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 function communityCards(items){
@@ -68,6 +104,14 @@ function render(){
  }
  if(state.page==="profile"){
   v.innerHTML=`<div class="section-head"><h2>My profile</h2></div><div class="card"><div class="brand-mark">W</div><h3>${state.user?escapeHTML(state.profile?.username||state.user.email):"Welcome to WIRED"} ${state.profile?.id_verified?`<span class="pill">✓ Verified</span>`:""}</h3><p class="muted">${state.user?escapeHTML(state.profile?.bio||"Your WIRED profile") :"Log in or create an account to set up your profile."}</p><button class="primary" id="profileAuth">${state.user?"Log out":"Log in / Sign up"}</button><div style="margin-top:20px"><span class="pill">18+ COMMUNITY</span> <span class="pill">OPTIONAL ID VERIFICATION</span></div><p class="hint">A verified badge only appears after a trusted identity provider confirms verification. That provider is not connected yet.</p>${state.user?`<div style="margin-top:20px"><button class="primary" id="editAccountBtn" type="button" aria-expanded="${state.editAccountOpen? "true":"false"}">${state.editAccountOpen?"Close account settings":"Edit account"}</button></div><div id="accountSettingsPanel" ${state.editAccountOpen?"":"hidden"}><div class="section-head"><h2>Account settings</h2></div><form id="usernameForm" class="settings-form"><label class="field">Username<input id="settingsUsername" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" value="${escapeHTML(state.profile?.username||"")}" autocomplete="username"></label><button class="primary">Save username</button></form><form id="emailForm" class="settings-form"><label class="field">Email address<input id="settingsEmail" type="email" required value="${escapeHTML(state.user.email||"")}" autocomplete="email"></label><button class="primary">Update email</button><p class="hint">Supabase will send a confirmation email before the new address takes effect.</p></form><form id="passwordForm" class="settings-form"><label class="field">New password<input id="settingsPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label><label class="field">Confirm new password<input id="settingsPasswordConfirm" type="password" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password"></label><button class="primary">Change password</button></form><p class="status" id="settingsStatus" aria-live="polite"></p></div>`:""}`;
+ }
+ if(state.page==="profile" && state.user){
+  const cover=state.profile?.cover_url||""; const avatar=state.profile?.avatar_url||"";
+  v.innerHTML += '<div class="profile-cover" style="background-image:'+(cover? "url(&quot;"+escapeHTML(cover)+"&quot;)":"linear-gradient(120deg,#482266,#15101d)")+'"></div><section class="card profile-custom-card"><div class="profile-person"><div class="profile-avatar">'+(avatar? '<img src="'+escapeHTML(avatar)+'" alt="Profile photo">':"W")+'</div><div><h3>'+escapeHTML(state.profile?.username||state.user.email)+'</h3><p class="muted">Customize your WIRED profile</p></div></div><div class="profile-upload-row"><label class="profile-upload">Change profile photo<input id="wiredAvatarUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><label class="profile-upload">Change cover image<input id="wiredCoverUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label></div><div class="section-head"><h2>My photo gallery</h2></div><label class="primary profile-gallery-add">＋ Add photos<input id="wiredGalleryUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><div class="profile-gallery">'+(state.profileImages||[]).map(function(im){return '<div class="profile-gallery-item"><img src="'+escapeHTML(im.image_url)+'" alt="Profile gallery photo"><button type="button" data-gallery-delete="'+escapeHTML(im.id)+'" aria-label="Delete photo">×</button></div>'}).join("")+'</div></section>';
+  $("wiredAvatarUpload")?.addEventListener("change",e=>uploadProfileImage(e,"avatar"));
+  $("wiredCoverUpload")?.addEventListener("change",e=>uploadProfileImage(e,"cover"));
+  $("wiredGalleryUpload")?.addEventListener("change",uploadGalleryImages);
+  v.querySelectorAll("[data-gallery-delete]").forEach(b=>b.addEventListener("click",()=>deleteGalleryImage(b.dataset.galleryDelete)));
  }
  v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
  v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));
