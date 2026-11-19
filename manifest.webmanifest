@@ -1,0 +1,10 @@
+{
+  "name": "WIRED — Stay connected.",
+  "short_name": "WIRED",
+  "description": "Discover communities and stay connected.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090711",
+  "theme_color": "#090711",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

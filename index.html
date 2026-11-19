@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090711">
+  <meta name="description" content="WIRED — Stay connected. Find your people and communities.">
+  <title>WIRED — Stay connected.</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="WIRED home"><span class="brand-mark">W</span><span><b>WIRED</b><small>STAY CONNECTED.</small></span></a>
+    <div class="header-actions"><span class="adult-tag">18+</span><button class="ghost" id="installBtn" hidden>Install</button><button class="ghost" id="accountBtn">Log in</button></div>
+  </header>
+  <main id="app">
+    <section class="hero">
+      <div class="eyebrow">YOUR PEOPLE. YOUR INTERESTS. YOUR COMMUNITY.</div>
+      <h1>Find your <span>connection.</span></h1>
+      <p>Discover communities, share what you love, and stay connected.</p>
+      <button class="primary" data-go="discover">Explore communities <span>→</span></button>
+    </section>
+    <nav class="tabs" aria-label="Main navigation">
+      <button class="tab active" data-page="home">Home</button>
+      <button class="tab" data-page="discover">Discovery</button>
+      <button class="tab" data-page="create">Create</button>
+      <button class="tab" data-page="chats">Chats</button>
+      <button class="tab" data-page="profile">Me</button>
+    </nav>
+    <section id="view" aria-live="polite"></section>
+  </main>
+  <dialog id="authDialog">
+    <form method="dialog" class="dialog-head"><div><div class="eyebrow">WELCOME TO WIRED</div><h2 id="authTitle">Log in</h2></div><button class="close" aria-label="Close">×</button></form>
+    <div class="dialog-body">
+      <div id="loginForm">
+        <label>Email<input id="loginName" type="email" autocomplete="username" placeholder="you@example.com"></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password"></label>
+        <label class="check"><input id="loginAdult" type="checkbox"> I confirm that I am 18 years of age or older.</label>
+        <button class="primary full" id="loginSubmit">Log in</button>
+        <p class="switch">New here? <button class="link" id="showRegister">Create an account</button></p>
+      </div>
+      <div id="registerForm" hidden>
+        <label>Username<input id="regUser" minlength="3" placeholder="Choose a username"></label>
+        <label>Email<input id="regEmail" type="email" placeholder="you@example.com"></label>
+        <label>Password<input id="regPassword" type="password" minlength="8" placeholder="At least 8 characters"></label>
+        <label>Date of birth<input id="regDob" type="date"></label>
+        <label class="check"><input id="regConfirm" type="checkbox"> I confirm this date of birth is accurate.</label>
+        <p class="hint">WIRED is for adults aged 18 and older. Identity verification is optional and will only be enabled through a trusted provider.</p>
+        <button class="primary full" id="registerSubmit">Create account</button>
+        <p class="switch">Already a member? <button class="link" id="showLogin">Log in</button></p>
+      </div>
+    </div>
+    <p class="status" id="authStatus"></p>
+  </dialog>
+  <div class="toast" id="toast" role="status"></div>
+  <footer>WIRED is an adults-only community. Be respectful. Stay connected.</footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
