@@ -8,9 +8,9 @@
   "theme_color": "#090711",
   "icons": [
     {
-      "src": "icon.svg?v=7",
+      "src": "wired-logo.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
