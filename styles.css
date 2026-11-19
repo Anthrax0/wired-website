@@ -172,3 +172,21 @@
 .wired-recommended-head span{height:1px;background:#c9c3d8;flex:1}.wired-recommended-head h3{font-size:21px;font-weight:500;margin:0}
 .wired-recommended-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.wired-recommended-grid .wired-community-tile{height:340px}.wired-community-tile[hidden]{display:none}
 @media(max-width:600px){.wired-community-top{gap:8px;margin:0 0 24px}.wired-mini-avatar{width:44px;height:44px}.wired-page-title{font-size:27px}.wired-my-grid{gap:12px;margin-left:6px;margin-right:6px}.wired-community-tile,.wired-join-tile{height:270px}.wired-tile-icon{width:54px;height:54px}.wired-tile-bottom h3{font-size:17px}.wired-create-cta{width:82%;font-size:18px}.wired-recommended-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.wired-recommended-grid .wired-community-tile{height:260px}.wired-recommended-grid .wired-tile-icon{width:42px;height:42px}.wired-recommended-grid .wired-tile-bottom{left:6px;right:6px}.wired-recommended-grid .wired-tile-bottom h3{font-size:14px}.wired-recommended-grid .wired-tile-enter{font-size:10px;padding:7px 3px}}
+
+
+/* Discovery shelves: Featured, New and My Communities */
+.discovery-topline{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:8px 0 26px}
+.discovery-topline h2{font-size:30px;margin:0}.discovery-topline p{margin:5px 0 0;color:#bdb4d3}
+.discovery-create{border:1px solid #00e6c1;border-radius:10px;background:transparent;color:#00e6c1;padding:12px 15px;font-weight:800;white-space:nowrap}
+.discovery-tools{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:28px}
+.discovery-section{margin:26px 0 34px}
+.discovery-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 4px 14px}
+.discovery-section-head h2{font-size:23px;margin:0;color:#fff}
+.discovery-section-head>span{font-size:12px;color:#aaa0c6}
+.discovery-shelf{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,220px);grid-auto-columns:220px;gap:14px;overflow-x:auto;padding:2px 3px 14px;scroll-snap-type:x mandatory}
+.discovery-shelf .amino-community-card{height:300px;min-width:0;scroll-snap-align:start}
+.discovery-shelf .amino-community-card .amino-card-content h3{font-size:18px}
+.discovery-all{margin:34px 0 20px;padding-top:18px;border-top:1px solid #ffffff20}
+.discovery-all .section-head{align-items:center;gap:14px;flex-wrap:wrap}
+.discovery-all .section-head .field{max-width:190px;margin:0}
+@media(max-width:600px){.discovery-topline{align-items:flex-start}.discovery-topline h2{font-size:27px}.discovery-create{padding:10px 11px;font-size:12px}.discovery-tools{grid-template-columns:1fr}.discovery-section{margin:24px 0 30px}.discovery-section-head h2{font-size:20px}.discovery-section-head>span{font-size:10px}.discovery-shelf{grid-auto-columns:205px;gap:12px}.discovery-shelf .amino-community-card{height:290px}}
