@@ -44,3 +44,5 @@
 .profile-member-link:hover{color:#c69aff}
 .member-profile-cover{margin-top:16px}
 .profile-gallery-item{display:block}
+
+.post-image-preview{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;color:#c9b8dc;font-size:12px}.post-image-preview:empty{display:none}.post-image-preview span{background:#21152f;border:1px solid var(--line);padding:5px 9px;border-radius:9px}.post-media{max-width:100%;height:auto}
