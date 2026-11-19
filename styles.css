@@ -120,35 +120,6 @@
 @media(min-width:651px){.tabs{position:sticky;top:76px;z-index:4;background:#090711eF;backdrop-filter:blur(16px)}#view{padding-bottom:90px}}
 
 
-/* Amino-inspired WIRED profile with a Posts wall */
-.wired-profile{overflow:hidden;border-radius:18px;background:linear-gradient(180deg,#171044,#100d25);border:1px solid #ffffff16;margin:12px 0 28px}
-.wired-profile-cover{height:235px;position:relative;background-size:cover;background-position:center;background-color:#1a1247}
-.wired-profile-cover:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#09051a22,#09051a66)}
-.wired-edit-profile{position:absolute;z-index:2;right:18px;top:22px;border:0;border-radius:10px;background:#ffffff30;color:#fff;padding:12px 18px;font-weight:750;cursor:pointer;backdrop-filter:blur(8px)}
-.wired-profile-avatar{position:absolute;z-index:2;left:24px;bottom:-54px;width:112px;height:112px;border-radius:50%;overflow:hidden;border:4px solid #eee;background:#dedee5;display:grid;place-items:center;color:#6b5b91;font-size:42px;font-weight:800}
-.wired-profile-avatar img{width:100%;height:100%;object-fit:cover}
-.wired-profile-info{padding:66px 24px 20px}
-.wired-profile-info h2{font-size:29px;margin:0 0 5px;color:#fff}
-.wired-handle{margin:0 0 18px;color:#b8afd1;font-size:15px}
-.wired-profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:16px 0}
-.wired-profile-stats>div{background:#ffffff16;padding:12px 8px;text-align:center;display:grid;gap:2px}
-.wired-profile-stats>div:first-child{border-radius:9px 0 0 9px}.wired-profile-stats>div:last-child{border-radius:0 9px 9px 0}
-.wired-profile-stats b{font-size:23px;color:#fff}.wired-profile-stats span{font-size:13px;color:#c2bad8}
-.wired-profile-bio{color:#c8bfdc;font-style:italic;margin:16px 0 2px}
-.wired-profile-tabs{display:flex;gap:26px;padding:0 24px;border-bottom:1px solid #ffffff20}
-.wired-profile-tabs button{border:0;background:none;color:#fff;padding:15px 3px 12px;font-size:21px;font-weight:750;border-bottom:3px solid #fff}
-.wired-profile-posts{padding:14px 18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.wired-profile-post{min-width:0;padding:14px;border-radius:13px;background:#ffffff13;border:1px solid #ffffff12;overflow:hidden}
-.wired-profile-post h3{margin:9px 0 5px;color:#fff}.wired-profile-post p{margin:0;color:#d0c9df;white-space:pre-wrap;overflow-wrap:anywhere}
-.wired-profile-post .meta{font-size:11px;color:#c6bdd8}
-.wired-post-images{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:10px}
-.wired-post-images img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
-.wired-profile-tools{padding:8px 18px 20px;border-top:1px solid #ffffff16}
-.wired-edit-panel{margin:16px 18px 22px;background:#211942}
-.wired-edit-panel form{margin:14px 0}
-@media(max-width:600px){.wired-profile{margin:8px -5px 24px;border-radius:0 0 16px 16px}.wired-profile-cover{height:205px}.wired-profile-avatar{width:104px;height:104px;left:18px;bottom:-50px}.wired-profile-info{padding:62px 18px 17px}.wired-profile-info h2{font-size:26px}.wired-profile-posts{grid-template-columns:1fr;padding:12px}.wired-profile-tabs{padding:0 18px}.wired-edit-profile{right:14px;top:16px;padding:10px 13px}}
-
-
 /* WIRED communities hub inspired by the supplied Amino layout */
 .wired-community-top{display:flex;align-items:center;gap:10px;margin:0 0 28px}
 .wired-mini-avatar{width:48px;height:48px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dedee7;color:#776d94;font-size:27px;flex:none}
