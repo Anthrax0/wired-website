@@ -25,10 +25,11 @@ WIRED will independently implement the broad feature set that made Amino useful,
 - Remaining: comment editing/deletion UI, bookmarks/favorites, repost/share, featured/pinned posts, drafts, and post editing.
 
 ### 3. Messaging and live community spaces
-- Direct messages, group chats, and community chatrooms.
-- Reactions, stickers, voice notes, typing/read indicators, message search.
-- Voice rooms and shared viewing rooms, subject to browser/device support.
-- Member controls, block/report, and chat moderation.
+- Implemented: direct messages, multi-member group chats (up to 50 total participants), and community chat entry points.
+- Implemented: live message updates in open conversations using Supabase Realtime and existing row-level security.
+- Remaining: message reactions, stickers, voice notes, typing/read indicators, message search, and group member management.
+- Later: voice rooms and shared viewing rooms, subject to browser/device support.
+- Remaining: chat-specific block/report and moderation controls.
 
 ### 4. Rich member profiles
 - Avatar, cover/background, bio, profile gallery, status, links, and display preferences.
