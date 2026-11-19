@@ -91,11 +91,11 @@ async function loadCommunities(){
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
   state.user=session?.user||null;
-  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileGallery().catch(()=>{});}
+  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileGallery().catch(()=>{});await loadProfilePosts().catch(()=>{});}
   else {state.profile=null;state.communities=[];}
   render();
 }
-function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileGallery()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileGallery(),loadProfilePosts()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 function communityCards(items){
@@ -139,8 +139,10 @@ function render(){
   $("wiredAvatarUpload")?.addEventListener("change",e=>uploadProfileImage(e,"avatar"));
   $("wiredCoverUpload")?.addEventListener("change",e=>uploadProfileImage(e,"cover"));
   $("wiredGalleryUpload")?.addEventListener("change",uploadGalleryImages);
+  if(state.editAccountOpen){const panel=document.createElement('div');panel.className='card wired-edit-panel';panel.innerHTML='<div class="section-head"><h3>Edit profile & account</h3></div><form id="usernameForm"><label class="field">Username<input id="settingsUsername" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" value="'+escapeHTML(state.profile?.username||'')+'"></label><button class="primary">Save username</button></form><form id="profileBioForm"><label class="field">Bio<textarea id="settingsBio" maxlength="300" placeholder="Tell people about yourself">'+escapeHTML(state.profile?.bio||'')+'</textarea></label><button class="primary">Save bio</button></form><form id="emailForm"><label class="field">Email<input id="settingsEmail" type="email" required value="'+escapeHTML(state.user.email||'')+'"></label><button class="primary">Update email</button></form><form id="passwordForm"><label class="field">New password<input id="settingsPassword" type="password" required minlength="8"></label><label class="field">Confirm password<input id="settingsPasswordConfirm" type="password" required minlength="8"></label><button class="primary">Change password</button></form><p class="status" id="settingsStatus"></p>';v.querySelector('.wired-profile').append(panel);}
+  $('profileBioForm')?.addEventListener('submit',async e=>{e.preventDefault();const bio=$('settingsBio').value.trim();const {error}=await sb.from('profiles').update({bio}).eq('id',state.user.id);if(error){toast(errorText(error));return;}state.profile.bio=bio;toast('Bio updated.');render();});
+
   v.querySelectorAll("[data-gallery-delete]").forEach(b=>b.addEventListener("click",()=>deleteGalleryImage(b.dataset.galleryDelete)));
-  $("editAccountBtn")?.addEventListener("click",()=>{state.editAccountOpen=!state.editAccountOpen;if(state.editAccountOpen){toast("Account settings are available below in the profile settings panel.");}else{toast("Profile editing closed.");}});
  }
  v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
  v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));
