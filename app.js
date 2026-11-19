@@ -111,7 +111,7 @@ async function saveEmail(e){
  if(!email){status.textContent="Enter a valid email address.";return;}
  if(email.toLowerCase()===String(state.user.email||"").toLowerCase()){status.textContent="That is already your current email address.";return;}
  status.textContent="Requesting email change…";
- const {error}=await sb.auth.updateUser({email});
+ const {error}=await sb.auth.updateUser({email},{emailRedirectTo:window.location.origin+window.location.pathname});
  status.textContent=error?error.message:"Confirmation requested. Check your email inbox (and spam folder) and follow Supabase’s confirmation instructions. Your address may not change until confirmed.";
 }
 async function savePassword(e){
