@@ -53,6 +53,7 @@ WIRED will independently implement the broad feature set that made Amino useful,
 - Mentions, replies, chat activity, announcements, and moderation notices.
 
 ### 8. Community customization
+- Initial Community Manager workspace added for owners/moderators, with editable description, category, rules, welcome message, accent color, public/private visibility, and Discovery visibility.
 - Community icon, cover, accent color, navigation, content categories, and home layout.
 - Custom welcome content, guidelines, wiki categories, and discovery presentation.
 - WIRED global branding remains consistent while community-level themes are configurable.
@@ -73,6 +74,7 @@ WIRED will independently implement the broad feature set that made Amino useful,
 - Existing account registration, profile basics, community creation, public/private join flow, posts, join requests, direct messages, and basic moderation tables retained.
 - Stage 1 increment: client-side community search, category filter, and sorting have been added to Discovery.
 - Stage 2 increment: multiple post formats, poll/quiz options, image uploads, comments, and reactions have been added; supporting Supabase tables use RLS, and quiz answers are kept in a non-exposed schema.
+- The first ACM-inspired Community Manager increment is implemented: role-gated settings dashboard and server-authorized updates. Advanced appearance assets, custom navigation/layout, staff role assignment, member moderation, analytics, and featured content remain planned.
 - The roadmap is intentionally staged; items above are planned, not claims that every feature is already implemented.
 
 ## Acceptance approach
