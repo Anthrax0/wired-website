@@ -54,3 +54,7 @@
 .profile-summary-avatar img{width:100%;height:100%;object-fit:cover}
 .profile-summary-card .hint{grid-column:1 / -1}
 @media(max-width:420px){.profile-summary-card{grid-template-columns:62px 1fr}.profile-summary-avatar{width:62px;height:62px}}
+
+.member-identity{display:flex;align-items:center;gap:10px;min-width:0}
+.member-avatar{width:38px;height:38px;flex:0 0 38px;object-fit:cover;border-radius:50%;border:2px solid #9b5cff;background:#21152f}
+.member-avatar-fallback{display:grid;place-items:center;color:#e9d9ff;font-weight:800}
