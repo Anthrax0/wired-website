@@ -18,11 +18,11 @@ WIRED will independently implement the broad feature set that made Amino useful,
 - Public/private join flows and community creation.
 - Follow-up: featured/trending lists, tags, member counts, and invitation links.
 
-### 2. Structured community publishing
-- Blog/text posts, image posts, polls, questions, quizzes, stories, and wiki entries.
-- Comments, reactions, bookmarks/favorites, repost/share, topic categories.
-- Featured posts and pinned announcements.
-- Drafts, editing, deletion, and attachment handling.
+### 2. Structured community publishing — in progress
+- Implemented: blog/text, image, poll, quiz, question, story, and wiki post formats.
+- Implemented: poll voting with live totals, quiz answer feedback, comments, and reactions (like/love/laugh/wow/support).
+- Implemented: community image uploads through the dedicated `post-media` bucket.
+- Remaining: comment editing/deletion UI, bookmarks/favorites, repost/share, featured/pinned posts, drafts, and post editing.
 
 ### 3. Messaging and live community spaces
 - Direct messages, group chats, and community chatrooms.
@@ -71,6 +71,7 @@ WIRED will independently implement the broad feature set that made Amino useful,
 - Existing Supabase project and `wired-api` Edge Function retained.
 - Existing account registration, profile basics, community creation, public/private join flow, posts, join requests, direct messages, and basic moderation tables retained.
 - Stage 1 increment: client-side community search, category filter, and sorting have been added to Discovery.
+- Stage 2 increment: multiple post formats, poll/quiz options, image uploads, comments, and reactions have been added; supporting Supabase tables use RLS, and quiz answers are kept in a non-exposed schema.
 - The roadmap is intentionally staged; items above are planned, not claims that every feature is already implemented.
 
 ## Acceptance approach
