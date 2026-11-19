@@ -41,7 +41,17 @@ function communityCards(items){
   if(!items.length)return `<div class="empty">No communities to show yet. Create the first one!</div>`;
   return items.map(c=>`<article class="card community-card"><div class="community-cover" ${c.cover_url?`style="background-image:url('${escapeHTML(c.cover_url)}')"`:""}></div><span class="pill">${escapeHTML(c.category||"Community")}</span><h3>${escapeHTML(c.name)}</h3><p>${escapeHTML(c.description||"")}</p><div class="card-actions"><button class="ghost" data-open-community="${escapeHTML(c.id)}">View community</button>${c.joined?`<span class="pill">${c.owner_id===state.user?.id?"Owner":"Joined"}</span>`:c.join_request_status==="pending"?`<span class="pill">Request pending</span>`:c.join_request_status==="declined"?`<span class="pill">Request declined</span>`:`<button class="primary small" data-join-community="${escapeHTML(c.id)}">${c.visibility==="private"?"Request to join":"Join"}</button>`}</div></article>`).join("");
 }
-function renderDiscoveryResults(){\n const host=$("discoveryResults");if(!host)return;\n const q=state.discoveryQuery.trim().toLowerCase();\n let items=state.communities.filter(c=>(state.discoveryCategory==="all"||c.category===state.discoveryCategory)&&(!q||[c.name,c.description,c.category].some(v=>String(v||"").toLowerCase().includes(q))));\n if(state.discoverySort==="name")items.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));else items.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));\n const count=$("discoveryCount");if(count)count.textContent=`${items.length} ${items.length===1?"community":"communities"} found`;\n host.innerHTML=communityCards(items);\n host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));\n host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));\n}\nfunction render(){
+function renderDiscoveryResults(){
+ const host=$("discoveryResults");if(!host)return;
+ const q=state.discoveryQuery.trim().toLowerCase();
+ let items=state.communities.filter(c=>(state.discoveryCategory==="all"||c.category===state.discoveryCategory)&&(!q||[c.name,c.description,c.category].some(v=>String(v||"").toLowerCase().includes(q))));
+ if(state.discoverySort==="name")items.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));else items.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+ const count=$("discoveryCount");if(count)count.textContent=`${items.length} ${items.length===1?"community":"communities"} found`;
+ host.innerHTML=communityCards(items);
+ host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));
+ host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));
+}
+function render(){
  const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";
  const v=$("view");
  if(state.page==="home"){
@@ -63,7 +73,11 @@ function renderDiscoveryResults(){\n const host=$("discoveryResults");if(!host)r
  v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));
  v.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));
  v.querySelectorAll("[data-open-thread]").forEach(b=>b.addEventListener("click",()=>openThread(b.dataset.openThread)));
- $("communitySearch")?.addEventListener("input",e=>{state.discoveryQuery=e.target.value;renderDiscoveryResults()});\n $("communityCategory")?.addEventListener("change",e=>{state.discoveryCategory=e.target.value;renderDiscoveryResults()});\n $("communitySort")?.addEventListener("change",e=>{state.discoverySort=e.target.value;renderDiscoveryResults()});\n if(state.page==="discover")renderDiscoveryResults();\n $("communityForm")?.addEventListener("submit",createCommunity);$("cImage")?.addEventListener("change",previewImage);
+ $("communitySearch")?.addEventListener("input",e=>{state.discoveryQuery=e.target.value;renderDiscoveryResults()});
+ $("communityCategory")?.addEventListener("change",e=>{state.discoveryCategory=e.target.value;renderDiscoveryResults()});
+ $("communitySort")?.addEventListener("change",e=>{state.discoverySort=e.target.value;renderDiscoveryResults()});
+ if(state.page==="discover")renderDiscoveryResults();
+ $("communityForm")?.addEventListener("submit",createCommunity);$("cImage")?.addEventListener("change",previewImage);
  $("dmForm")?.addEventListener("submit",startDM);
  $("profileAuth")?.addEventListener("click",()=>state.user?logout():openAuth());
  $("editAccountBtn")?.addEventListener("click",()=>{state.editAccountOpen=!state.editAccountOpen;render()});
