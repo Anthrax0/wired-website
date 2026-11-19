@@ -96,3 +96,25 @@
 @media(max-width:480px){.amino-community-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.amino-community-card{min-height:245px;padding:9px;border-radius:14px}.amino-community-icon{width:40px;height:40px}.amino-card-content{padding-top:48px}.amino-card-content h3{font-size:15px}.amino-card-content p{font-size:11px}.amino-enter,.amino-join{padding:9px 8px;font-size:9px}}
 /* Amino-like bottom tab bar on phones */
 @media(max-width:650px){body{padding-bottom:78px}.tabs{position:fixed;z-index:30;left:0;right:0;bottom:0;margin:0;padding:8px max(8px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;border-top:1px solid #7542a3;background:#100b1deF;backdrop-filter:blur(18px);box-shadow:0 -8px 30px #0007}.tab{min-width:0;padding:8px 2px;border:0;border-radius:10px;background:transparent;color:#bdaed0;font-size:10px}.tab.active{background:#6e2dbb;color:#fff}.tab:before{display:block;margin-bottom:3px;font-size:17px}.tab[data-page="home"]:before{content:"⌂"}.tab[data-page="discover"]:before{content:"◈"}.tab[data-page="create"]:before{content:"＋"}.tab[data-page="chats"]:before{content:"▣"}.tab[data-page="profile"]:before{content:"●"}}
+
+
+/* WIRED Amino-inspired app shell and community identity */
+#view{max-width:1180px}
+.tabs{max-width:1180px}
+.community-hero{position:relative;isolation:isolate;min-height:230px;display:flex;align-items:flex-end;overflow:hidden;margin:12px 0 22px;padding:24px;border:1px solid #69428a;border-radius:22px;background:#1b1227;background-image:var(--community-hero-image);background-size:cover;background-position:center;box-shadow:0 14px 38px #0006}
+.community-hero:before{content:"";position:absolute;inset:0;z-index:-2;background:linear-gradient(135deg,#4b2470,#100b18 72%)}
+.community-hero-shade{position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#090611e8 0%,#090611a8 56%,#09061130 100%),linear-gradient(0deg,#090611c9,transparent 75%)}
+.community-hero-identity{display:flex;align-items:center;gap:17px;max-width:760px}
+.community-hero-icon{width:88px;height:88px;flex:0 0 88px;display:grid;place-items:center;overflow:hidden;border:3px solid #e8d6ff;border-radius:22px;background:#21142f;color:#eadcff;font-size:42px;font-weight:900;box-shadow:0 8px 25px #0008}
+.community-hero-icon img{width:100%;height:100%;object-fit:cover}
+.community-hero h1{margin:7px 0 4px;font-size:clamp(25px,4vw,38px);line-height:1.1;text-shadow:0 2px 10px #000}
+.community-hero p{margin:0 0 8px;color:#f0e7f8;max-width:650px;text-shadow:0 2px 8px #000}
+.community-hero-visibility{font-size:11px;color:#e2caff;text-transform:capitalize}
+.community-main>.community-hero{grid-column:1/-1}
+.community-layout{grid-template-columns:minmax(0,1fr) 270px;gap:22px}
+.community-sidebar{top:88px}
+.member-sidebar-card{border-radius:18px}
+.amino-community-card{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.amino-community-card:hover{transform:translateY(-3px);border-color:#bd83ff;box-shadow:0 17px 36px #0008}
+@media(max-width:650px){.community-hero{min-height:190px;padding:16px;border-radius:17px}.community-hero-icon{width:66px;height:66px;flex-basis:66px;border-radius:17px}.community-hero-identity{gap:12px}.community-hero h1{font-size:24px}.community-hero p{font-size:12px}.community-layout{gap:12px}}
+@media(min-width:651px){.tabs{position:sticky;top:76px;z-index:4;background:#090711eF;backdrop-filter:blur(16px)}#view{padding-bottom:90px}}
