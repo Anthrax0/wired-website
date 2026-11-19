@@ -106,6 +106,14 @@ async function openCommunity(id){
   renderCommunity();
  }catch(e){toast(errorText(e));}
 }
+function renderPostCard(p){
+ const options=Array.isArray(p.metadata?.options)?p.metadata.options:[], votes=(p.vote_counts||[]), total=votes.reduce((a,n)=>a+n,0);
+ const media=p.metadata?.media_url?'<img class="post-media" src="'+escapeHTML(p.metadata.media_url)+'" alt="Post image" loading="lazy">':'';
+ let poll='';if(['poll','quiz'].includes(p.kind)){poll='<div class="poll-options">'+options.map((o,i)=>{const n=votes[i]||0,percent=total?Math.round(n/total*100):0;return '<button class="poll-option '+(p.my_vote===i?'selected':'')+'" data-vote-post="'+escapeHTML(p.id)+'" data-vote-option="'+i+'"><span>'+escapeHTML(o)+'</span><span class="poll-result">'+n+' · '+percent+'%</span><span class="poll-bar" style="width:'+percent+'%"></span></button>';}).join('')+'</div><p class="hint">'+(p.my_vote===null?'Vote to see community results':'Your vote is recorded · '+total+' vote(s)')+'</p>';}
+ const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};const reactions=Object.keys(icons).map(r=>'<button class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
+ const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b><p>'+escapeHTML(z.body)+'</p></div>').join('');
+ return '<article class="card post"><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+poll+'<div class="post-reactions">'+reactions+'</div><div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
+}
 function renderCommunity(){
  const c=state.activeCommunity,v=$('view'),joined=!!state.activeCommunityRole,manager=['owner','mod'].includes(state.activeCommunityRole);
  let html='<button class="link" id="backDiscover">← Back to Discovery</button><div class="section-head"><div><span class="pill">'+escapeHTML(c.category||'Community')+'</span><h2>'+escapeHTML(c.name)+'</h2><p class="muted">'+escapeHTML(c.description||'')+'</p><span class="pill">'+escapeHTML(c.visibility||'public')+'</span></div></div>';
@@ -115,7 +123,7 @@ function renderCommunity(){
  else if(c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
  else html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
  if(manager){html+='<div class="section-head"><h2>Join requests ('+state.joinRequests.length+')</h2></div>';if(state.joinRequests.length){html+=state.joinRequests.map(r=>'<article class="card"><b>'+escapeHTML(r.username||'WIRED member')+'</b><p class="muted">Requested '+new Date(r.created_at).toLocaleDateString()+'</p><div class="card-actions"><button class="primary small" data-approve-request="'+escapeHTML(r.id)+'">Approve</button><button class="ghost" data-decline-request="'+escapeHTML(r.id)+'">Decline</button></div></article>').join('');}else html+='<div class="empty">No pending join requests.</div>';}
- if(joined){html+='<div class="section-head"><h2>Community posts</h2></div>';html+=state.posts.map(p=>'<article class="card post"><div class="meta">'+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3><p>'+escapeHTML(p.body||'')+'</p></article>').join('')||'<div class="empty">No posts yet. Start the conversation!</div>';}
+ if(joined){html+='<div class="section-head"><h2>Community posts</h2></div>';html+=state.posts.map(renderPostCard).join('')||'<div class="empty">No posts yet. Start the conversation!</div>';}
  v.innerHTML=html;
  $('backDiscover').addEventListener('click',()=>nav('discover'));$('joinFromCommunity')?.addEventListener('click',()=>joinCommunity(c.id));$('postForm')?.addEventListener('submit',createPost);
  v.querySelectorAll('[data-approve-request]').forEach(b=>b.addEventListener('click',()=>reviewJoinRequest(b.dataset.approveRequest,'approved')));
