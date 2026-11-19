@@ -17,6 +17,21 @@ This browser-first WIRED website is configured for the existing Supabase project
 - `community-covers` public Storage bucket created, 5 MB limit, image MIME types restricted to JPEG/PNG/WEBP/GIF.
 - Storage policies allow public viewing and authenticated users to upload/update/delete only within their own user-ID folder.
 
+## WIRED feature roadmap
+
+### Phase 1 — Community foundation (in progress)
+- Community rules and welcome messages.
+- Discoverable private communities with member-only posts.
+- Private-community join requests and owner/moderator approval.
+- Existing owner/moderator/member roles retained.
+
+### Planned phases
+2. Social feed: comments, reactions, polls, announcements, and sharing.
+3. Messaging: group conversations, community chat rooms, media, and live presence.
+4. Profiles and discovery: follows, friend connections, search, recommendations, and badges.
+5. Customization and safety: community themes, achievements, moderation, reporting, and blocking improvements.
+6. Mobile polish, accessibility, performance, and end-to-end testing.
+
 ## Run locally
 Serve this folder on localhost or HTTPS. A service worker/PWA install is not available when opening the HTML directly as a `file://` URL.
 
