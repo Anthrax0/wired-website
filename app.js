@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profilePosts:[],viewingProfile:null,profileReturnPage:null};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[]};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -37,17 +37,73 @@ async function openMemberProfile(userId){
   const {data,error}=await sb.from('profiles').select('id,username,bio,avatar_url,cover_url,id_verified').eq('id',userId).maybeSingle();
   if(error)throw error;
   if(!data)throw new Error('This profile is unavailable.');
-  const {data:images,error:imageError}=await sb.from('profile_images').select('id,image_url,created_at').eq('user_id',userId).order('created_at',{ascending:false}).limit(30);
+  const [{data:images,error:imageError},{data:follow},{data:friend}] = await Promise.all([
+   sb.from('profile_images').select('id,image_url,created_at').eq('user_id',userId).order('created_at',{ascending:false}).limit(30),
+   sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle(),
+   sb.from('friend_requests').select('id,sender_id,recipient_id,status').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(sender_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').order('created_at',{ascending:false}).limit(1).maybeSingle()
+  ]);
   if(imageError)throw imageError;
-  state.viewingProfile={...data,images:images||[]};state.page='member-profile';renderMemberProfile();
+  state.viewingProfile={...data,images:images||[],isFollowing:!!follow,friendRequest:friend||null};state.page='member-profile';renderMemberProfile();
  }catch(e){toast(errorText(e));}
 }
 function renderMemberProfile(){
  const p=state.viewingProfile;if(!p)return;
  const v=$('view');const cover=p.cover_url?'url("'+escapeHTML(p.cover_url)+'")':'linear-gradient(120deg,#49246b,#171020 60%,#29133b)';
  const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="Profile photo">':'W';
- v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card"><div class="profile-person"><div class="profile-avatar">'+avatar+'</div><div><h2>'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2><p class="muted">'+escapeHTML(p.bio||'WIRED member')+'</p></div></div><div class="section-head"><h3>Photo gallery</h3></div><div class="profile-gallery">'+(p.images||[]).map(im=>'<a class="profile-gallery-item" href="'+escapeHTML(im.image_url)+'" target="_blank" rel="noopener"><img src="'+escapeHTML(im.image_url)+'" alt="Gallery photo" loading="lazy"></a>').join('')+'</div>'+(p.images?.length?'':'<div class="empty">No public photos yet.</div>')+'</section>';
- $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('discover')});
+ const fr=p.friendRequest;const friendLabel=fr?.status==='accepted'?'Friends':fr?.status==='pending'?(fr.sender_id===state.user?.id?'Request sent':'Respond to request'):'Add friend';
+ v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card"><div class="profile-person"><div class="profile-avatar">'+avatar+'</div><div><h2>'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2><p class="muted">'+escapeHTML(p.bio||'WIRED member')+'</p></div></div><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><button class="ghost" id="profileFriendBtn">'+friendLabel+'</button>'+(fr?.status==='accepted'?'<button class="ghost" id="profileChatBtn">Message</button>':'')+'</div><div class="section-head"><h3>Photo gallery</h3></div><div class="profile-gallery">'+(p.images||[]).map(im=>'<a class="profile-gallery-item" href="'+escapeHTML(im.image_url)+'" target="_blank" rel="noopener"><img src="'+escapeHTML(im.image_url)+'" alt="Gallery photo" loading="lazy"></a>').join('')+'</div>'+(p.images?.length?'':'<div class="empty">No public photos yet.</div>')+'</section>';
+ $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('people')});
+ $('profileFollowBtn')?.addEventListener('click',()=>toggleFollow(p.id));
+ $('profileFriendBtn')?.addEventListener('click',()=>handleProfileFriend(p));
+ $('profileChatBtn')?.addEventListener('click',()=>startDMByUsername(p.username));
+}
+async function toggleFollow(userId){
+ try{const {data:existing,error}=await sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle();if(error)throw error;
+ if(existing){const {error:e}=await sb.from('profile_follows').delete().eq('follower_id',state.user.id).eq('following_id',userId);if(e)throw e;}else{const {error:e}=await sb.from('profile_follows').insert({follower_id:state.user.id,following_id:userId});if(e)throw e;}
+ if(state.viewingProfile?.id===userId){state.viewingProfile.isFollowing=!existing;renderMemberProfile();}else{toast(existing?'Unfollowed profile.':'Following profile.');await loadPeople();}
+ }catch(e){toast(errorText(e));}
+}
+async function handleProfileFriend(p){
+ try{const fr=p.friendRequest;if(fr?.status==='accepted'){await startDMByUsername(p.username);return;}
+ if(fr?.status==='pending'&&fr.recipient_id===state.user.id){const {error}=await sb.from('friend_requests').update({status:'accepted',updated_at:new Date().toISOString()}).eq('id',fr.id);if(error)throw error;toast('Friend request accepted.');}
+ else if(fr?.status==='pending'){toast('Friend request already sent.');return;}
+ else{const {error}=await sb.from('friend_requests').insert({sender_id:state.user.id,recipient_id:p.id,status:'pending'});if(error)throw error;toast('Friend request sent.');}
+ await openMemberProfile(p.id);
+ }catch(e){toast(errorText(e));}
+}
+async function startDMByUsername(username){try{const d=await api('/threads/dm','POST',{username});await loadThreads();await openThread(d.id);}catch(e){toast(errorText(e));}}
+async function loadPeople(){
+ if(!state.user)return;
+ try{const [profiles,requests]=await Promise.all([
+  sb.from('profiles').select('id,username,bio,avatar_url,id_verified').neq('id',state.user.id).order('username').limit(100),
+  sb.from('friend_requests').select('id,sender_id,recipient_id,status,created_at').or('sender_id.eq.'+state.user.id+',recipient_id.eq.'+state.user.id).order('created_at',{ascending:false}).limit(100)
+ ]);
+ if(profiles.error)throw profiles.error;if(requests.error)throw requests.error;
+ state.people=profiles.data||[];
+ const rows=requests.data||[];
+ const accepted=rows.filter(x=>x.status==='accepted');const incoming=rows.filter(x=>x.status==='pending'&&x.recipient_id===state.user.id);const outgoing=rows.filter(x=>x.status==='pending'&&x.sender_id===state.user.id);
+ const ids=[...new Set([...accepted.map(x=>x.sender_id===state.user.id?x.recipient_id:x.sender_id),...incoming.map(x=>x.sender_id),...outgoing.map(x=>x.recipient_id)])];
+ const {data:names,error:nameError}=ids.length?await sb.from('profiles').select('id,username,avatar_url').in('id',ids):{data:[],error:null};if(nameError)throw nameError;
+ const map=new Map((names||[]).map(x=>[x.id,x]));
+ state.friends=accepted.map(x=>({...x,person:map.get(x.sender_id===state.user.id?x.recipient_id:x.sender_id)}));
+ state.incomingRequests=incoming.map(x=>({...x,person:map.get(x.sender_id)}));
+ state.outgoingRequests=outgoing.map(x=>({...x,person:map.get(x.recipient_id)}));
+ if(state.page==='people')render();
+ }catch(e){toast(errorText(e));}
+}
+async function respondFriendRequest(id,status){try{const {error}=await sb.from('friend_requests').update({status,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error;toast(status==='accepted'?'Friend added.':'Request declined.');await loadPeople();}catch(e){toast(errorText(e));}}
+function renderPeople(){
+ const q=state.peopleQuery.trim().toLowerCase();const results=state.people.filter(p=>String(p.username||'').toLowerCase().includes(q));
+ const personCard=p=>{const fr=[...state.incomingRequests,...state.outgoingRequests,...state.friends].find(x=>x.sender_id===p.id||x.recipient_id===p.id);const isFollowing=state.peopleFollowing?.has(p.id);const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="">':'W';return '<article class="card people-card"><button class="people-person" data-person="'+escapeHTML(p.id)+'"><span class="profile-avatar">'+avatar+'</span><span><b>'+escapeHTML(p.username||'WIRED member')+'</b><small>'+escapeHTML(p.bio||'WIRED member')+'</small></span></button><div class="people-actions"><button class="ghost" data-follow="'+escapeHTML(p.id)+'">'+(isFollowing?'Following':'＋ Follow')+'</button><button class="ghost" data-friend="'+escapeHTML(p.id)+'">'+(fr?.status==='accepted'?'Friends':fr?.status==='pending'?(fr.sender_id===state.user.id?'Requested':'Accept request'):'Add friend')+'</button></div></article>';};
+ const list=(rows,empty)=>rows.length?rows.map(x=>'<div class="people-request"><span>'+escapeHTML(x.person?.username||'WIRED member')+'</span>'+(x.status==='pending'?'<button class="ghost" data-accept="'+x.id+'">Accept</button><button class="ghost" data-decline="'+x.id+'">Decline</button>':'')+'</div>').join(''):'<div class="empty">'+empty+'</div>';
+ const v=$('view');v.innerHTML='<div class="section-head"><h2>Global people</h2><p>Find and connect with WIRED members everywhere.</p></div><label class="field">Search profiles<input id="peopleSearch" type="search" value="'+escapeHTML(state.peopleQuery)+'" placeholder="Search usernames"></label><div class="people-grid">'+results.map(personCard).join('')+'</div><div class="section-head"><h2>Friend requests</h2></div><div class="card"><h3>Incoming</h3>'+list(state.incomingRequests,'No incoming requests.')+'<h3>Sent</h3>'+list(state.outgoingRequests,'No pending requests sent.')+'</div><div class="section-head"><h2>Your friends</h2></div><div class="card">'+(state.friends.length?state.friends.map(x=>'<div class="people-request"><span>'+escapeHTML(x.person?.username||'WIRED member')+'</span><button class="ghost" data-chat="'+escapeHTML(x.person?.username||'')+'">Message</button></div>').join(''):'<div class="empty">Your accepted friends will appear here.</div>')+'</div>';
+ $('peopleSearch')?.addEventListener('input',e=>{state.peopleQuery=e.target.value;renderPeople();const el=$('peopleSearch');el?.focus();el?.setSelectionRange(state.peopleQuery.length,state.peopleQuery.length);});
+ v.querySelectorAll('[data-person]').forEach(b=>b.addEventListener('click',()=>openMemberProfile(b.dataset.person)));
+ v.querySelectorAll('[data-follow]').forEach(b=>b.addEventListener('click',()=>toggleFollow(b.dataset.follow)));
+ v.querySelectorAll('[data-friend]').forEach(b=>b.addEventListener('click',()=>{const p=state.people.find(x=>x.id===b.dataset.friend);if(p)openMemberProfile(p.id).then(()=>handleProfileFriend(state.viewingProfile));}));
+ v.querySelectorAll('[data-accept]').forEach(b=>b.addEventListener('click',()=>respondFriendRequest(b.dataset.accept,'accepted')));
+ v.querySelectorAll('[data-decline]').forEach(b=>b.addEventListener('click',()=>respondFriendRequest(b.dataset.decline,'declined')));
+ v.querySelectorAll('[data-chat]').forEach(b=>b.addEventListener('click',()=>startDMByUsername(b.dataset.chat)));
 }
 function checkProfileImage(file){
  if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type))throw new Error("Choose a JPG, PNG, WEBP, or GIF image.");
@@ -91,7 +147,7 @@ async function refreshUser(){
   else {state.profile=null;state.communities=[];}
   render();
 }
-function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileGallery()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="people")loadPeople();if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileGallery()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 function communityCards(items){
@@ -143,7 +199,7 @@ function render(){
  if(state.page==="chats"){
   v.innerHTML=`<div class="section-head"><h2>Messages</h2></div>${state.user?`<div class="card form-card"><form id="dmForm"><label class="field">Start a direct message<input id="dmUsername" required placeholder="WIRED username"></label><button class="primary">Start chat</button></form><div class="divider"></div><form id="groupForm"><label class="field">Create a group chat<input id="groupUsernames" required placeholder="Enter usernames separated by commas"></label><p class="hint">Add at least two other WIRED members. You can include up to 49 people.</p><button class="primary">Create group chat</button></form></div><div class="section-head"><h2>Your conversations</h2></div><div class="grid">${state.threads.map(t=>`<article class="card"><h3>${escapeHTML(t.title||"Conversation")}</h3><p>${escapeHTML(t.last_body||"No messages yet")}</p><button class="ghost" data-open-thread="${escapeHTML(t.id)}">Open chat</button></article>`).join("")||`<div class="empty">No conversations yet.</div>`}</div>`:`<div class="empty">Log in to use WIRED messages.</div>`}`;
  }
- if(state.page==="member-profile"){renderMemberProfile();return;}
+ if(state.page==="member-profile"){renderMemberProfile();return;}\n if(state.page==="people"){renderPeople();return;}
  if(state.page==="profile"){
   v.innerHTML=`<div class="section-head"><h2>My profile</h2></div><div class="card profile-summary-card"><div class="profile-summary-avatar">${state.profile?.avatar_url?`<img src="${escapeHTML(state.profile.avatar_url)}" alt="Your profile photo">`:"W"}</div><h3>${state.user?escapeHTML(state.profile?.username||state.user.email):"Welcome to WIRED"} ${state.profile?.id_verified?`<span class="pill">✓ Verified</span>`:""}</h3><p class="muted">${state.user?escapeHTML(state.profile?.bio||"Your WIRED profile") :"Log in or create an account to set up your profile."}</p><button class="primary" id="profileAuth">${state.user?"Log out":"Log in / Sign up"}</button><div style="margin-top:20px"><span class="pill">18+ COMMUNITY</span> <span class="pill">OPTIONAL ID VERIFICATION</span></div><p class="hint">A verified badge only appears after a trusted identity provider confirms verification. That provider is not connected yet.</p>${state.user?`<div style="margin-top:20px"><button class="primary" id="editAccountBtn" type="button" aria-expanded="${state.editAccountOpen? "true":"false"}">${state.editAccountOpen?"Close account settings":"Edit account"}</button></div><div id="accountSettingsPanel" ${state.editAccountOpen?"":"hidden"}><div class="section-head"><h2>Account settings</h2></div><form id="usernameForm" class="settings-form"><label class="field">Username<input id="settingsUsername" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" value="${escapeHTML(state.profile?.username||"")}" autocomplete="username"></label><button class="primary">Save username</button></form><form id="emailForm" class="settings-form"><label class="field">Email address<input id="settingsEmail" type="email" required value="${escapeHTML(state.user.email||"")}" autocomplete="email"></label><button class="primary">Update email</button><p class="hint">Supabase will send a confirmation email before the new address takes effect.</p></form><form id="passwordForm" class="settings-form"><label class="field">New password<input id="settingsPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label><label class="field">Confirm new password<input id="settingsPasswordConfirm" type="password" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password"></label><button class="primary">Change password</button></form><p class="status" id="settingsStatus" aria-live="polite"></p></div>`:""}`;
  }
