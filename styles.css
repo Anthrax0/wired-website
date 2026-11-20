@@ -187,13 +187,29 @@
 @media(max-width:600px){.wired-amino-header{margin:-8px -10px 0;padding:8px 8px 0}.wired-community-identity{gap:14px;min-height:130px;padding:22px 8px 10px}.wired-community-avatar{width:116px;height:116px;border-radius:24px}.wired-community-title h1{font-size:30px;margin-bottom:28px}.wired-community-title>div{font-size:15px}.wired-community-title>div>b{font-size:23px}.wired-leaderboard{font-size:13px;padding:6px 8px}.wired-checkin{padding:18px 6px 24px}.wired-checkin h2{font-size:21px}.wired-community-tabs button{font-size:18px;padding:16px 13px}.wired-feed-heading h2{font-size:22px}}
 
 
-/* WIRED purple tech wallpaper — visible on mobile and desktop */
-html,body{min-height:100%;background-color:#07040d}
-body{background-image:url('public/images/wired-purple-tech.jpg')!important;background-size:cover!important;background-position:center top!important;background-repeat:no-repeat!important;background-attachment:scroll!important}
-#app{background:transparent!important}
-body:before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.12;background:radial-gradient(ellipse at 78% 8%,#a42cff35 0,transparent 36%)}
-#app{position:relative;z-index:1}
-
+/* WIRED purple tech atmosphere — smooth gradients, no stretched bitmap */
+html,body{min-height:100%;background:#090510}
+body{
+  background-color:#090510!important;
+  background-image:
+    radial-gradient(ellipse 70% 48% at 82% 4%,rgba(126,48,190,.28),transparent 72%),
+    radial-gradient(ellipse 58% 54% at 5% 38%,rgba(74,34,128,.22),transparent 76%),
+    radial-gradient(ellipse 70% 60% at 68% 100%,rgba(48,24,87,.24),transparent 74%),
+    linear-gradient(145deg,#08050f 0%,#10091c 48%,#090510 100%)!important;
+  background-attachment:scroll!important;
+}
+body:before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 42% 24% at 88% 22%,rgba(179,93,255,.10),transparent 72%),
+    radial-gradient(ellipse 35% 20% at 12% 76%,rgba(112,65,220,.09),transparent 75%);
+}
+body:after{
+  content:"";position:fixed;inset:-25%;z-index:0;pointer-events:none;opacity:.16;
+  background:linear-gradient(118deg,transparent 47%,rgba(182,119,255,.13) 48%,transparent 48.35%,transparent 67%,rgba(135,92,225,.10) 67.2%,transparent 67.55%);
+  filter:blur(1px);
+}
+#app{position:relative;z-index:1;background:transparent!important}
 /* Global profile discovery and social connections */
 .profile-social-actions,.people-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
 .people-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:16px 0 28px}
