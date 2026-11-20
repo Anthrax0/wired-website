@@ -1,3 +1,4 @@
+# Deploy from a fresh workflow run; do not retry only the failed job because Pages artifacts persist per run.
 name: Deploy WIRED website to GitHub Pages
 
 on:
