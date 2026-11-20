@@ -241,4 +241,4 @@ body:after{
 @media(max-width:480px){.discovery-people-search{padding:13px}.discover-person-open{font-size:10px}}
 
 /* Keep all primary destinations visible on narrow screens, including global People search. */
-@media(max-width:650px){.tabs{grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}.tab{font-size:9px;padding:7px 1px;white-space:nowrap}}
+@media(max-width:650px){.tabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}.tab{font-size:10px;padding:8px 2px;white-space:nowrap}}
