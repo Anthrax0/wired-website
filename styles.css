@@ -188,7 +188,7 @@
 
 
 /* WIRED purple tech atmosphere — use the actual generated wallpaper */
-body{background-color:#07040d;background-image:linear-gradient(180deg,#07040d55,#07040d88),url('/images/wired-purple-tech.jpg');background-size:cover;background-position:center top;background-repeat:no-repeat;background-attachment:fixed}
+body{background-color:#07040d;background-image:linear-gradient(180deg,#07040d55,#07040d88),url('public/images/wired-purple-tech.jpg');background-size:cover;background-position:center top;background-repeat:no-repeat;background-attachment:fixed}
 body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.28;background:radial-gradient(ellipse at 78% 8%,#a42cff35 0,transparent 36%),linear-gradient(125deg,transparent 42%,#a52aff10 44%,transparent 48%);filter:blur(12px)}
 
 /* Global profile discovery and social connections */
