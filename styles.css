@@ -307,10 +307,11 @@ body:after{z-index:0!important;opacity:.26!important}
 
 /* Profile social connections */
 .profile-social-section{margin:18px 0 20px}
-.profile-social-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.profile-social-count{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:72px;padding:10px 6px;border:1px solid #7540a1;border-radius:13px;background:linear-gradient(145deg,#21112f,#100a1b);color:#eadcf8;cursor:pointer}
-.profile-social-count strong{font-size:22px;line-height:1.1;color:#fff}
+.profile-social-counts{display:flex;flex-flow:row nowrap;align-items:stretch;gap:8px;width:100%}
+.profile-social-count{display:flex;flex:1 1 0;min-width:0;flex-direction:row;align-items:center;justify-content:center;gap:6px;min-height:54px;padding:9px 5px;border:1px solid #7540a1;border-radius:13px;background:linear-gradient(145deg,#21112f,#100a1b);color:#eadcf8;cursor:pointer;white-space:nowrap}
+.profile-social-count strong{font-size:20px;line-height:1.1;color:#fff}
 .profile-social-count span{font-size:12px;color:#c9a9e4}
+.profile-social-count small{display:none}
 .profile-social-count.active{border-color:#d17aff;box-shadow:0 0 16px #a52cff55,inset 0 0 18px #8525c933;background:linear-gradient(145deg,#3a1457,#1b0d2b)}
 .profile-social-list{margin-top:10px;border:1px solid #4d2a69;border-radius:13px;overflow:hidden;background:#100a19}
 .profile-social-person{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;border-bottom:1px solid #33203f;background:transparent;color:#f3e9ff;text-align:left;cursor:pointer}
@@ -319,7 +320,7 @@ body:after{z-index:0!important;opacity:.26!important}
 .profile-social-avatar{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;overflow:hidden;border-radius:50%;border:1px solid #b96cff;background:#29143d}
 .profile-social-avatar img{width:100%;height:100%;object-fit:cover}
 .profile-social-list .empty{padding:14px;margin:0}
-@media(max-width:380px){.profile-social-counts{gap:6px}.profile-social-count{min-height:66px}.profile-social-count strong{font-size:19px}.profile-social-count span{font-size:11px}}
+@media(max-width:380px){.profile-social-counts{gap:5px}.profile-social-count{min-height:48px;gap:4px;padding:8px 3px}.profile-social-count strong{font-size:17px}.profile-social-count span{font-size:10px}}
 
 
 /* WIRED profile About Me biography */
