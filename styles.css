@@ -205,3 +205,18 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .people-request{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .people-request:last-child{border-bottom:0}
 @media(max-width:620px){.people-card{align-items:flex-start;flex-direction:column}.people-actions{width:100%}.people-actions button{flex:1}}
+
+
+/* Discover page profile search */
+.discovery-people-search{margin:10px 0 28px;padding:18px;border:1px solid #6c3b91;border-radius:18px;background:linear-gradient(135deg,#1b1028dd,#100b19dd);box-shadow:0 10px 30px #0003}
+.discovery-people-search .section-head{margin:0 0 12px}
+.discovery-people-search .section-head h2{margin:0;font-size:21px}
+.discovery-people-search .field{display:block;max-width:100%;margin:0}
+.discover-person-result{display:flex;flex-direction:row;align-items:center;gap:12px;width:100%;min-width:0;text-align:left;color:var(--text);cursor:pointer}
+.discover-person-result .profile-avatar{width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:linear-gradient(145deg,#9b5cff,#32154b);font-weight:800}
+.discover-person-result .profile-avatar img{width:100%;height:100%;object-fit:cover}
+.discover-person-result>span:nth-child(2){display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
+.discover-person-result small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.discover-person-open{font-size:12px;color:#d4aaff;white-space:nowrap}
+.discover-person-result:hover{border-color:#b47aff;background:#21152f}
+@media(max-width:480px){.discovery-people-search{padding:13px}.discover-person-open{font-size:10px}}
