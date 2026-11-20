@@ -320,3 +320,15 @@ body:after{z-index:0!important;opacity:.26!important}
 .profile-social-avatar img{width:100%;height:100%;object-fit:cover}
 .profile-social-list .empty{padding:14px;margin:0}
 @media(max-width:380px){.profile-social-counts{gap:6px}.profile-social-count{min-height:66px}.profile-social-count strong{font-size:19px}.profile-social-count span{font-size:11px}}
+
+
+/* WIRED profile About Me biography */
+.profile-about{margin:18px 0;padding:16px;border:1px solid #70409a;border-radius:14px;background:linear-gradient(145deg,#1c1028,#100a19);box-shadow:inset 0 0 20px #7b26b51a}
+.profile-about h2,.profile-about h3{margin:0 0 10px;color:#f4eaff}
+.profile-about p{margin:0;color:#d0bedf;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.profile-about-own{margin-top:18px}
+.profile-bio-form{margin-top:14px}
+.profile-bio-form textarea{width:100%;min-height:112px;resize:vertical;padding:12px;border:1px solid #684184;border-radius:11px;background:#0c0813;color:#f5eaff;font:inherit;line-height:1.5}
+.profile-bio-form textarea:focus{outline:2px solid #b65bff;outline-offset:2px}
+.profile-bio-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px}
+.profile-bio-footer .hint{flex:1;min-width:160px;margin:0}
