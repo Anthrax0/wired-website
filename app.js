@@ -103,13 +103,15 @@ async function openMemberProfile(userId){
   const {data,error}=await sb.from('profiles').select('id,username,bio,avatar_url,cover_url,id_verified').eq('id',userId).maybeSingle();
   if(error)throw error;
   if(!data)throw new Error('This profile is unavailable.');
-  const [{data:images,error:imageError},{data:follow},{data:friend}] = await Promise.all([
+  const [{data:images,error:imageError},{data:follow},{data:friend},{data:relationship},{data:currentRelationship}] = await Promise.all([
    sb.from('profile_images').select('id,image_url,created_at').eq('user_id',userId).order('created_at',{ascending:false}).limit(30),
    sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle(),
-   sb.from('friend_requests').select('id,sender_id,recipient_id,status').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(sender_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').order('created_at',{ascending:false}).limit(1).maybeSingle()
+   sb.from('friend_requests').select('id,sender_id,recipient_id,status').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(sender_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').order('created_at',{ascending:false}).limit(1).maybeSingle(),
+   sb.from('relationship_requests').select('id,requester_id,recipient_id,status').or('and(requester_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').in('status',['pending','accepted']).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+   sb.from('relationship_requests').select('id,requester_id,recipient_id,status').or('and(requester_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').eq('status','accepted').limit(1).maybeSingle()
   ]);
   if(imageError)throw imageError;
-  state.viewingProfile={...data,images:images||[],isFollowing:!!follow,friendRequest:friend||null};state.page='member-profile';renderMemberProfile();
+  state.viewingProfile={...data,images:images||[],isFollowing:!!follow,friendRequest:friend||null,relationshipRequest:relationship||null,currentRelationship:currentRelationship||null};state.page='member-profile';renderMemberProfile();
  }catch(e){toast(errorText(e));}
 }
 function renderMemberProfile(){
@@ -117,11 +119,16 @@ function renderMemberProfile(){
  const v=$('view');const cover=p.cover_url?'url("'+escapeHTML(p.cover_url)+'")':'linear-gradient(120deg,#49246b,#171020 60%,#29133b)';
  const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="Profile photo">':'W';
  const fr=p.friendRequest;const friendLabel=fr?.status==='accepted'?'Friends':fr?.status==='pending'?(fr.sender_id===state.user?.id?'Request sent':'Respond to request'):'Add friend';
- v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card"><div class="profile-person"><div class="profile-avatar">'+avatar+'</div><div><h2>'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2></div></div><section class="profile-about"><h3>About me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><button class="ghost" id="profileFriendBtn">'+friendLabel+'</button>'+(fr?.status==='accepted'?'<button class="ghost" id="profileChatBtn">Message</button>':'')+'</div><div class="section-head"><h3>Photo gallery</h3></div><div class="profile-gallery">'+(p.images||[]).map(im=>'<a class="profile-gallery-item" href="'+escapeHTML(im.image_url)+'" target="_blank" rel="noopener"><img src="'+escapeHTML(im.image_url)+'" alt="Gallery photo" loading="lazy"></a>').join('')+'</div>'+(p.images?.length?'':'<div class="empty">No public photos yet.</div>')+'</section>';
+ v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card"><div class="profile-person"><div class="profile-avatar">'+avatar+'</div><div><h2>'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2></div></div>'+relationshipMarkup(p)+'<section class="profile-about"><h3>About me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><button class="ghost" id="profileFriendBtn">'+friendLabel+'</button>'+(fr?.status==='accepted'?'<button class="ghost" id="profileChatBtn">Message</button>':'')+'</div><div class="section-head"><h3>Photo gallery</h3></div><div class="profile-gallery">'+(p.images||[]).map(im=>'<a class="profile-gallery-item" href="'+escapeHTML(im.image_url)+'" target="_blank" rel="noopener"><img src="'+escapeHTML(im.image_url)+'" alt="Gallery photo" loading="lazy"></a>').join('')+'</div>'+(p.images?.length?'':'<div class="empty">No public photos yet.</div>')+'</section>';
  $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('people')});
  $('profileFollowBtn')?.addEventListener('click',()=>toggleFollow(p.id));
  $('profileFriendBtn')?.addEventListener('click',()=>handleProfileFriend(p));
  $('profileChatBtn')?.addEventListener('click',()=>startDMByUsername(p.username));
+ $('relationshipRequestBtn')?.addEventListener('click',()=>requestRelationship(p.id));
+ $('relationshipAcceptBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'accepted'));
+ $('relationshipDeclineBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'declined'));
+ $('relationshipCancelBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'ended'));
+ $('relationshipEndBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'ended'));
 }
 async function toggleFollow(userId){
  try{const {data:existing,error}=await sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle();if(error)throw error;
