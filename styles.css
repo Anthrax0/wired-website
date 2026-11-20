@@ -490,3 +490,6 @@ footer{border-color:#4b2864}
 .chat-composer textarea{flex:1;min-height:44px;max-height:130px;resize:vertical;margin:0;padding:12px;border:1px solid #7540a1;border-radius:13px;background:#09070f;color:#fff;font:inherit}
 .chat-composer button{min-height:44px;padding:0 19px}
 @media(max-width:600px){.chat-window{min-height:calc(100dvh - 155px);margin:0 -7px;border-radius:14px}.chat-window .chat-log{max-height:calc(100dvh - 305px);padding:12px}.chat-window-header{padding:11px 12px}.chat-composer{padding:9px}.chat-window .message-bubble{max-width:90%}}
+
+/* Chat list delete action */
+.chat-card-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}.chat-card-actions button{margin:0}.chat-delete{border:1px solid rgba(255,105,130,.48);border-radius:11px;padding:9px 14px;background:rgba(110,25,45,.22);color:#ffb7c5;font-weight:650;cursor:pointer}.chat-delete:hover{background:rgba(150,35,60,.35);border-color:#ff7893}
