@@ -556,3 +556,5 @@ footer{border-color:#4b2864}
 .relationship-end-dialog button{min-width:150px;padding:13px 28px;font-size:15px;font-weight:900;letter-spacing:.04em}
 @keyframes relationshipEndIn{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:480px){.relationship-end-dialog{padding:29px 20px 24px;border-radius:20px}}
+
+/* fresh Pages run: use a unique artifact for relationship-ended modal release */
