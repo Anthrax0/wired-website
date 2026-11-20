@@ -76,7 +76,7 @@
         script.src = sources[index];
         script.onload = function () {
           const app = document.createElement("script");
-          app.src = "app.js?v=32";
+          app.src = "app.js?v=34";
           app.onerror = function () {
             document.getElementById("view").innerHTML =
               '<div class="card"><h2>WIRED could not start</h2><p>The app script did not load. Please reload the page.</p><button class="primary" onclick="location.reload()">Reload WIRED</button></div>';
