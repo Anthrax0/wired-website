@@ -543,3 +543,5 @@ footer{border-color:#4b2864}
 .chat-request-actions button{font-size:12px;padding:7px 13px}
 .chat-request-status{display:block;padding:0 14px 12px 68px;color:#c084fc;font-size:11px;text-transform:uppercase;letter-spacing:.1em}
 @media(max-width:560px){.notification-open{padding:11px;gap:9px}.chat-request-actions{padding-left:62px}}
+
+/* deployment refresh: global chat request notifications */
