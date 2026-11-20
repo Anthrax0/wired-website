@@ -190,3 +190,18 @@
 /* WIRED purple tech atmosphere — use the actual generated wallpaper */
 body{background-color:#07040d;background-image:linear-gradient(180deg,#07040d55,#07040d88),url('/images/wired-purple-tech.jpg');background-size:cover;background-position:center top;background-repeat:no-repeat;background-attachment:fixed}
 body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.28;background:radial-gradient(ellipse at 78% 8%,#a42cff35 0,transparent 36%),linear-gradient(125deg,transparent 42%,#a52aff10 44%,transparent 48%);filter:blur(12px)}
+
+/* Global profile discovery and social connections */
+.profile-social-actions,.people-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+.people-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:16px 0 28px}
+.people-card{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.people-person{display:flex;align-items:center;gap:12px;min-width:0;text-align:left;background:none;border:0;color:inherit;cursor:pointer;padding:0}
+.people-person .profile-avatar{width:48px;height:48px;flex:0 0 48px}
+.people-person img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.people-person span:last-child{display:flex;flex-direction:column;min-width:0;gap:4px}
+.people-person small{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.people-actions{margin:0;justify-content:flex-end}
+.people-actions button,.people-request button{font-size:12px;padding:8px 10px}
+.people-request{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.people-request:last-child{border-bottom:0}
+@media(max-width:620px){.people-card{align-items:flex-start;flex-direction:column}.people-actions{width:100%}.people-actions button{flex:1}}
