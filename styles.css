@@ -469,3 +469,24 @@ footer{border-color:#4b2864}
 
 /* Compact relationship status displayed directly beneath profile names */
 .profile-person .profile-relationship-subtitle{margin:2px 0 5px!important;font-size:.82rem;line-height:1.35;font-weight:500;letter-spacing:.02em;color:#d9a7ff;text-shadow:0 0 10px rgba(191,91,255,.24)}
+
+
+/* Dedicated conversation window */
+.chat-window{display:flex;flex-direction:column;min-height:calc(100dvh - 190px);max-width:900px;margin:0 auto;border:1px solid rgba(185,103,255,.35);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#100b19,#09070f);box-shadow:0 0 28px rgba(157,67,235,.12)}
+.chat-window-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(185,103,255,.25);background:linear-gradient(110deg,#21112f,#100a19)}
+.chat-back{width:42px;height:42px;flex:none;border:1px solid #7540a1;border-radius:12px;background:#170e22;color:#f5eaff;font-size:32px;line-height:1;cursor:pointer}
+.chat-window-title{display:flex;align-items:center;gap:11px;min-width:0;flex:1}
+.chat-window-avatar{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:50%;background:linear-gradient(135deg,#9c42d7,#38205c);color:#fff;font-weight:900}
+.chat-window-title h2{margin:0;font-size:17px;overflow-wrap:anywhere}
+.chat-window-title p{margin:3px 0 0;color:#bba5cf;font-size:12px}
+.chat-window-indicator{width:9px;height:9px;flex:none;border-radius:50%;background:#9d5bdb;box-shadow:0 0 12px #a64ee7}
+.chat-window .chat-log{flex:1;min-height:260px;max-height:calc(100dvh - 340px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin:0;padding:18px}
+.chat-window .message-bubble{align-self:flex-start;max-width:min(82%,680px);padding:10px 13px;border:1px solid rgba(185,103,255,.22);border-radius:15px 15px 15px 4px;background:#21172d;color:#f4eafa}
+.chat-window .message-bubble.message-own{align-self:flex-end;border-color:rgba(173,91,240,.55);border-radius:15px 15px 4px 15px;background:#392052}
+.chat-window .message-bubble .meta{margin-bottom:5px;color:#c4acd8;font-size:11px}
+.chat-window .message-bubble p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-empty{margin:auto}
+.chat-composer{display:flex;align-items:flex-end;gap:10px;padding:12px;border-top:1px solid rgba(185,103,255,.25);background:#120c1b}
+.chat-composer textarea{flex:1;min-height:44px;max-height:130px;resize:vertical;margin:0;padding:12px;border:1px solid #7540a1;border-radius:13px;background:#09070f;color:#fff;font:inherit}
+.chat-composer button{min-height:44px;padding:0 19px}
+@media(max-width:600px){.chat-window{min-height:calc(100dvh - 155px);margin:0 -7px;border-radius:14px}.chat-window .chat-log{max-height:calc(100dvh - 305px);padding:12px}.chat-window-header{padding:11px 12px}.chat-composer{padding:9px}.chat-window .message-bubble{max-width:90%}}
