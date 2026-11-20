@@ -176,7 +176,7 @@
 .wired-checkin{text-align:center;padding:20px 8px 30px}.wired-checkin h2{font-size:23px;margin:0 0 22px}
 .wired-checkin-track{display:flex;align-items:center;justify-content:space-between;max-width:470px;margin:0 auto 22px;position:relative}
 .wired-checkin-track:before{content:"";height:7px;background:#777;position:absolute;left:8px;right:8px;top:50%;transform:translateY(-50%)}
-.wired-checkin-track span{width:22px;height:22px;border-radius:50%;background:#888;position:relative;border:3px solid #050505}.wired-checkin-track span:first-child{background:#fff;outline:5px solid #426b16}
+.wired-checkin-track span{width:22px;height:22px;border-radius:50%;background:#888;position:relative;border:3px solid #050505}.wired-checkin-track span:first-child{background:#fff;outline:5px solid #426b16}.wired-checkin-track span.earned{background:#48ce1c;border-color:#48ce1c}.wired-checkin-button:disabled{opacity:.58;cursor:not-allowed;box-shadow:none}.wired-checkin-button:not(:disabled){cursor:pointer}
 .wired-checkin-button{border:0;border-radius:12px;background:#48ce1c;color:white;font-size:21px;font-weight:800;padding:12px 48px;box-shadow:0 4px #2d9414}
 .wired-community-tabs{display:flex;gap:0;overflow-x:auto;white-space:nowrap;margin:14px -12px 0;padding:0 4px;scrollbar-width:none;border-bottom:1px solid #ffffff30}
 .wired-community-tabs button{position:relative;flex:none;border:0;background:transparent;color:#aaa;padding:17px 14px 18px;font-size:20px;font-weight:800}
