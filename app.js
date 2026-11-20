@@ -137,7 +137,7 @@ async function openNotification(id,actorId,type,commentId){
 }
 
 function showRelationshipEndedPopup(row){
- if(!state.user||!row||row.status!=="ended"||![row.requester_id,row.recipient_id].includes(state.user.id))return;
+ if(!state.user||!row||row.status!=="ended"||!row.ended_by||row.ended_by===state.user.id||![row.requester_id,row.recipient_id].includes(state.user.id))return;
  const key="wired-relationship-end-ack:"+state.user.id+":"+row.id;
  try{if(localStorage.getItem(key))return;}catch(e){}
  if(state.relationshipEndPopup?.id===row.id)return;
@@ -158,17 +158,17 @@ function subscribeRelationshipEnds(){
  state.relationshipEndChannel=sb.channel("relationship-ends-"+state.user.id)
   .on("postgres_changes",{event:"UPDATE",schema:"public",table:"relationship_requests"},payload=>{
    const row=payload.new;
-   if(row?.status==="ended"&&[row.requester_id,row.recipient_id].includes(state.user?.id))showRelationshipEndedPopup(row);
+   if(row?.status==="ended"&&row.ended_by&&row.ended_by!==state.user?.id&&[row.requester_id,row.recipient_id].includes(state.user?.id))showRelationshipEndedPopup(row);
   }).subscribe();
 }
 async function loadRelationshipData(){
  if(!state.user){state.relationshipRequests=[];state.activeRelationship=null;return;}
- const q=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,created_at,updated_at").or("requester_id.eq."+state.user.id+",recipient_id.eq."+state.user.id).order("created_at",{ascending:false});
+ const q=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,ended_by,created_at,updated_at").or("requester_id.eq."+state.user.id+",recipient_id.eq."+state.user.id).order("created_at",{ascending:false});
  if(q.error)throw q.error;const rows=q.data||[],ids=[...new Set(rows.map(r=>r.requester_id===state.user.id?r.recipient_id:r.requester_id))];
  const p=ids.length?await sb.from("profiles").select("id,username").in("id",ids):{data:[],error:null};if(p.error)throw p.error;
  const byId=new Map((p.data||[]).map(x=>[x.id,x]));state.relationshipRequests=rows.map(r=>({...r,person:byId.get(r.requester_id===state.user.id?r.recipient_id:r.requester_id)}));
  state.activeRelationship=state.relationshipRequests.find(r=>r.status==="accepted")||null;
- const ended=state.relationshipRequests.find(r=>r.status==="ended");if(ended)showRelationshipEndedPopup(ended);
+ const ended=state.relationshipRequests.find(r=>r.status==="ended"&&r.ended_by&&r.ended_by!==state.user.id);if(ended)showRelationshipEndedPopup(ended);
 }
 async function requestRelationship(id){try{
  await loadRelationshipData();
@@ -179,9 +179,9 @@ async function requestRelationship(id){try{
  toast("Relationship request sent.");await openMemberProfile(id);
 }catch(e){toast(errorText(e));}}
 async function relationshipAction(id,status){try{
- const q=await sb.from("relationship_requests").update({status:status,updated_at:new Date().toISOString()}).eq("id",id);if(q.error)throw q.error;
+ const q=await sb.from("relationship_requests").update({status:status,ended_by:status==="ended"?state.user.id:null,updated_at:new Date().toISOString()}).eq("id",id);if(q.error)throw q.error;
  toast(status==="accepted"?"Relationship confirmed on both profiles.":"Relationship status updated.");
- if(status==="ended"){const ended=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status").eq("id",id).maybeSingle();if(!ended.error)showRelationshipEndedPopup(ended.data);}
+ if(status==="ended"){const ended=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,ended_by").eq("id",id).maybeSingle();if(!ended.error)showRelationshipEndedPopup(ended.data);}
  if(state.page==="member-profile"&&state.viewingProfile)await openMemberProfile(state.viewingProfile.id);else{await loadRelationshipData();render();}
 }catch(e){toast(errorText(e));}}
 function myRelationshipMarkup(){
