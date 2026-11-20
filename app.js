@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{}};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -71,6 +71,62 @@ async function deleteProfileComment(commentId,profileId){
  toast("Comment deleted.");
  }catch(err){toast(errorText(err));}
 }
+
+async function loadGlobalNotifications(){
+ if(!state.user){state.notifications=[];state.notificationUnread=0;updateNotificationBell();return;}
+ const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
+ if(error)throw error;
+ const rows=data||[],actorIds=[...new Set(rows.map(x=>x.actor_id))],commentIds=[...new Set(rows.map(x=>x.profile_comment_id).filter(Boolean))];
+ const [actors,comments]=await Promise.all([
+  actorIds.length?sb.from("profiles").select("id,username,avatar_url").in("id",actorIds):{data:[],error:null},
+  commentIds.length?sb.from("profile_comments").select("id,body").in("id",commentIds):{data:[],error:null}
+ ]);
+ if(actors.error)throw actors.error;if(comments.error)throw comments.error;
+ const actorMap=new Map((actors.data||[]).map(x=>[x.id,x])),commentMap=new Map((comments.data||[]).map(x=>[x.id,x]));
+ state.notifications=rows.map(n=>({...n,actor:actorMap.get(n.actor_id)||{username:"WIRED member"},comment:commentMap.get(n.profile_comment_id)}));
+ state.notificationUnread=rows.filter(n=>!n.read_at).length;updateNotificationBell();
+}
+function updateNotificationBell(){
+ const b=$("notificationsBtn"),count=$("notificationCount");if(!b)return;
+ b.hidden=!state.user;
+ if(count){count.textContent=state.notificationUnread>99?"99+":String(state.notificationUnread);count.hidden=!state.notificationUnread;}
+}
+function subscribeGlobalNotifications(){
+ if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}
+ if(!state.user)return;
+ state.notificationChannel=sb.channel("global-notifications-"+state.user.id)
+  .on("postgres_changes",{event:"INSERT",schema:"public",table:"global_notifications",filter:"recipient_id=eq."+state.user.id},()=>{
+   loadGlobalNotifications().then(()=>{if(state.page==="notifications")renderNotifications();}).catch(e=>console.warn("Notifications refresh failed",e));
+  }).subscribe();
+}
+async function openNotifications(){
+ state.page="notifications";document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+ try{await loadGlobalNotifications();renderNotifications();}catch(e){toast(errorText(e));}
+}
+function renderNotifications(){
+ const v=$("view"),rows=state.notifications||[];
+ v.innerHTML='<div class="section-head"><div><h2>Global notifications</h2><p class="hint">Profile comments and new followers from across WIRED.</p></div><button class="ghost" id="markAllNotificationsRead" '+(state.notificationUnread?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
+  const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
+  const detail=isComment&&n.comment?.body?'<p class="notification-excerpt">'+escapeHTML(n.comment.body)+'</p>':'';
+  return '<button type="button" class="notification-item '+(n.read_at?'':'unread')+'" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>';
+ }).join(''):'<div class="empty">You\'re all caught up. New profile comments and followers will appear here.</div>')+'</div>';
+ v.querySelector("#markAllNotificationsRead")?.addEventListener("click",markAllNotificationsRead);
+ v.querySelectorAll("[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment)));
+}
+async function markAllNotificationsRead(){
+ if(!state.user)return;
+ const {error}=await sb.from("global_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",state.user.id).is("read_at",null);
+ if(error){toast(errorText(error));return;}await loadGlobalNotifications();renderNotifications();
+}
+async function openNotification(id,actorId,type,commentId){
+ const row=state.notifications.find(n=>n.id===id);
+ if(row&&!row.read_at){const {error}=await sb.from("global_notifications").update({read_at:new Date().toISOString()}).eq("id",id);if(error){toast(errorText(error));return;}await loadGlobalNotifications();}
+ if(type==="profile_comment"&&commentId){
+  state.page="profile";await Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).catch(()=>{});render();
+  setTimeout(()=>document.getElementById("profile-comment-"+commentId)?.scrollIntoView({behavior:"smooth",block:"center"}),120);
+ }else await openMemberProfile(actorId);
+}
+
 async function loadRelationshipData(){
  if(!state.user){state.relationshipRequests=[];state.activeRelationship=null;return;}
  const q=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,created_at").or("requester_id.eq."+state.user.id+",recipient_id.eq."+state.user.id).order("created_at",{ascending:false});
@@ -301,13 +357,14 @@ async function loadCommunities(){
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
   state.user=session?.user||null;
-  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));}
+  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();}
   else {state.profile=null;state.communities=[];}
   render();
 }
-function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="store")loadGlobalStore().then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="store")loadGlobalStore().then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
+$("notificationsBtn")?.addEventListener("click",openNotifications);
 function communityCards(items){
   if(!items.length)return `<div class="empty">No communities to show yet. Create the first one!</div>`;
   return '<div class="amino-community-grid">'+items.map(c=>{
@@ -370,7 +427,7 @@ function renderGlobalStore(){
 }
 function isGlobalThread(thread){return !thread.community_id&&!thread.communityId&&thread.type!=="community"&&thread.kind!=="community";}
 function render(){
- const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";
+ const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";updateNotificationBell();
  const v=$("view");
  if(state.page==="home"){
   v.innerHTML=`<div class="section-head"><h2>Your WIRED community</h2><span class="pill">18+ only</span></div><div class="grid"><article class="card"><span class="pill">WELCOME</span><h3>${state.user?`Welcome, ${escapeHTML(state.profile?.username||state.user.email||"member")}`:"Stay connected."}</h3><p>Make new friends, discover interests, and find your people.</p></article><article class="card"><span class="pill">DISCOVER</span><h3>Explore something new</h3><p>Browse communities built around what you love.</p><button class="ghost" data-go="discover">Explore →</button></article><article class="card"><span class="pill">CREATE</span><h3>Start a community</h3><p>Bring people together around a shared interest.</p><button class="ghost" data-go="create">Create community →</button></article></div><div class="section-head"><h2>Communities</h2></div>${state.user?`<div class="grid">${communityCards(state.communities.slice(0,3))}</div>`:`<div class="empty">Log in to discover and join WIRED communities.</div>`}`;
@@ -397,6 +454,7 @@ function render(){
  }
  if(state.page==="member-profile"){renderMemberProfile();return;}
   if(state.page==="profile-social"){renderProfileSocialPage();return;}
+ if(state.page==="notifications"){renderNotifications();return;}
  if(state.page==="people"){renderPeople();return;}
  if(state.page==="profile"){
   const cover=state.profile?.cover_url||""; const avatar=state.profile?.avatar_url||"";
@@ -619,8 +677,8 @@ async function savePassword(e){
  status.textContent=error?error.message:"Password updated successfully.";
  if(!error){$("settingsPassword").value="";$("settingsPasswordConfirm").value="";}
 }
-async function logout(){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}await sb.auth.signOut();state.user=null;state.profile=null;state.communities=[];state.threads=[];toast("Logged out.");nav("home")}
+async function logout(){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}if(state.notificationChannel){await sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}await sb.auth.signOut();state.user=null;state.profile=null;state.communities=[];state.threads=[];toast("Logged out.");nav("home")}
 sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setTimeout(()=>refreshUser().catch(e=>console.warn(e)),0)});
-async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});}render()}
+async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();}render()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 init().catch(e=>{console.error(e);render()});
