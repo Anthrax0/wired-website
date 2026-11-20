@@ -387,3 +387,11 @@ body:after{
 footer{border-color:#4b2864}
 .toast{border-color:#9856c8;box-shadow:0 0 20px #8d22d544}
 
+
+/* WIRED global store */
+.global-store-entry{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:18px 0 24px;padding:20px;border:1px solid #a43bea;background:linear-gradient(120deg,rgba(102,35,145,.22),rgba(10,7,20,.92))}
+.global-store-entry h2{margin:8px 0 4px}.global-store-entry p{margin:0;color:var(--muted,#b9a8cb);max-width:560px}
+.store-heading{margin-bottom:22px}.store-heading>.section-head{align-items:center}.store-wallet{display:grid;gap:5px;padding:12px 18px;border:1px solid #a43bea;border-radius:14px;background:#160c24;white-space:nowrap}.store-wallet span{font-size:.78rem;color:#c5a9dc}.store-wallet b{font-size:1.15rem;color:#e8caff}
+.store-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.store-item{display:flex;flex-direction:column;gap:10px}.store-item-art{height:130px;border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(190,53,255,.38),rgba(16,8,28,.96) 70%);border:1px solid rgba(190,53,255,.5);font-size:3rem;color:#e5b6ff;text-shadow:0 0 18px #b42cff}.store-item h3,.store-item p{margin:0}.store-item p{color:var(--muted,#b9a8cb);flex:1}.store-item-buy{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}.store-item-buy b{white-space:nowrap;color:#e7caff}.store-item-buy button:disabled{opacity:.45;cursor:not-allowed}
+.store-purchases{margin-top:32px}.store-purchase-row{display:flex;align-items:center;gap:12px;padding:12px 14px;margin:8px 0;border:1px solid rgba(175,80,230,.3);border-radius:12px;background:rgba(25,13,38,.7)}.store-purchase-icon{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#321344;color:#e8baff}.store-purchase-row div{display:grid;gap:3px;flex:1}.store-purchase-row small{color:var(--muted,#b9a8cb)}.store-purchase-row>span:last-child{font-size:.8rem;color:#c5a0dc}
+@media(max-width:560px){.global-store-entry{align-items:flex-start;flex-direction:column}.store-heading>.section-head{align-items:flex-start;flex-direction:column}.store-item-buy{align-items:flex-start;flex-direction:column}}
