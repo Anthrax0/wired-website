@@ -56,7 +56,34 @@
   </dialog>
   <div class="toast" id="toast" role="status"></div>
   <footer>WIRED is an adults-only community. Be respectful. Stay connected.</footer>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
-  <script src="app.js?v=30"></script>
+  <script>
+    (function () {
+      const sources = [
+        "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2",
+        "https://unpkg.com/@supabase/supabase-js@2.119.2/dist/umd/supabase.min.js"
+      ];
+      function loadSdk(index) {
+        if (index >= sources.length) {
+          document.getElementById("view").innerHTML =
+            '<div class="card"><h2>WIRED could not start</h2><p>The connection library did not load. Check your internet connection and reload this page.</p><button class="primary" onclick="location.reload()">Reload WIRED</button></div>';
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = sources[index];
+        script.onload = function () {
+          const app = document.createElement("script");
+          app.src = "app.js?v=31";
+          app.onerror = function () {
+            document.getElementById("view").innerHTML =
+              '<div class="card"><h2>WIRED could not start</h2><p>The app script did not load. Please reload the page.</p><button class="primary" onclick="location.reload()">Reload WIRED</button></div>';
+          };
+          document.body.appendChild(app);
+        };
+        script.onerror = function () { loadSdk(index + 1); };
+        document.head.appendChild(script);
+      }
+      loadSdk(0);
+    })();
+  </script>
 </body>
 </html>
