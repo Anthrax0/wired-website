@@ -32,6 +32,9 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "."
+      # The Pages artifact can take a few seconds to appear in GitHub's artifact metadata API.
+      - name: Wait for Pages artifact registration
+        run: sleep 15
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
