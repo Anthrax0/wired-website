@@ -32,6 +32,7 @@ async function loadRelationshipData(){
  state.activeRelationship=state.relationshipRequests.find(r=>r.status==="accepted")||null;
 }
 async function requestRelationship(id){try{
+ await loadRelationshipData();
  if(state.activeRelationship)throw new Error("End your current relationship first.");
  const f=await sb.from("friend_requests").select("id").eq("status","accepted").or("and(sender_id.eq."+state.user.id+",recipient_id.eq."+id+"),and(sender_id.eq."+id+",recipient_id.eq."+state.user.id+")").limit(1).maybeSingle();
  if(f.error)throw f.error;if(!f.data)throw new Error("You must be friends first.");
@@ -41,7 +42,7 @@ async function requestRelationship(id){try{
 async function relationshipAction(id,status){try{
  const q=await sb.from("relationship_requests").update({status:status,updated_at:new Date().toISOString()}).eq("id",id);if(q.error)throw q.error;
  toast(status==="accepted"?"Relationship confirmed on both profiles.":"Relationship status updated.");
- if(state.viewingProfile)await openMemberProfile(state.viewingProfile.id);else{await loadRelationshipData();render();}
+ if(state.page==="member-profile"&&state.viewingProfile)await openMemberProfile(state.viewingProfile.id);else{await loadRelationshipData();render();}
 }catch(e){toast(errorText(e));}}
 function myRelationshipMarkup(){
  const rows=state.relationshipRequests||[],active=state.activeRelationship;
