@@ -292,3 +292,14 @@ body:after{z-index:0!important;opacity:.26!important}
 .primary{box-shadow:0 0 18px #a020ff88,inset 0 0 12px #fff2!important}
 .ghost,.close{border-color:#9945d8!important;box-shadow:0 0 10px #8b28d933!important}
 @media(max-width:650px){.tabs{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important}.tab{flex:1!important;width:100%!important;text-align:center!important}}
+
+/* One unified profile surface */
+.profile-unified-card{display:block;padding:0;overflow:hidden}
+.profile-unified-card .profile-cover{margin:0;border:0;border-radius:0;height:155px}
+.profile-unified-content{padding:18px}
+.profile-unified-content .profile-person{display:flex;align-items:center;gap:14px;margin:0 0 16px}
+.profile-unified-content .profile-summary-avatar{width:82px;height:82px;flex:0 0 82px;grid-column:auto;grid-row:auto}
+.profile-unified-content .profile-person h3,.profile-unified-content .profile-person p{margin:0 0 6px}
+.profile-status-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.profile-unified-content #profileAuth{margin-top:8px}
+.profile-account-settings{margin-top:20px}
