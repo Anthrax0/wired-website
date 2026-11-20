@@ -332,3 +332,58 @@ body:after{z-index:0!important;opacity:.26!important}
 .profile-bio-form textarea:focus{outline:2px solid #b65bff;outline-offset:2px}
 .profile-bio-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px}
 .profile-bio-footer .hint{flex:1;min-width:160px;margin:0}
+
+/* WIRED purple/black cyberpunk refresh — smooth neon atmosphere, no pixel grid */
+:root{
+  color-scheme:dark;
+  --bg:#05030b;
+  --panel:#10091b;
+  --panel2:#1a0d2b;
+  --line:#54247d;
+  --purple:#a855f7;
+  --bright:#d8a2ff;
+  --text:#f8f2ff;
+  --muted:#b9a9c9;
+  --danger:#ff5c9a;
+}
+html,body{background:#05030b!important}
+body{
+  color:var(--text);
+  background-color:#05030b!important;
+  background-image:
+    radial-gradient(ellipse 78% 48% at 52% -8%,rgba(126,40,190,.34),transparent 72%),
+    radial-gradient(ellipse 48% 58% at 0% 38%,rgba(73,25,130,.22),transparent 76%),
+    radial-gradient(ellipse 52% 55% at 100% 78%,rgba(105,28,160,.19),transparent 76%),
+    linear-gradient(145deg,#07040e 0%,#0d0717 48%,#05030b 100%)!important;
+  background-attachment:scroll!important;
+}
+body:before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:1!important;
+  background:
+    radial-gradient(ellipse 34% 22% at 84% 22%,rgba(191,105,255,.10),transparent 75%),
+    radial-gradient(ellipse 38% 24% at 12% 76%,rgba(125,65,220,.09),transparent 76%),
+    linear-gradient(118deg,transparent 0 22%,rgba(177,87,255,.09) 22.1%,transparent 22.45% 70%,rgba(177,87,255,.07) 70.15%,transparent 70.5%);
+}
+body:after{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:1!important;
+  background:
+    linear-gradient(90deg,transparent 0 8%,rgba(171,91,255,.13) 8.05%,transparent 8.2%) 0 0/100% 100%,
+    radial-gradient(circle at 8% 18%,rgba(203,139,255,.34) 0 1px,transparent 3px),
+    radial-gradient(circle at 84% 22%,rgba(203,139,255,.28) 0 1px,transparent 3px),
+    radial-gradient(circle at 92% 78%,rgba(203,139,255,.25) 0 1px,transparent 3px);
+}
+#app{position:relative;z-index:1;background:transparent!important}
+.topbar{background:rgba(6,3,13,.91)!important;border-bottom:1px solid #8c43c477!important;box-shadow:0 5px 28px #6e20a522!important}
+.brand-icon{filter:drop-shadow(0 0 10px #a855f766)}
+.hero h1 span{background-image:linear-gradient(90deg,#edcaff,#bd72ff,#8738dc)}
+.primary{background:linear-gradient(110deg,#a855f7,#762ac5 58%,#45116f)!important;border:1px solid #c58aff;box-shadow:0 0 18px #9b42e955,inset 0 0 12px #ffffff12!important}
+.ghost,.close{border-color:#75439a;background:linear-gradient(145deg,#1a0d2a,#090611)}
+.card,.manager-panel,.manager-tile{background:linear-gradient(145deg,rgba(22,11,36,.96),rgba(8,5,15,.97))!important;border-color:#54247d!important}
+.tabs{border-color:#6d3695!important}
+.tab.active{color:#fff;border-color:#d18cff!important;box-shadow:inset 0 -9px 22px #8d32d522!important}
+.pill,.adult-tag{border-color:#8b4bb6;background:#642b9633;color:#eddbff}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:#c58aff;box-shadow:0 0 0 3px #a855f722}
+.community-action{border-color:#9856c8;background:linear-gradient(110deg,#1c102b,#0d0716)}
+footer{border-color:#4b2864}
+.toast{border-color:#9856c8;box-shadow:0 0 20px #8d22d544}
+
