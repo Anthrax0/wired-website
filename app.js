@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null,relationshipEndChannel:null,relationshipEndPopup:null};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -136,13 +136,39 @@ async function openNotification(id,actorId,type,commentId){
  }else await openMemberProfile(actorId);
 }
 
+function showRelationshipEndedPopup(row){
+ if(!state.user||!row||row.status!=="ended"||![row.requester_id,row.recipient_id].includes(state.user.id))return;
+ const key="wired-relationship-end-ack:"+state.user.id+":"+row.id;
+ try{if(localStorage.getItem(key))return;}catch(e){}
+ if(state.relationshipEndPopup?.id===row.id)return;
+ state.relationshipEndPopup={id:row.id,key};
+ const messages=["You've been dumped. 💔","Your subscription to this relationship has expired.","BREAKING NEWS: You've been dumped. Please remain calm."];
+ const message=messages[Math.floor(Math.random()*messages.length)];
+ document.getElementById("relationshipEndOverlay")?.remove();
+ document.body.insertAdjacentHTML("beforeend",'<div class="relationship-end-overlay" id="relationshipEndOverlay"><section class="relationship-end-dialog" role="alertdialog" aria-modal="true" aria-labelledby="relationshipEndTitle" aria-describedby="relationshipEndMessage"><div class="relationship-end-icon" aria-hidden="true">💔</div><p class="relationship-end-kicker">WIRED RELATIONSHIP UPDATE</p><h2 id="relationshipEndTitle">Relationship ended</h2><p id="relationshipEndMessage">'+escapeHTML(message)+'</p><button type="button" class="primary" id="relationshipEndAccept">Accept</button></section></div>');
+ document.getElementById("relationshipEndAccept")?.addEventListener("click",()=>{
+  try{localStorage.setItem(key,new Date().toISOString());}catch(e){}
+  state.relationshipEndPopup=null;
+  document.getElementById("relationshipEndOverlay")?.remove();
+ });
+}
+function subscribeRelationshipEnds(){
+ if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}
+ if(!state.user)return;
+ state.relationshipEndChannel=sb.channel("relationship-ends-"+state.user.id)
+  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"relationship_requests"},payload=>{
+   const row=payload.new;
+   if(row?.status==="ended"&&[row.requester_id,row.recipient_id].includes(state.user?.id))showRelationshipEndedPopup(row);
+  }).subscribe();
+}
 async function loadRelationshipData(){
  if(!state.user){state.relationshipRequests=[];state.activeRelationship=null;return;}
- const q=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,created_at").or("requester_id.eq."+state.user.id+",recipient_id.eq."+state.user.id).order("created_at",{ascending:false});
+ const q=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,created_at,updated_at").or("requester_id.eq."+state.user.id+",recipient_id.eq."+state.user.id).order("created_at",{ascending:false});
  if(q.error)throw q.error;const rows=q.data||[],ids=[...new Set(rows.map(r=>r.requester_id===state.user.id?r.recipient_id:r.requester_id))];
  const p=ids.length?await sb.from("profiles").select("id,username").in("id",ids):{data:[],error:null};if(p.error)throw p.error;
  const byId=new Map((p.data||[]).map(x=>[x.id,x]));state.relationshipRequests=rows.map(r=>({...r,person:byId.get(r.requester_id===state.user.id?r.recipient_id:r.requester_id)}));
  state.activeRelationship=state.relationshipRequests.find(r=>r.status==="accepted")||null;
+ const ended=state.relationshipRequests.find(r=>r.status==="ended");if(ended)showRelationshipEndedPopup(ended);
 }
 async function requestRelationship(id){try{
  await loadRelationshipData();
@@ -155,6 +181,7 @@ async function requestRelationship(id){try{
 async function relationshipAction(id,status){try{
  const q=await sb.from("relationship_requests").update({status:status,updated_at:new Date().toISOString()}).eq("id",id);if(q.error)throw q.error;
  toast(status==="accepted"?"Relationship confirmed on both profiles.":"Relationship status updated.");
+ if(status==="ended"){const ended=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status").eq("id",id).maybeSingle();if(!ended.error)showRelationshipEndedPopup(ended.data);}
  if(state.page==="member-profile"&&state.viewingProfile)await openMemberProfile(state.viewingProfile.id);else{await loadRelationshipData();render();}
 }catch(e){toast(errorText(e));}}
 function myRelationshipMarkup(){
@@ -366,8 +393,8 @@ async function loadCommunities(){
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
   state.user=session?.user||null;
-  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();}
-  else {state.profile=null;state.communities=[];}
+  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();subscribeRelationshipEnds();await loadRelationshipData().catch(e=>console.warn("Relationship data unavailable",e));}
+  else {if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}state.relationshipEndPopup=null;document.getElementById("relationshipEndOverlay")?.remove();state.profile=null;state.communities=[];}
   render();
 }
 function nav(page){if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="store")loadGlobalStore().then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).then(render).catch(e=>toast(errorText(e)));}
@@ -688,6 +715,6 @@ async function savePassword(e){
 }
 async function logout(){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}if(state.notificationChannel){await sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}await sb.auth.signOut();state.user=null;state.profile=null;state.communities=[];state.threads=[];toast("Logged out.");nav("home")}
 sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setTimeout(()=>refreshUser().catch(e=>console.warn(e)),0)});
-async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();}render()}
+async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();subscribeRelationshipEnds();await loadRelationshipData().catch(()=>{});}render()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 init().catch(e=>{console.error(e);render()});
