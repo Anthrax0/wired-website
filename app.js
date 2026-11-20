@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following"};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -22,6 +22,34 @@ async function loadProfile(){
   if(!state.user){state.profile=null;return;}
   const {data,error}=await sb.from("profiles").select("username,id_verified,bio,avatar_url,cover_url").eq("id",state.user.id).maybeSingle();
   if(error) throw error; state.profile=data;
+}
+async function loadRelationshipData(){
+ if(!state.user){state.relationshipRequests=[];state.activeRelationship=null;return;}
+ const q=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,created_at").or("requester_id.eq."+state.user.id+",recipient_id.eq."+state.user.id).order("created_at",{ascending:false});
+ if(q.error)throw q.error;const rows=q.data||[],ids=[...new Set(rows.map(r=>r.requester_id===state.user.id?r.recipient_id:r.requester_id))];
+ const p=ids.length?await sb.from("profiles").select("id,username").in("id",ids):{data:[],error:null};if(p.error)throw p.error;
+ const byId=new Map((p.data||[]).map(x=>[x.id,x]));state.relationshipRequests=rows.map(r=>({...r,person:byId.get(r.requester_id===state.user.id?r.recipient_id:r.requester_id)}));
+ state.activeRelationship=state.relationshipRequests.find(r=>r.status==="accepted")||null;
+}
+async function requestRelationship(id){try{
+ if(state.activeRelationship)throw new Error("End your current relationship first.");
+ const f=await sb.from("friend_requests").select("id").eq("status","accepted").or("and(sender_id.eq."+state.user.id+",recipient_id.eq."+id+"),and(sender_id.eq."+id+",recipient_id.eq."+state.user.id+")").limit(1).maybeSingle();
+ if(f.error)throw f.error;if(!f.data)throw new Error("You must be friends first.");
+ const q=await sb.from("relationship_requests").insert({requester_id:state.user.id,recipient_id:id,status:"pending"});if(q.error)throw q.error;
+ toast("Relationship request sent.");await openMemberProfile(id);
+}catch(e){toast(errorText(e));}}
+async function relationshipAction(id,status){try{
+ const q=await sb.from("relationship_requests").update({status:status,updated_at:new Date().toISOString()}).eq("id",id);if(q.error)throw q.error;
+ toast(status==="accepted"?"Relationship confirmed on both profiles.":"Relationship status updated.");
+ if(state.viewingProfile)await openMemberProfile(state.viewingProfile.id);else{await loadRelationshipData();render();}
+}catch(e){toast(errorText(e));}}
+function relationshipMarkup(p){
+ const r=p.relationshipRequest;
+ if(r&&r.status==="accepted")return '<section class="profile-relationship"><h3>In a relationship</h3><p>Mutually confirmed with this member.</p>'+(p.currentRelationship&&p.currentRelationship.id===r.id?'<button class="ghost" id="relationshipEndBtn">End relationship</button>':'')+'</section>';
+ if(r&&r.status==="pending"&&r.recipient_id===state.user.id)return '<section class="profile-relationship"><h3>Relationship request</h3><button class="primary" id="relationshipAcceptBtn">Accept</button><button class="ghost" id="relationshipDeclineBtn">Decline</button></section>';
+ if(r&&r.status==="pending")return '<section class="profile-relationship"><h3>Relationship request sent</h3><button class="ghost" id="relationshipCancelBtn">Cancel</button></section>';
+ if(p.friendRequest&&p.friendRequest.status==="accepted"&&!p.currentRelationship)return '<section class="profile-relationship"><h3>Relationship status</h3><button class="ghost" id="relationshipRequestBtn">Request relationship</button></section>';
+ return "";
 }
 async function loadProfileGallery(){
  if(!state.user){state.profileImages=[];return;}
@@ -202,7 +230,7 @@ async function refreshUser(){
   else {state.profile=null;state.communities=[];}
   render();
 }
-function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileGallery(),loadProfileSocial()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileGallery(),loadProfileSocial(),loadRelationshipData()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 function communityCards(items){
