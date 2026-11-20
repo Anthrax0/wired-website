@@ -74,7 +74,7 @@ async function deleteProfileComment(commentId,profileId){
 
 async function loadGlobalNotifications(){
  if(!state.user){state.notifications=[];state.notificationUnread=0;updateNotificationBell();return;}
- const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
+ const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,thread_id,request_status,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
  if(error)throw error;
  const rows=data||[],actorIds=[...new Set(rows.map(x=>x.actor_id))],commentIds=[...new Set(rows.map(x=>x.profile_comment_id).filter(Boolean))];
  const [actors,comments]=await Promise.all([
@@ -107,12 +107,21 @@ function renderNotifications(){
  const v=$("view"),rows=state.notifications||[];
  v.innerHTML='<div class="section-head"><div><h2>Global notifications</h2><p class="hint">Profile comments and new followers from across WIRED.</p></div><button class="ghost" id="markAllNotificationsRead" '+(state.notificationUnread?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
   const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
+  const isChat=n.notification_type==="global_chat_request";
   const detail=isComment&&n.comment?.body?'<p class="notification-excerpt">'+escapeHTML(n.comment.body)+'</p>':'';
-  return '<button type="button" class="notification-item '+(n.read_at?'':'unread')+'" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>';
+  return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isChat?'invited you to a global chat':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isChat?'CHAT REQUEST':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
  }).join(''):'<div class="empty">You\'re all caught up. New profile comments and followers will appear here.</div>')+'</div>';
  v.querySelector("#markAllNotificationsRead")?.addEventListener("click",markAllNotificationsRead);
- v.querySelectorAll("[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment)));
+ v.querySelectorAll(".notification-open[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment)));
+ v.querySelectorAll("[data-chat-request]").forEach(b=>b.addEventListener("click",()=>respondToGlobalChatRequest(b.dataset.chatRequest,b.dataset.thread,b.dataset.status,b)));
 }
+async function respondToGlobalChatRequest(notificationId,threadId,status,button){
+ if(!notificationId||!threadId||!['accepted','declined'].includes(status))return;
+ if(button){button.disabled=true;button.textContent=status==='accepted'?'Accepting…':'Declining…';}
+ try{await api('/threads/'+encodeURIComponent(threadId)+'/request','POST',{notification_id:notificationId,status});await loadGlobalNotifications();renderNotifications();if(status==='accepted'){await loadThreads();state.page='chats';await openThread(threadId);toast('You joined the global chat.');}else toast('Chat request declined.');}
+ catch(e){if(button){button.disabled=false;button.textContent=status==='accepted'?'Accept':'Decline';}toast(errorText(e));}
+}
+
 async function markAllNotificationsRead(){
  if(!state.user)return;
  const {error}=await sb.from("global_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",state.user.id).is("read_at",null);
