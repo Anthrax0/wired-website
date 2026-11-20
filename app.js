@@ -26,18 +26,21 @@ async function loadProfile(){
 }
 async function loadProfileComments(profileId){
  if(!profileId)return [];
- const {data,error}=await sb.from("profile_comments").select("id,profile_id,author_id,body,created_at").eq("profile_id",profileId).order("created_at",{ascending:false}).limit(100);
+ const {data,error}=await sb.from("profile_comments").select("id,profile_id,author_id,body,created_at,parent_comment_id").eq("profile_id",profileId).order("created_at",{ascending:true}).limit(300);
  if(error)throw error;const rows=data||[],ids=[...new Set(rows.map(x=>x.author_id))];
  const {data:authors,error:authorError}=ids.length?await sb.from("profiles").select("id,username,avatar_url").in("id",ids):{data:[],error:null};
  if(authorError)throw authorError;const byId=new Map((authors||[]).map(x=>[x.id,x]));
  return rows.map(x=>({...x,author:byId.get(x.author_id)||{username:"WIRED member"}}));
 }
 function profileCommentsMarkup(profileId,comments){
- const rows=comments||[];
- return '<section class="profile-comments" aria-label="Profile comments"><div class="section-head"><h3>Comments</h3><span class="hint">'+rows.length+' '+(rows.length===1?'comment':'comments')+'</span></div>'+(state.user?'<form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" required placeholder="Write a comment on this profile…"></textarea></label><div class="profile-comment-footer"><span class="hint">Be respectful. Up to 1,000 characters.</span><button class="primary" type="submit">Post comment</button></div></form>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(rows.length?rows.map(x=>'<article class="profile-comment"><div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+(state.user&&(state.user.id===x.author_id||state.user.id===profileId)?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+escapeHTML(x.id)+'" aria-label="Delete comment">Delete</button>':'')+'</div><p>'+escapeHTML(x.body)+'</p></article>').join(''):'<p class="empty">No comments yet. Start the conversation.</p>')+'</div></section>';
+ const rows=comments||[],roots=rows.filter(x=>!x.parent_comment_id),replyCount=rows.filter(x=>x.parent_comment_id).length;
+ const renderOne=x=>'<article class="profile-comment" id="profile-comment-'+escapeHTML(x.id)+'"><div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+(state.user&&(state.user.id===x.author_id||state.user.id===profileId)?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+escapeHTML(x.id)+'" aria-label="Delete comment">Delete</button>':'')+'</div><p>'+escapeHTML(x.body)+'</p>'+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+escapeHTML(x.id)+'">Reply</button><form class="profile-reply-form" data-reply-form="'+escapeHTML(x.id)+'" hidden><textarea name="body" maxlength="1000" rows="2" required placeholder="Write a reply…"></textarea><div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'<div class="profile-comment-replies">'+rows.filter(r=>r.parent_comment_id===x.id).map(r=>'<article class="profile-comment profile-comment-reply-item"><div class="profile-comment-top"><strong>'+escapeHTML(r.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(r.created_at).toLocaleString())+'</time>'+(state.user&&(state.user.id===r.author_id||state.user.id===profileId)?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+escapeHTML(r.id)+'" aria-label="Delete reply">Delete</button>':'')+'</div><p>'+escapeHTML(r.body)+'</p></article>').join('')+'</div></article>';
+ return '<section class="profile-comments" aria-label="Profile comments"><div class="section-head"><h3>Comments</h3><span class="hint">'+roots.length+' '+(roots.length===1?'comment':'comments')+' · '+replyCount+' '+(replyCount===1?'reply':'replies')+'</span></div>'+(state.user?'<form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" required placeholder="Write a comment on this profile…"></textarea></label><div class="profile-comment-footer"><span class="hint">Be respectful. Up to 1,000 characters.</span><button class="primary" type="submit">Post comment</button></div></form>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(roots.length?roots.map(renderOne).join(''):'<p class="empty">No comments yet. Start the conversation.</p>')+'</div></section>';
 }
 function attachProfileCommentHandlers(profileId){
  $("profileCommentForm")?.addEventListener("submit",e=>postProfileComment(e,profileId));
+ document.querySelectorAll("[data-show-reply]").forEach(b=>b.addEventListener("click",()=>{const f=document.querySelector('[data-reply-form="'+CSS.escape(b.dataset.showReply)+'"]');if(f){f.hidden=!f.hidden;if(!f.hidden)f.querySelector("textarea")?.focus();}}));
+ document.querySelectorAll("[data-reply-form]").forEach(f=>f.addEventListener("submit",e=>postProfileCommentReply(e,profileId)));
  document.querySelectorAll("[data-delete-profile-comment]").forEach(b=>b.addEventListener("click",()=>deleteProfileComment(b.dataset.deleteProfileComment,profileId)));
 }
 async function postProfileComment(e,profileId){
@@ -49,6 +52,16 @@ async function postProfileComment(e,profileId){
  else if(state.page==="profile"&&state.user.id===profileId){state.profileComments=comments;render();}
  toast("Comment posted.");
  }catch(err){toast(errorText(err));if(button){button.disabled=false;button.textContent="Post comment";}}
+}
+async function postProfileCommentReply(e,profileId){
+ e.preventDefault();if(!state.user)return;const form=e.currentTarget,body=form.elements.body?.value.trim(),parentId=form.dataset.replyForm;if(!body||!parentId)return;
+ const button=form.querySelector('button[type="submit"]');if(button){button.disabled=true;button.textContent="Sending…";}
+ try{const {error}=await sb.from("profile_comments").insert({profile_id:profileId,author_id:state.user.id,body,parent_comment_id:parentId});if(error)throw error;
+ const comments=await loadProfileComments(profileId);
+ if(state.page==="member-profile"&&state.viewingProfile?.id===profileId){state.viewingProfile.comments=comments;renderMemberProfile();}
+ else if(state.page==="profile"&&state.user.id===profileId){state.profileComments=comments;render();}
+ toast("Reply posted.");
+ }catch(err){toast(errorText(err));if(button){button.disabled=false;button.textContent="Send reply";}}
 }
 async function deleteProfileComment(commentId,profileId){
  if(!commentId||!confirm("Delete this profile comment?"))return;
@@ -157,7 +170,7 @@ async function openMemberProfile(userId){
   if(error)throw error;
   if(!data)throw new Error('This profile is unavailable.');
   const [{data:comments,error:commentError},{data:follow},{data:friend},{data:relationship},{data:currentRelationship}] = await Promise.all([
-   sb.from('profile_comments').select('id,profile_id,author_id,body,created_at').eq('profile_id',userId).order('created_at',{ascending:false}).limit(100),
+   sb.from('profile_comments') .select('id,profile_id,author_id,body,created_at,parent_comment_id').eq('profile_id',userId).order('created_at',{ascending:false}).limit(100),
    sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle(),
    sb.from('friend_requests').select('id,sender_id,recipient_id,status').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(sender_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').order('created_at',{ascending:false}).limit(1).maybeSingle(),
    sb.from('relationship_requests').select('id,requester_id,recipient_id,status').or('and(requester_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').in('status',['pending','accepted']).order('created_at',{ascending:false}).limit(1).maybeSingle(),
