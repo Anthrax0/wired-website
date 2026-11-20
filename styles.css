@@ -402,3 +402,27 @@ footer{border-color:#4b2864}
 .equipped-nameplate{display:inline-block;padding:5px 12px;border:1px solid #ce70ff;border-radius:10px;background:linear-gradient(100deg,rgba(75,24,110,.8),rgba(20,10,35,.9));box-shadow:0 0 12px rgba(181,65,255,.38);color:#f2d7ff!important}
 .equipped-violet-theme{color:#e9baff!important;text-shadow:0 0 12px rgba(185,82,255,.72)}
 .store-purchase-row button[data-store-equip]{min-width:82px}
+
+
+/* Distinct visual treatments for WIRED store cosmetics */
+.store-art-frame{background:radial-gradient(circle,#32104b 0%,#090611 72%)!important;border:1px solid #e35cff!important}
+.cosmetic-preview-frame{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;border:5px solid #f05cff;outline:3px solid #9d36ff;box-shadow:0 0 10px #f05cff,0 0 26px #a32bff,inset 0 0 16px #a32bff;color:#fff;font-size:2rem;font-weight:900}
+.store-art-nameplate{background:linear-gradient(135deg,#101a2d,#263c52 48%,#090611)!important;border:1px solid #53d8ff!important}
+.cosmetic-preview-nameplate{padding:14px 18px;border:2px solid #5ce5ff;border-radius:5px;background:linear-gradient(110deg,#102a3c,#31465c 48%,#101522);box-shadow:0 0 16px #27cfff;color:#e8fbff;font-size:1.15rem;font-weight:950;letter-spacing:.13em;text-shadow:0 0 8px #45dfff}
+.cosmetic-preview-nameplate span{color:#f05cff}
+.store-art-theme{background:radial-gradient(ellipse at 20% 15%,#7628a8,#211039 45%,#07050e)!important;border:1px solid #b66cff!important}
+.cosmetic-preview-theme{width:82px;height:76px;padding:10px;display:flex;flex-direction:column;gap:6px;border:1px solid #c68cff;border-radius:10px;background:linear-gradient(145deg,#321052,#090611);box-shadow:0 0 20px #8d35d9}
+.cosmetic-preview-theme i{display:block;height:12px;border-radius:4px;background:linear-gradient(90deg,#c15cff,#54218b 70%,#130a20)}
+.cosmetic-preview-theme i:nth-child(2){width:75%;background:linear-gradient(90deg,#8d52ff,#2b1550)}
+.cosmetic-preview-theme i:nth-child(3){width:55%;background:linear-gradient(90deg,#e18cff,#58238d)}
+.profile-summary-avatar.equipped-neon-frame{border:5px solid #f05cff!important;outline:3px solid #9d36ff;box-shadow:0 0 12px #f05cff,0 0 28px #a32bff!important}
+.equipped-profile-theme{background:radial-gradient(ellipse at 15% 0%,rgba(133,43,190,.42),transparent 52%),linear-gradient(145deg,#160b27,#080610 75%)!important;border:1px solid #a855e8!important;box-shadow:inset 0 0 35px rgba(143,54,211,.2),0 0 22px rgba(143,54,211,.2)!important}
+.equipped-profile-theme .profile-cover{background-image:linear-gradient(110deg,rgba(120,40,180,.8),rgba(7,5,15,.3),rgba(70,20,110,.7))!important}
+.equipped-profile-theme .profile-about{border-color:#a855e8}
+.purchase-frame .store-purchase-icon{border:2px solid #f05cff;box-shadow:0 0 12px #b62cff}
+.purchase-nameplate .store-purchase-icon{border-radius:6px;border:1px solid #53d8ff;background:#102a3c;color:#e8fbff}
+.purchase-theme .store-purchase-icon{border-radius:9px;border:1px solid #b66cff;background:linear-gradient(145deg,#321052,#090611)}
+.store-purchase-icon .cosmetic-preview-frame{width:30px;height:30px;font-size:.8rem;border-width:2px;outline-width:1px}
+.store-purchase-icon .cosmetic-preview-nameplate{font-size:.48rem;padding:4px;letter-spacing:0}
+.store-purchase-icon .cosmetic-preview-theme{width:28px;height:28px;padding:3px;gap:2px;border-radius:4px}
+.store-purchase-icon .cosmetic-preview-theme i{height:4px}
