@@ -332,7 +332,8 @@ function render(){
  if(state.page==="chats"){
   v.innerHTML=`<div class="section-head"><h2>Messages</h2></div>${state.user?`<div class="card form-card"><form id="dmForm"><label class="field">Start a direct message<input id="dmUsername" required placeholder="WIRED username"></label><button class="primary">Start chat</button></form><div class="divider"></div><form id="groupForm"><label class="field">Create a group chat<input id="groupUsernames" required placeholder="Enter usernames separated by commas"></label><p class="hint">Add at least two other WIRED members. You can include up to 49 people.</p><button class="primary">Create group chat</button></form></div><div class="section-head"><h2>Global chats</h2></div><div class="grid">${state.threads.filter(isGlobalThread).map(t=>`<article class="card"><h3>${escapeHTML(t.title||"Conversation")}</h3><p>${escapeHTML(t.last_body||"No messages yet")}</p><button class="ghost" data-open-thread="${escapeHTML(t.id)}">Open chat</button></article>`).join("")||`<div class="empty">No global chats yet. Start a direct message or group chat above.</div>`}</div>`:`<div class="empty">Log in to use WIRED messages.</div>`}`;
  }
- if(state.page==="member-profile"){renderMemberProfile();return;}\n  if(state.page==="profile-social"){renderProfileSocialPage();return;}
+ if(state.page==="member-profile"){renderMemberProfile();return;}
+  if(state.page==="profile-social"){renderProfileSocialPage();return;}
  if(state.page==="people"){renderPeople();return;}
  if(state.page==="profile"){
   const cover=state.profile?.cover_url||""; const avatar=state.profile?.avatar_url||"";
