@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[]};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[]};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -72,6 +72,19 @@ async function handleProfileFriend(p){
  }catch(e){toast(errorText(e));}
 }
 async function startDMByUsername(username){try{const d=await api('/threads/dm','POST',{username});await loadThreads();await openThread(d.id);}catch(e){toast(errorText(e));}}
+async function searchGlobalPeople(query,scope="people"){
+ const key=scope==="discover"?"discoverPeopleSearchRequest":"peopleSearchRequest";
+ const token=(state[key]||0)+1;state[key]=token;
+ try{
+  const {data,error}=await sb.from("profiles").select("id,username,bio,avatar_url,id_verified").neq("id",state.user.id).ilike("username","%"+query.trim()+"%").order("username").limit(50);
+  if(error)throw error;
+  if(state[key]!==token)return;
+  if(scope==="discover"){state.discoverPeopleResults=data||[];renderDiscoverPeople();}
+  else{state.peopleSearchResults=data||[];renderPeople();}
+  const input=$(scope==="discover"?"discoverPeopleSearch":"peopleSearch");
+  if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length);}
+ }catch(e){toast(errorText(e));}
+}
 async function loadPeople(){
  if(!state.user)return;
  try{const [profiles,requests]=await Promise.all([
@@ -95,7 +108,7 @@ async function loadPeople(){
 async function respondFriendRequest(id,status){try{const {error}=await sb.from('friend_requests').update({status,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error;toast(status==='accepted'?'Friend added.':'Request declined.');await loadPeople();}catch(e){toast(errorText(e));}}
 function renderPeople(){
  if(!state.user){$('view').innerHTML='<div class="empty">Log in to discover global WIRED profiles and connect with people.</div>';return;}
- const q=state.peopleQuery.trim().toLowerCase();const results=state.people.filter(p=>String(p.username||'').toLowerCase().includes(q));
+ const q=state.peopleQuery.trim().toLowerCase();const results=(state.peopleSearchResults||state.people).filter(p=>String(p.username||'').toLowerCase().includes(q));
  const personCard=p=>{const fr=[...state.incomingRequests,...state.outgoingRequests,...state.friends].find(x=>x.sender_id===p.id||x.recipient_id===p.id);const isFollowing=state.peopleFollowing?.has(p.id);const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="">':'W';return '<article class="card people-card"><button class="people-person" data-person="'+escapeHTML(p.id)+'"><span class="profile-avatar">'+avatar+'</span><span><b>'+escapeHTML(p.username||'WIRED member')+'</b><small>'+escapeHTML(p.bio||'WIRED member')+'</small></span></button><div class="people-actions"><button class="ghost" data-follow="'+escapeHTML(p.id)+'">'+(isFollowing?'Following':'＋ Follow')+'</button><button class="ghost" data-friend="'+escapeHTML(p.id)+'">'+(fr?.status==='accepted'?'Friends':fr?.status==='pending'?(fr.sender_id===state.user.id?'Requested':'Accept request'):'Add friend')+'</button></div></article>';};
  const list=(rows,empty)=>rows.length?rows.map(x=>'<div class="people-request"><span>'+escapeHTML(x.person?.username||'WIRED member')+'</span>'+(x.status==='pending'?'<button class="ghost" data-accept="'+x.id+'">Accept</button><button class="ghost" data-decline="'+x.id+'">Decline</button>':'')+'</div>').join(''):'<div class="empty">'+empty+'</div>';
  const v=$('view');v.innerHTML='<div class="section-head"><h2>Global people</h2><p>Find and connect with WIRED members everywhere.</p></div><label class="field">Search profiles<input id="peopleSearch" type="search" value="'+escapeHTML(state.peopleQuery)+'" placeholder="Search usernames"></label><div class="people-grid">'+results.map(personCard).join('')+'</div><div class="section-head"><h2>Friend requests</h2></div><div class="card"><h3>Incoming</h3>'+list(state.incomingRequests,'No incoming requests.')+'<h3>Sent</h3>'+list(state.outgoingRequests,'No pending requests sent.')+'</div><div class="section-head"><h2>Your friends</h2></div><div class="card">'+(state.friends.length?state.friends.map(x=>'<div class="people-request"><span>'+escapeHTML(x.person?.username||'WIRED member')+'</span><button class="ghost" data-chat="'+escapeHTML(x.person?.username||'')+'">Message</button></div>').join(''):'<div class="empty">Your accepted friends will appear here.</div>')+'</div>';
@@ -164,7 +177,7 @@ function renderDiscoverPeople(){
  const host=$("discoverPeopleResults");if(!host)return;
  if(!state.user){host.innerHTML='<div class="empty">Log in to search WIRED profiles.</div>';return;}
  const q=state.discoverPeopleQuery.trim().toLowerCase();
- const matches=(state.people||[]).filter(p=>String(p.username||"").toLowerCase().includes(q));
+ const matches=(state.discoverPeopleResults||state.people||[]).filter(p=>String(p.username||"").toLowerCase().includes(q));
  host.innerHTML=matches.slice(0,24).map(p=>'<button class="card discover-person-result" type="button" data-discover-person="'+escapeHTML(p.id)+'"><span class="profile-avatar">'+(p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="">':'W')+'</span><span><b>'+escapeHTML(p.username||"WIRED member")+'</b><small>'+escapeHTML(p.bio||"WIRED member")+'</small></span><span class="discover-person-open">View profile →</span></button>').join("")||(q?'<div class="empty">No profiles found for that username.</div>':'<div class="empty">Start typing a username to find WIRED members.</div>');
  host.querySelectorAll("[data-discover-person]").forEach(b=>b.addEventListener("click",()=>openMemberProfile(b.dataset.discoverPerson)));
 }
@@ -226,7 +239,7 @@ function render(){
  v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));
  v.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));
  v.querySelectorAll("[data-open-thread]").forEach(b=>b.addEventListener("click",()=>openThread(b.dataset.openThread)));
- $("discoverPeopleSearch")?.addEventListener("input",e=>{state.discoverPeopleQuery=e.target.value;renderDiscoverPeople()});
+ $("discoverPeopleSearch")?.addEventListener("input",e=>{state.discoverPeopleQuery=e.target.value;searchGlobalPeople(state.discoverPeopleQuery,"discover");});
  $("communitySearch")?.addEventListener("input",e=>{state.discoveryQuery=e.target.value;renderDiscoveryResults()});
  $("communityCategory")?.addEventListener("change",e=>{state.discoveryCategory=e.target.value;renderDiscoveryResults()});
  $("communitySort")?.addEventListener("change",e=>{state.discoverySort=e.target.value;renderDiscoveryResults()});
