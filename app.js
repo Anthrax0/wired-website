@@ -113,8 +113,10 @@ async function startDMByUsername(username){try{const d=await api('/threads/dm','
 async function searchGlobalPeople(query,scope="people"){
  const key=scope==="discover"?"discoverPeopleSearchRequest":"peopleSearchRequest";
  const token=(state[key]||0)+1;state[key]=token;
+ const term=String(query||"").trim();
+ if(scope==="discover"&&!term){state.discoverPeopleResults=[];renderDiscoverPeople();return;}
  try{
-  const {data,error}=await sb.from("profiles").select("id,username,bio,avatar_url,id_verified").neq("id",state.user.id).ilike("username","%"+query.trim()+"%").order("username").limit(50);
+  const {data,error}=await sb.from("profiles").select("id,username,bio,avatar_url,id_verified").neq("id",state.user.id).ilike("username","%"+term+"%").order("username").limit(50);
   if(error)throw error;
   if(state[key]!==token)return;
   if(scope==="discover"){state.discoverPeopleResults=data||[];renderDiscoverPeople();}
@@ -215,8 +217,8 @@ function renderDiscoverPeople(){
  const host=$("discoverPeopleResults");if(!host)return;
  if(!state.user){host.innerHTML='<div class="empty">Log in to search WIRED profiles.</div>';return;}
  const q=state.discoverPeopleQuery.trim().toLowerCase();
- const matches=(state.discoverPeopleResults||state.people||[]).filter(p=>String(p.username||"").toLowerCase().includes(q));
- host.innerHTML=matches.slice(0,24).map(p=>'<button class="card discover-person-result" type="button" data-discover-person="'+escapeHTML(p.id)+'"><span class="profile-avatar">'+(p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="">':'W')+'</span><span><b>'+escapeHTML(p.username||"WIRED member")+'</b><small>'+escapeHTML(p.bio||"WIRED member")+'</small></span><span class="discover-person-open">View profile →</span></button>').join("")||(q?'<div class="empty">No profiles found for that username.</div>':'<div class="empty">Start typing a username to find WIRED members.</div>');
+ const matches=q?(state.discoverPeopleResults||[]).filter(p=>String(p.username||"").toLowerCase().includes(q)):[];
+ host.innerHTML=q?(matches.slice(0,24).map(p=>'<button class="card discover-person-result" type="button" data-discover-person="'+escapeHTML(p.id)+'"><span class="profile-avatar">'+(p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="">':'W')+'</span><span><b>'+escapeHTML(p.username||"WIRED member")+'</b><small>'+escapeHTML(p.bio||"WIRED member")+'</small></span><span class="discover-person-open">View profile →</span></button>').join("")||'<div class="empty">No profiles found for that username.</div>'):'<div class="empty">Search for a username to find WIRED members.</div>';
  host.querySelectorAll("[data-discover-person]").forEach(b=>b.addEventListener("click",()=>openMemberProfile(b.dataset.discoverPerson)));
 }
 function renderDiscoveryResults(){
