@@ -185,13 +185,11 @@ async function relationshipAction(id,status){try{
  if(state.page==="member-profile"&&state.viewingProfile)await openMemberProfile(state.viewingProfile.id);else{await loadRelationshipData();render();}
 }catch(e){toast(errorText(e));}}
 function myRelationshipMarkup(){
- const rows=state.relationshipRequests||[],active=state.activeRelationship;
+ const rows=state.relationshipRequests||[];
  const incoming=rows.filter(r=>r.status==="pending"&&r.recipient_id===state.user.id);
  const outgoing=rows.filter(r=>r.status==="pending"&&r.requester_id===state.user.id);
- if(!active&&!incoming.length&&!outgoing.length)return "";
- let h='<section class="profile-relationship">';
- if(active){const partner=active.person?.username||"WIRED member";h+='<h2>Relationship status</h2><p>In a relationship with '+escapeHTML(partner)+'</p><button class="ghost" id="relationshipEndOwnBtn">End relationship</button>';}
- else h+='<h2>Relationship requests</h2>';
+ if(!incoming.length&&!outgoing.length)return "";
+ let h='<section class="profile-relationship"><h2>Relationship requests</h2>';
  if(incoming.length)h+='<h3>Incoming requests</h3>'+incoming.map(r=>'<div class="relationship-request"><span>'+escapeHTML(r.person?.username||"WIRED member")+'</span><button class="primary" data-rel-accept="'+r.id+'">Accept</button><button class="ghost" data-rel-decline="'+r.id+'">Decline</button></div>').join("");
  if(outgoing.length)h+='<h3>Sent requests</h3>'+outgoing.map(r=>'<div class="relationship-request"><span>'+escapeHTML(r.person?.username||"WIRED member")+'</span><button class="ghost" data-rel-cancel="'+r.id+'">Cancel</button></div>').join("");
  return h+'</section>';
@@ -199,7 +197,7 @@ function myRelationshipMarkup(){
 function relationshipSubtitleMarkup(r, own=false){
  if(!r||r.status!=="accepted")return "";
  const partner=own?(r.person?.username||"WIRED member"):"you";
- return '<p class="profile-relationship-subtitle">In a relationship with '+escapeHTML(partner)+'</p>';
+ return '<div class="profile-relationship-subtitle-row"><p class="profile-relationship-subtitle">In a relationship with '+escapeHTML(partner)+'</p>'+(own?'<button type="button" class="ghost small" id="relationshipEndOwnBtn">End relationship</button>':'')+'</div>';
 }
 function relationshipMarkup(p){
  const r=p.relationshipRequest;
