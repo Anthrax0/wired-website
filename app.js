@@ -487,11 +487,11 @@ function renderGlobalStore(){
 function isGlobalThread(thread){return !thread.community_id&&!thread.communityId&&thread.type!=="community"&&thread.kind!=="community";}
 
 async function loadPetParadise(){
-  const {data:species,error:speciesError}=await sb.from("pet_species").select("id,slug,name,description,rarity,emoji,adoption_cost,sort_order").eq("active",true).order("sort_order");
+  const {data:species,error:speciesError}=await sb.from("pet_species").select("id,slug,name,description,rarity,emoji,adoption_cost,sort_order,personality,ability_name,ability_description,evolution_level,evolved_name,evolved_emoji,evolution_description").eq("active",true).order("sort_order");
   if(speciesError)throw speciesError;
   state.petSpecies=species||[];
   if(!state.user){state.userPets=[];return;}
-  const {data:pets,error:petError}=await sb.from("user_pets").select("id,nickname,level,xp,happiness,hunger,energy,is_favorite,adopted_at,pet_species(slug,name,description,rarity,emoji)").eq("owner_id",state.user.id).order("adopted_at",{ascending:false});
+  const {data:pets,error:petError}=await sb.from("user_pets").select("id,nickname,level,xp,happiness,hunger,energy,is_favorite,adopted_at,pet_species(slug,name,description,rarity,emoji,personality,ability_name,ability_description,evolution_level,evolved_name,evolved_emoji,evolution_description)").eq("owner_id",state.user.id).order("adopted_at",{ascending:false});
   if(petError)throw petError;
   state.userPets=pets||[];
   const {data:equipment,error:equipmentError}=await sb.from("user_pet_equipment").select("pet_id,slot,global_store_items(name,sku,category)").eq("owner_id",state.user.id);
