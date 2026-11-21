@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null,relationshipEndChannel:null,relationshipEndPopup:null,quizResults:{}};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null,relationshipEndChannel:null,relationshipEndPopup:null,quizResults:{},petSpecies:[],userPets:[]};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -396,7 +396,7 @@ async function refreshUser(){
   else {if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}state.relationshipEndPopup=null;document.getElementById("relationshipEndOverlay")?.remove();state.profile=null;state.communities=[];}
   render();
 }
-function nav(page){if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="store")loadGlobalStore().then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")loadGlobalStore().then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 $("notificationsBtn")?.addEventListener("click",openNotifications);
@@ -464,6 +464,60 @@ function renderGlobalStore(){
  v.querySelectorAll('[data-store-equip]').forEach(b=>b.addEventListener('click',()=>equipGlobalStoreItem(b.dataset.storeEquip)));
 }
 function isGlobalThread(thread){return !thread.community_id&&!thread.communityId&&thread.type!=="community"&&thread.kind!=="community";}
+
+async function loadPetParadise(){
+  const {data:species,error:speciesError}=await sb.from("pet_species").select("id,slug,name,description,rarity,emoji,adoption_cost,sort_order").eq("active",true).order("sort_order");
+  if(speciesError)throw speciesError;
+  state.petSpecies=species||[];
+  if(!state.user){state.userPets=[];return;}
+  const {data:pets,error:petError}=await sb.from("user_pets").select("id,nickname,level,xp,happiness,hunger,energy,is_favorite,adopted_at,pet_species(slug,name,description,rarity,emoji)").eq("owner_id",state.user.id).order("adopted_at",{ascending:false});
+  if(petError)throw petError;
+  state.userPets=pets||[];
+}
+async function adoptPet(slug){
+  const species=state.petSpecies.find(p=>p.slug===slug);if(!species)return;
+  const nickname=$("petNickname")?.value.trim()||species.name;
+  const button=document.querySelector('[data-pet-adopt="'+CSS.escape(slug)+'"]');
+  if(button){button.disabled=true;button.textContent="Adopting…";}
+  try{
+    const {error}=await sb.rpc("adopt_pet",{p_species_slug:slug,p_nickname:nickname});
+    if(error)throw error;
+    await loadPetParadise();toast("Welcome home, "+nickname+"! 🐾");render();
+  }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent=species.adoption_cost?"Adopt · "+species.adoption_cost+" pts":"Adopt for free";}}
+}
+async function careForPet(id,action,button){
+  if(button){button.disabled=true;button.textContent=action==="feed"?"Feeding…":action==="play"?"Playing…":"Resting…";}
+  try{
+    const {error}=await sb.rpc("care_for_pet",{p_pet_id:id,p_action:action});
+    if(error)throw error;
+    await loadPetParadise();render();
+    toast(action==="feed"?"Yum! Your pet enjoyed its snack.":action==="play"?"Your pet had a blast!":"Your pet is feeling refreshed.");
+  }catch(e){toast(errorText(e));if(button)button.disabled=false;}
+}
+function petStat(label,value,icon){
+  const n=Math.max(0,Math.min(100,Number(value)||0));
+  return '<div class="pet-stat"><div><span>'+icon+' '+label+'</span><b>'+n+'%</b></div><div class="pet-stat-track"><i style="width:'+n+'%"></i></div></div>';
+}
+function renderPetParadise(){
+  const v=$("view");
+  if(!state.user){
+    v.innerHTML='<section class="pet-hero"><span class="pet-kicker">WIRED COMPANIONS</span><h2>Pet Paradise 🐾</h2><p>Adopt a tiny sidekick, raise its level, and collect magical companions.</p><button class="primary" id="petLoginBtn">Log in to adopt a pet</button></section>';
+    $("petLoginBtn")?.addEventListener("click",openAuth);return;
+  }
+  const pets=state.userPets||[],first=!pets.length;
+  const rarityLabel=r=>({common:"Common",rare:"Rare",epic:"Epic",legendary:"Legendary"}[r]||r);
+  const petCards=pets.map(p=>{
+    const species=p.pet_species||{},xp=Number(p.xp)||0,progress=xp%100;
+    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span><span class="pet-level">LVL '+Number(p.level||1)+'</span></div><div class="pet-creature">'+escapeHTML(species.emoji||"🐾")+'</div><h3>'+escapeHTML(p.nickname)+'</h3><p class="pet-species">'+escapeHTML(species.name||"WIRED companion")+'</p><div class="pet-xp"><div><span>Experience</span><b>'+progress+'/100 XP</b></div><i><span style="width:'+progress+'%"></span></i></div>'+petStat("Happiness",p.happiness,"💜")+petStat("Fullness",p.hunger,"🍓")+petStat("Energy",p.energy,"⚡")+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🍓 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">🎾 Play</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><p class="pet-footnote">Your companion never gets sick or loses progress while you are away.</p></article>';
+  }).join("");
+  const shop=state.petSpecies.map(p=>{
+    const locked=first&&p.rarity!=="common";
+    return '<article class="pet-adopt-card pet-rarity-'+escapeHTML(p.rarity)+'"><div class="pet-adopt-art">'+escapeHTML(p.emoji)+'</div><span class="pet-rarity">'+rarityLabel(p.rarity)+'</span><h3>'+escapeHTML(p.name)+'</h3><p>'+escapeHTML(p.description)+'</p><button class="primary" data-pet-adopt="'+escapeHTML(p.slug)+'" '+(locked?"disabled":"")+'>'+(locked?"Adopt a Common pet first":first?"Adopt for free":Number(p.adoption_cost)?"Adopt · "+Number(p.adoption_cost)+" pts":"Adopt for free")+'</button></article>';
+  }).join("");
+  v.innerHTML='<section class="pet-hero"><div><span class="pet-kicker">YOUR LITTLE WORLD</span><h2>Pet Paradise <span>✦</span></h2><p>Big adventures start with a tiny companion.</p></div><div class="pet-hero-count"><b>'+pets.length+'</b><span>'+ (pets.length===1?"companion":"companions")+'</span></div></section><section class="pet-section"><div class="section-head"><div><h2>My companions</h2><p class="hint">Feed, play and help your pets level up.</p></div></div>'+(pets.length?'<div class="pet-collection">'+petCards+'</div>':'<div class="pet-empty"><div>🐾</div><h3>Your adventure is waiting</h3><p>Choose your first Common companion. Your first adoption is free!</p></div>')+'</section><section class="pet-section"><div class="section-head"><div><h2>Adoption center</h2><p class="hint">'+(first?"Your first Common pet is on us.":"Collect new companions with your WIRED points.")+'</p></div></div><label class="field pet-nickname-field">Pet nickname<input id="petNickname" maxlength="24" placeholder="Give your new friend a name"></label><div class="pet-adoption-grid">'+shop+'</div></section><p class="pet-kindness">💜 No pet can die, run away, or lose progress when you take a break. This is a cozy corner of WIRED.</p>';
+  v.querySelectorAll("[data-pet-adopt]").forEach(b=>b.addEventListener("click",()=>adoptPet(b.dataset.petAdopt)));
+  v.querySelectorAll("[data-pet-care]").forEach(b=>b.addEventListener("click",()=>careForPet(b.dataset.petCare,b.dataset.action,b)));
+}
 function render(){
  const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";updateNotificationBell();
  const v=$("view");
@@ -481,6 +535,7 @@ function render(){
   v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
  }
  if(state.page==="store"){renderGlobalStore();}
+  if(state.page==="pets"){renderPetParadise();return;}
  if(state.page==="discover"){
   v.innerHTML=`<div class="discovery-topline"><div><h2>Discover</h2><p>Find your people on WIRED</p></div><button class="discovery-create" data-go="create">＋ Create Community</button></div><section class="global-store-entry card"><div><span class="pill">WIRED-WIDE</span><h2>Global Store</h2><p>Shop app-wide profile cosmetics with your WIRED points. Purchases belong to your account, not a community.</p></div><button class="primary" data-go="store">Open Global Store →</button></section>${state.user?`<section class="discovery-people-search"><div class="section-head"><h2>Find People</h2><span>Search WIRED profiles</span></div><label class="field">Search profiles<input id="discoverPeopleSearch" type="search" value="${escapeHTML(state.discoverPeopleQuery)}" placeholder="Search by username…"></label><div id="discoverPeopleResults" class="people-grid"></div></section><div class="discovery-tools"><label class="field">Search communities<input id="communitySearch" type="search" value="${escapeHTML(state.discoveryQuery)}" placeholder="Search names, topics, descriptions…"></label><label class="field">Category<select id="communityCategory"><option value="all">All categories</option>${[...new Set(state.communities.map(c=>c.category).filter(Boolean))].sort().map(x=>`<option value="${escapeHTML(x)}" ${state.discoveryCategory===x?"selected":""}>${escapeHTML(x)}</option>`).join("")}</select></label></div><section class="discovery-section"><div class="discovery-section-head"><h2>Featured Communities</h2><span>Handpicked spaces to explore</span></div><div class="discovery-shelf" id="featuredCommunities"></div></section><section class="discovery-section"><div class="discovery-section-head"><h2>New Communities</h2><span>Recently created</span></div><div class="discovery-shelf" id="newCommunities"></div></section><section class="discovery-section"><div class="discovery-section-head"><h2>My Communities</h2><span>Your joined spaces</span></div><div class="discovery-shelf" id="myCommunities"></div></section><div class="discovery-all"><div class="section-head"><h2>Explore All Communities</h2><label class="field">Sort<select id="communitySort"><option value="newest" ${state.discoverySort==="newest"?"selected":""}>Recently added</option><option value="name" ${state.discoverySort==="name"?"selected":""}>Name A–Z</option></select></label></div><p class="hint" id="discoveryCount"></p><div class="grid" id="discoveryResults"></div></div>`:`<div class="empty">Log in to discover communities.</div>`}`;
  }
