@@ -551,7 +551,7 @@ async function releasePet(id,button){
 }
 function yokaiPortraitUrl(name,slug,evolved){
   const keys=[slug,name].filter(Boolean).map(value=>String(value).toLowerCase().replace(/[^a-z0-9]/g,""));
-  const base="https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/";
+  const base="./assets/yokai/";
   const sprites={
     kitsune:base+"kitsune.GIF",
     kappa:base+"yokai_kappa.webp",
