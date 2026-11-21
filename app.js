@@ -518,14 +518,11 @@ async function careForPet(id,action,button){
   }catch(e){toast(errorText(e));if(button)button.disabled=false;}
 }
 function yokaiPortraitUrl(name,slug,evolved){
-  const key=String(name||slug||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const key=String(slug||name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
   const sprites={
-    kappa:"https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/kappa.webp",
-    sasquatch:"https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/sasquatch.webp",
-    yeti:"https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/yeti.webp"
+    kappa:"https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/yokai_kappa.webp"
   };
-  if(sprites[key])return sprites[key];
-  return "https://api.dicebear.com/9.x/lorelei/svg?seed="+encodeURIComponent((name||slug||"Yokai")+(evolved?" Awakened":""))+"&backgroundColor=18111b,24131d";
+  return sprites[key]||"https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/yokai_kappa.webp";
 }
 function petStat(label,value,icon){
   const n=Math.max(0,Math.min(100,Number(value)||0));
