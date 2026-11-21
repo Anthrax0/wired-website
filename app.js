@@ -549,15 +549,18 @@ async function releasePet(id,button){
   }
 }
 function yokaiPortraitUrl(name,slug,evolved){
-  const key=String(slug||name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const keys=[slug,name].filter(Boolean).map(value=>String(value).toLowerCase().replace(/[^a-z0-9]/g,""));
   const base="https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/";
   const sprites={
     kappa:base+"yokai_kappa.webp",
     sasquatch:base+"sasquatch.webp",
     bigfoot:base+"bigfoot.webp",
-    yeti:base+"yeti.webp"
+    yeti:base+"yeti.webp",
+    mythicalyeti:base+"yeti.webp",
+    yokaiyeti:base+"yeti.webp",
+    snowyeti:base+"yeti.webp"
   };
-  return sprites[key]||"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' rx='24' fill='%23181124'/%3E%3Cpath d='M80 22 94 62 136 80 94 98 80 138 66 98 24 80 66 62Z' fill='%23c77dff'/%3E%3C/svg%3E";
+  return keys.map(key=>sprites[key]).find(Boolean)||"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' rx='24' fill='%23181124'/%3E%3Cpath d='M80 22 94 62 136 80 94 98 80 138 66 98 24 80 66 62Z' fill='%23c77dff'/%3E%3C/svg%3E";
 }
 function petStat(label,value,icon){
   const n=Math.max(0,Math.min(100,Number(value)||0));
