@@ -578,8 +578,14 @@ async function releasePet(id,button){
   if(!window.confirm("Release "+label+"? This permanently removes the companion from your collection. No WIRED points will be refunded."))return;
   if(button){button.disabled=true;button.textContent="Releasing…";}
   try{
-    await api("/pets/release","POST",{petId:id});
+    // Use the authenticated database RPC and require its success response.
+    const {data,error}=await sb.rpc("release_pet",{p_pet_id:id});
+    if(error)throw error;
+    if(data!==true)throw new Error("The release was not confirmed by the server.");
     await loadPetParadise();
+    if((state.userPets||[]).some(x=>String(x.id)===String(id))){
+      throw new Error("The yokai still appears in your collection. Please refresh and try again.");
+    }
     render();
     toast(label+" has been released.");
   }catch(e){
