@@ -772,3 +772,12 @@ footer{border-color:#4b2864}
 .profile-yokai-info h3{margin:7px 0 4px}.profile-yokai-info p{margin:0;color:var(--muted,#b9aabd)}
 .profile-yokai-rarity{display:inline-block;margin-top:8px;padding:3px 9px;border:1px solid rgba(190,130,255,.35);border-radius:999px;font-size:.72rem;color:#e4c5ff}
 @media(max-width:480px){.profile-yokai-card{gap:12px;padding:12px}.profile-yokai-art{width:88px;height:88px;flex-basis:88px}}
+
+/* Black Rose gothic profile collection */
+.profile-custom-card.black-rose-theme,.profile-card.black-rose-theme,.store-preview-profile.black-rose-theme{background:radial-gradient(ellipse at top right,rgba(100,9,34,.55),transparent 60%),linear-gradient(145deg,#080609,#1c0b14 65%,#080609)!important;border:1px solid #67283b!important;box-shadow:inset 0 0 32px rgba(110,10,42,.24),0 10px 32px rgba(0,0,0,.45)}
+.black-rose-theme .profile-cover,.black-rose-theme .store-preview-cover{background:radial-gradient(circle at 80% 25%,#74243c,transparent 45%),linear-gradient(130deg,#050406,#280d1a,#090609)!important}
+.profile-avatar.black-rose-frame,.store-preview-avatar.black-rose-frame{border:3px solid #8e304b!important;box-shadow:0 0 0 3px #14070d,0 0 0 5px #5b172b,0 0 22px rgba(165,31,65,.55)!important;position:relative}
+.profile-avatar.black-rose-frame:after,.store-preview-avatar.black-rose-frame:after{content:"🥀";position:absolute;right:-10px;bottom:-9px;font-size:22px;filter:drop-shadow(0 2px 3px #000);pointer-events:none}
+.black-rose-nameplate{color:#f3d2dd!important;text-shadow:0 0 10px rgba(188,41,83,.75)!important;letter-spacing:.045em}
+h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nameplate.black-rose-nameplate:before{content:"🥀 ";font-size:.8em}
+.store-art-black-rose-theme,.store-art-black-rose-frame,.store-art-black-rose-nameplate{background:linear-gradient(135deg,#09060a,#401022)!important}
