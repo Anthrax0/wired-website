@@ -708,3 +708,27 @@ footer{border-color:#4b2864}
 .pet-kindness{color:#d8c7a7}
 .pet-merch-art{background:radial-gradient(circle at 50% 42%,rgba(202,164,103,.25),rgba(16,18,16,.96) 72%)!important}
 .pet-merch-art>small{color:#e6c990}
+
+
+/* Yokai personalities, signature abilities, animations and awakenings */
+.yokai-ability{display:flex;flex-direction:column;gap:4px;margin:10px 0;padding:10px 12px;border:1px solid rgba(202,171,119,.22);border-radius:13px;background:rgba(187,150,91,.08);font-size:.86rem}
+.yokai-ability b{color:#e6c78f}.yokai-ability span,.yokai-personality{color:var(--muted,#b9b4c5);line-height:1.45}
+.yokai-personality{font-size:.82rem;font-style:italic;margin:8px 0}
+.yokai-evolution-note{display:block;color:#d8bd8c;font-size:.78rem;line-height:1.4;margin:8px 0}
+.yokai-evolved-tag{display:inline-block;color:#e8c77e;font-size:.62rem;letter-spacing:.09em;vertical-align:middle}
+.yokai-motion .pet-body{display:inline-block;transform-origin:50% 85%;animation:yokai-float 3.2s ease-in-out infinite;filter:drop-shadow(0 8px 15px rgba(219,183,117,.2))}
+.yokai-kitsune .pet-body{animation:yokai-sway 3.8s ease-in-out infinite}
+.yokai-kappa .pet-body{animation:yokai-bob 2.2s ease-in-out infinite}
+.yokai-oni .pet-body{animation:yokai-breathe 2.8s ease-in-out infinite}
+.yokai-yatagarasu .pet-body{animation:yokai-wing 2.4s ease-in-out infinite}
+.yokai-bakeneko .pet-body{animation:yokai-slink 3.1s ease-in-out infinite}
+.yokai-awakened .pet-body{filter:drop-shadow(0 0 15px rgba(238,195,112,.6));animation:yokai-awaken 2.8s ease-in-out infinite}
+.pet-adopt-art.yokai-motion{display:grid;place-items:center;font-size:2.5rem}
+@keyframes yokai-float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-9px) rotate(2deg)}}
+@keyframes yokai-sway{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-5px) rotate(5deg)}}
+@keyframes yokai-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px) scale(1.04)}}
+@keyframes yokai-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes yokai-wing{0%,100%{transform:rotate(0) translateY(0)}50%{transform:rotate(-8deg) translateY(-7px)}}
+@keyframes yokai-slink{0%,100%{transform:translateX(0) rotate(0)}50%{transform:translateX(5px) rotate(5deg)}}
+@keyframes yokai-awaken{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-8px) scale(1.08)}}
+@media(prefers-reduced-motion:reduce){.yokai-motion .pet-body,.yokai-awakened .pet-body{animation:none!important}}
