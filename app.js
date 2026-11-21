@@ -495,8 +495,12 @@ async function loadPetParadise(){
   const {data:pets,error:petError}=await sb.from("user_pets").select("id,nickname,level,xp,happiness,hunger,energy,is_favorite,adopted_at,pet_species(slug,name,description,rarity,emoji,personality,ability_name,ability_description,evolution_level,evolved_name,evolved_emoji,evolution_description)").eq("owner_id",state.user.id).order("adopted_at",{ascending:false});
   if(petError)throw petError;
   state.userPets=pets||[];
+  // Equipment is optional decoration. Never let an equipment lookup failure
+  // prevent the adopted yokai collection from rendering.
+  state.petEquipment=[];
   const {data:equipment,error:equipmentError}=await sb.from("user_pet_equipment").select("pet_id,slot,global_store_items(name,sku,category)").eq("owner_id",state.user.id);
-  if(equipmentError)throw equipmentError;state.petEquipment=equipment||[];
+  if(equipmentError){console.warn("Yokai equipment unavailable; showing adopted companions anyway.",equipmentError);}
+  else state.petEquipment=equipment||[];
 }
 async function adoptPet(slug){
   const species=state.petSpecies.find(p=>p.slug===slug);if(!species)return;
