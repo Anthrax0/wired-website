@@ -557,7 +557,7 @@ function yokaiPortraitUrl(name,slug,evolved){
     bigfoot:base+"bigfoot.webp",
     yeti:base+"yeti.webp",
     kodama:base+"kodama.svg",
-    yokai-kodama:base+"kodama.svg",
+    "yokai-kodama":base+"kodama.svg",
     kodamaspirit:base+"kodama.svg",
     mythicalyeti:base+"yeti.webp",
     yokaiyeti:base+"yeti.webp",
