@@ -748,10 +748,12 @@ footer{border-color:#4b2864}
 .pet-creature .yokai-portrait-image{height:168px;max-width:190px}
 .pet-adopt-art .yokai-portrait-image{height:174px}
 .yokai-motion .yokai-portrait-image{animation:yokai-portrait-drift 4s ease-in-out infinite;transform-origin:50% 80%}
+.yokai-sasquatch .yokai-portrait-image{animation:yokai-sasquatch-motion 3.4s ease-in-out infinite;transform-origin:50% 88%}
 .yokai-kitsune .yokai-portrait-image{animation:yokai-portrait-sway 4.2s ease-in-out infinite}
 .yokai-oni .yokai-portrait-image{animation:yokai-portrait-pulse 3s ease-in-out infinite}
 .yokai-awakened .yokai-portrait-image{filter:drop-shadow(0 0 17px rgba(220,142,171,.72))}
 @keyframes yokai-portrait-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes yokai-sasquatch-motion{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-3px) scale(1.012)}65%{transform:translateY(-1px) scale(1.018)}}
 @keyframes yokai-portrait-sway{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
 @keyframes yokai-portrait-pulse{0%,100%{filter:drop-shadow(0 0 8px rgba(181,75,102,.25))}50%{filter:drop-shadow(0 0 18px rgba(181,75,102,.65))}}
 .pet-action{border-color:#633244;background:#24131d;color:#f3dce3}.pet-action:hover{background:#3a1b2b}
