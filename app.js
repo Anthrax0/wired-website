@@ -491,7 +491,8 @@ async function careForPet(id,action,button){
     const {error}=await sb.rpc("care_for_pet",{p_pet_id:id,p_action:action});
     if(error)throw error;
     await loadPetParadise();render();
-    toast(action==="feed"?"Yum! Your pet enjoyed its snack.":action==="play"?"Your pet had a blast!":"Your pet is feeling refreshed.");
+    const reward=action==="feed"?5:action==="play"?8:4;
+    toast((action==="feed"?"Yum! Your pet enjoyed its snack.":action==="play"?"Your pet had a blast!":"Your pet is feeling refreshed.")+" +"+reward+" WIRED points! ✨");
   }catch(e){toast(errorText(e));if(button)button.disabled=false;}
 }
 function petStat(label,value,icon){
