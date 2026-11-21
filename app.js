@@ -447,11 +447,12 @@ async function purchaseGlobalStoreItem(id){
   await loadGlobalStore();toast('Purchase complete. Your item is now in My purchases.');render();
  }catch(e){toast(errorText(e));}
 }
-function storeCosmeticType(item){const key=String(item?.sku||item?.name||'').toLowerCase();if(key.includes('frame'))return 'frame';if(key.includes('nameplate'))return 'nameplate';if(key.includes('theme'))return 'theme';return 'generic';}
+function storeCosmeticType(item){const key=String(item?.sku||item?.name||'').toLowerCase();if(key.includes('orange-fruit'))return 'orange-fruit';if(key.includes('frame'))return 'frame';if(key.includes('nameplate'))return 'nameplate';if(key.includes('theme'))return 'theme';return 'generic';}
 function storeCosmeticArt(type){
  if(type==='frame')return '<div class="store-preview-avatar equipped-neon-frame"><span>A</span></div>';
  if(type==='nameplate')return '<div class="store-preview-nameplate equipped-nameplate">WIRED <small>@anthrax</small></div>';
- if(type==='theme')return '<div class="store-preview-profile equipped-profile-theme"><div class="store-preview-cover"></div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">A</span><div><b class="equipped-violet-theme">anthrax</b><small>Global profile</small></div></div><div class="store-preview-bio"><i></i><i></i></div></div>';
+ if(type==='orange-fruit')return '<div class="store-preview-profile equipped-profile-theme orange-fruit-preview"><div class="store-preview-cover"><span>🍊</span><span>🍃</span><span>🍊</span></div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">🍊</span><div><b>WIRED MEMBER</b><small>Global profile · Citrus edition</small></div></div><div class="store-preview-bio"><i></i><i></i></div><div class="orange-fruit-preview-stamp">FRESH • BRIGHT • BOLD</div></div>';
+  if(type==='theme')return '<div class="store-preview-profile equipped-profile-theme"><div class="store-preview-cover"></div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">A</span><div><b class="equipped-violet-theme">anthrax</b><small>Global profile</small></div></div><div class="store-preview-bio"><i></i><i></i></div></div>';
  return '<span class="cosmetic-preview-generic">✦</span>';
 }
 function renderGlobalStore(){
