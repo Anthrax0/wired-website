@@ -14,7 +14,7 @@ function errorText(e){return e?.message||"Something went wrong. Please try again
 async function api(path,method="GET",body=null){
   const {data:{session}}=await sb.auth.getSession();
   if(!session?.access_token) throw new Error("Please log in first.");
-  const res=await fetch(API_BASE+path,{method,headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+session.access_token},...(body?{body:JSON.stringify(body)}:{})});
+  const res=await fetch(API_BASE+path,{method,cache:"no-store",headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+session.access_token},...(body?{body:JSON.stringify(body)}:{})});
   const data=await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(data.error||`Request failed (${res.status}).`);
   return data;
@@ -545,7 +545,7 @@ async function loadPetParadise(){
   if(!state.user){state.petSpecies=[];state.userPets=[];state.petEquipment=[];return;}
   // Use the authenticated server endpoint so the account's own collection is
   // read by the verified user id, independent of browser-side table RLS.
-  const data=await api("/pets");
+  const data=await api("/pets?fresh="+Date.now());
   state.petSpecies=data.species||[];
   state.userPets=data.owned||[];
   state.petEquipment=data.equipment||[];
@@ -589,7 +589,18 @@ async function releasePet(id,button){
     render();
     toast(label+" has been released.");
   }catch(e){
-    toast(errorText(e));
+    const message=errorText(e);
+    if(/only release a companion you own/i.test(message)){
+      try{
+        await loadPetParadise();
+        render();
+        if(!(state.userPets||[]).some(x=>String(x.id)===String(id))){
+          toast(label+" was already released. Your collection has been refreshed.");
+          return;
+        }
+      }catch(refreshError){console.warn("Yokai refresh failed",refreshError);}
+    }
+    toast(message);
     if(button){button.disabled=false;button.textContent="↗ Release Companion";}
   }
 }
