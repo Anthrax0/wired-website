@@ -672,3 +672,20 @@ footer{border-color:#4b2864}
 .pet-equipped-accessories{position:absolute;top:6px;right:10px;font-size:24px;line-height:1.2;filter:drop-shadow(0 2px 5px #000)}
 .pet-creature{position:relative}
 @media(max-width:560px){.pet-merch-inventory{align-items:flex-start;flex-wrap:wrap}.pet-merch-inventory>div{flex:1;min-width:130px}.pet-equip-picker{align-items:flex-start;flex-direction:column}}
+
+
+/* Cozy companion animations */
+.pet-creature{isolation:isolate;transform-origin:50% 78%;animation:pet-float 3.2s ease-in-out infinite}
+.pet-creature::before,.pet-creature::after{position:absolute;z-index:0;pointer-events:none;opacity:0;content:"✦";color:#f4d5ff;text-shadow:0 0 9px #d7a6ff,0 0 18px #a45bff;animation:pet-twinkle 2.8s ease-in-out infinite}
+.pet-creature::before{left:18%;top:22%;font-size:17px;animation-delay:.2s}
+.pet-creature::after{right:17%;top:35%;font-size:13px;animation-delay:1.3s}
+.pet-body{position:relative;z-index:1;display:inline-block;transform-origin:50% 85%;filter:drop-shadow(0 9px 9px #0005);animation:pet-breathe 2.4s ease-in-out infinite}
+.pet-equipped-accessories{z-index:2;animation:pet-accessory-bob 2.4s ease-in-out infinite;transform-origin:50% 50%}
+.pet-card:hover .pet-body{animation:pet-happy-hop .62s ease-in-out}
+.pet-card:hover .pet-creature::before,.pet-card:hover .pet-creature::after{opacity:1}
+.pet-action:active{transform:scale(.96)}
+@keyframes pet-breathe{0%,100%{transform:translateY(0) rotate(-1deg) scale(1)}50%{transform:translateY(-2px) rotate(1deg) scale(1.035)}}
+@keyframes pet-accessory-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-4px) rotate(4deg)}}
+@keyframes pet-twinkle{0%,100%{opacity:0;transform:scale(.55) rotate(0)}35%,65%{opacity:.95;transform:scale(1.15) rotate(35deg)}}
+@keyframes pet-happy-hop{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-17px) scale(1.08)}65%{transform:translateY(-5px) scale(.98)}}
+@media(prefers-reduced-motion:reduce){.pet-creature,.pet-body,.pet-equipped-accessories,.pet-creature::before,.pet-creature::after{animation:none!important}.pet-card:hover .pet-body{transform:none}}
