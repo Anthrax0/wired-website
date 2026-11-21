@@ -517,6 +517,22 @@ async function careForPet(id,action,button){
     toast((action==="feed"?"Yum! Your pet enjoyed its snack.":action==="play"?"Your pet had a blast!":"Your pet is feeling refreshed.")+" +"+reward+" WIRED points! ✨");
   }catch(e){toast(errorText(e));if(button)button.disabled=false;}
 }
+async function releasePet(id,button){
+  const pet=(state.userPets||[]).find(x=>String(x.id)===String(id));
+  const species=pet?.pet_species||{};
+  const label=pet?.nickname||species.name||"this yokai";
+  if(!window.confirm("Release "+label+"? This permanently removes the companion from your collection. No WIRED points will be refunded."))return;
+  if(button){button.disabled=true;button.textContent="Releasing…";}
+  try{
+    await api("/pets/release","POST",{petId:id});
+    await loadPetParadise();
+    render();
+    toast(label+" has been released.");
+  }catch(e){
+    toast(errorText(e));
+    if(button){button.disabled=false;button.textContent="↗ Release Companion";}
+  }
+}
 function yokaiPortraitUrl(name,slug,evolved){
   const key=String(slug||name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
   const sprites={
@@ -540,7 +556,7 @@ function renderPetParadise(){
     const species=p.pet_species||{},xp=Number(p.xp)||0,level=Number(p.level)||1,progress=xp%100,evolved=level>=Number(species.evolution_level||5);
     const displayName=evolved?(species.evolved_name||("Awakened "+(species.name||"Yokai"))):(species.name||"WIRED spirit");
     const portraitUrl=yokaiPortraitUrl(species.name,species.slug,evolved);
-    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span><span class="pet-level">LVL '+level+'</span></div><div class="pet-creature yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+'"><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(displayName)+' gothic anime portrait"><span class="pet-equipped-accessories">'+(state.petEquipment||[]).filter(x=>x.pet_id===p.id).map(x=>petStoreEmoji({sku:x.global_store_items?.sku})).join(" ")+'</span></div><h3>'+escapeHTML(p.nickname)+'</h3><p class="pet-species">'+escapeHTML(displayName)+(evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p><div class="pet-xp"><div><span>Experience</span><b>'+progress+'/100 XP</b></div><i><span style="width:'+progress+'%"></span></i></div><div class="yokai-ability"><b>✧ '+escapeHTML(species.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(species.ability_description||"A unique gift that grows with your bond.")+'</span></div>'+(evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+'</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(species.evolved_name||"Awakened form")+' at level '+Number(species.evolution_level||5)+'.</p>')+petStat("Happiness",p.happiness,"💜")+petStat("Fullness",p.hunger,"🍓")+petStat("Energy",p.energy,"⚡")+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🍓 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">🎾 Play</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
+    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span><span class="pet-level">LVL '+level+'</span></div><div class="pet-creature yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+'"><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(displayName)+' gothic anime portrait"><span class="pet-equipped-accessories">'+(state.petEquipment||[]).filter(x=>x.pet_id===p.id).map(x=>petStoreEmoji({sku:x.global_store_items?.sku})).join(" ")+'</span></div><h3>'+escapeHTML(p.nickname)+'</h3><p class="pet-species">'+escapeHTML(displayName)+(evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p><div class="pet-xp"><div><span>Experience</span><b>'+progress+'/100 XP</b></div><i><span style="width:'+progress+'%"></span></i></div><div class="yokai-ability"><b>✧ '+escapeHTML(species.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(species.ability_description||"A unique gift that grows with your bond.")+'</span></div>'+(evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+'</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(species.evolved_name||"Awakened form")+' at level '+Number(species.evolution_level||5)+'.</p>')+petStat("Happiness",p.happiness,"💜")+petStat("Fullness",p.hunger,"🍓")+petStat("Energy",p.energy,"⚡")+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🍓 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">🎾 Play</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><button class="pet-action pet-release-action" type="button" data-pet-release="'+escapeHTML(p.id)+'">↗ Release Companion</button><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
   }).join("");
   const shop=state.petSpecies.map(p=>{
     const locked=first&&p.rarity!=="common";
@@ -549,6 +565,7 @@ function renderPetParadise(){
   v.innerHTML='<section class="pet-hero"><div><span class="pet-kicker">THE VEIL BETWEEN WORLDS</span><h2>Yokai Sanctuary <span>✦</span></h2><p>Every spirit has a story. Begin yours together.</p></div><div class="pet-hero-count"><b>'+pets.length+'</b><span>'+ (pets.length===1?"companion":"companions")+'</span></div></section><section class="pet-section"><div class="section-head"><div><h2>My yokai</h2><p class="hint">Offer treats, play, and help your yokai grow.</p></div></div>'+(pets.length?'<div class="pet-collection">'+petCards+'</div>':'<div class="pet-empty"><div>🐾</div><h3>A spirit is waiting to meet you</h3><p>Choose your first Common yokai. Your first summoning is free!</p></div>')+'</section><section class="pet-section"><div class="section-head"><div><h2>Summon a yokai</h2><p class="hint">'+(first?"Your first Common yokai is on us.":"Collect new companions with your WIRED points.")+'</p></div></div><label class="field pet-nickname-field">Yokai nickname<input id="petNickname" maxlength="24" placeholder="Give your new friend a name"></label><div class="pet-adoption-grid">'+shop+'</div></section><p class="pet-kindness">💜 No yokai can die, run away, or lose progress when you take a break. This is a peaceful corner of the spirit world.</p>';
   v.querySelectorAll("[data-pet-adopt]").forEach(b=>b.addEventListener("click",()=>adoptPet(b.dataset.petAdopt)));
   v.querySelectorAll("[data-pet-care]").forEach(b=>b.addEventListener("click",()=>careForPet(b.dataset.petCare,b.dataset.action,b)));
+  v.querySelectorAll("[data-pet-release]").forEach(b=>b.addEventListener("click",()=>releasePet(b.dataset.petRelease,b)));
 }
 function render(){
  const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";updateNotificationBell();
