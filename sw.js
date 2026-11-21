@@ -1,5 +1,5 @@
-const CACHE = "wired-pwa-v60";
-const FILES = ["./", "./index.html", "./styles.css?v=64", "./app.js?v=83", "./manifest.webmanifest", "./wired-logo.png"];
+const CACHE = "wired-pwa-v61";
+const FILES = ["./", "./index.html", "./styles.css?v=64", "./app.js?v=88", "./manifest.webmanifest", "./wired-logo.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
@@ -13,6 +13,9 @@ self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
+  // Never cache authenticated or cross-origin API responses. Old cached /pets
+  // responses caused released yokai to reappear in the owner's collection.
+  if (url.origin !== self.location.origin || /\\/functions\\/v1\\//.test(url.pathname)) return;
   const isAppAsset = /\/(?:index\.html|app\.js|styles\.css)$/.test(url.pathname);
   if (request.mode === "navigate" || isAppAsset) {
     event.respondWith(fetch(request).then(response => {
