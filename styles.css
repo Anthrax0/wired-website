@@ -734,3 +734,28 @@ footer{border-color:#4b2864}
 @media(prefers-reduced-motion:reduce){.yokai-motion .pet-body,.yokai-awakened .pet-body{animation:none!important}}
 
 .yokai-mossling .pet-body{animation:yokai-float 3.5s ease-in-out infinite}.yokai-cloudkit .pet-body{animation:yokai-bob 2.8s ease-in-out infinite}.yokai-emberpup .pet-body{animation:yokai-bob 1.9s ease-in-out infinite}.yokai-moonfox .pet-body{animation:yokai-sway 3.5s ease-in-out infinite}.yokai-starwhale .pet-body{animation:yokai-slink 4s ease-in-out infinite}.yokai-glimmerdragon .pet-body{animation:yokai-breathe 2.4s ease-in-out infinite}.yokai-auroraphenix .pet-body{animation:yokai-wing 2.2s ease-in-out infinite}
+
+
+/* Dark gothic anime yokai portrait treatment */
+.pet-hero{border-color:#63313f;background:radial-gradient(circle at 80% 18%,rgba(133,30,54,.3),transparent 36%),radial-gradient(circle at 10% 100%,rgba(63,42,80,.28),transparent 42%),linear-gradient(135deg,#1b1119,#09070c 76%)}
+.pet-hero h2{background:linear-gradient(90deg,#f2d7df,#c47b91,#a58bd1);background-clip:text}
+.pet-kicker{color:#d99aaa}
+.pet-card,.pet-adopt-card{background:linear-gradient(150deg,#21131b,#0c090f 72%);border-color:#482634;box-shadow:0 14px 35px #0006}
+.pet-card:before,.pet-adopt-card:before{background:linear-gradient(90deg,#5b2638,#c47b91,#756093)}
+.pet-creature{height:174px;filter:drop-shadow(0 14px 22px rgba(117,35,66,.42))}
+.pet-adopt-art{height:176px;background:radial-gradient(circle,rgba(124,47,76,.28),rgba(12,8,15,.92) 72%);border:1px solid #4b2938;overflow:hidden}
+.yokai-portrait-image{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;filter:drop-shadow(0 8px 15px #0009)}
+.pet-creature .yokai-portrait-image{height:168px;max-width:190px}
+.pet-adopt-art .yokai-portrait-image{height:174px}
+.yokai-motion .yokai-portrait-image{animation:yokai-portrait-drift 4s ease-in-out infinite;transform-origin:50% 80%}
+.yokai-kitsune .yokai-portrait-image{animation:yokai-portrait-sway 4.2s ease-in-out infinite}
+.yokai-oni .yokai-portrait-image{animation:yokai-portrait-pulse 3s ease-in-out infinite}
+.yokai-awakened .yokai-portrait-image{filter:drop-shadow(0 0 17px rgba(220,142,171,.72))}
+@keyframes yokai-portrait-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes yokai-portrait-sway{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
+@keyframes yokai-portrait-pulse{0%,100%{filter:drop-shadow(0 0 8px rgba(181,75,102,.25))}50%{filter:drop-shadow(0 0 18px rgba(181,75,102,.65))}}
+.pet-action{border-color:#633244;background:#24131d;color:#f3dce3}.pet-action:hover{background:#3a1b2b}
+.pet-xp>i span,.pet-stat-track i{background:linear-gradient(90deg,#752d48,#c47b91,#9a80bd)}
+.pet-empty{border-color:#633244;background:linear-gradient(145deg,#21131b,#0c090f)}
+.pet-kindness{color:#d8aebb}
+@media(prefers-reduced-motion:reduce){.yokai-motion .yokai-portrait-image{animation:none!important}}
