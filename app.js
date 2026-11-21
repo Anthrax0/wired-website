@@ -169,7 +169,7 @@ async function loadRelationshipData(){
  if(!state.user){state.relationshipRequests=[];state.activeRelationship=null;return;}
  const q=await sb.from("relationship_requests").select("id,requester_id,recipient_id,status,ended_by,created_at,updated_at").or("requester_id.eq."+state.user.id+",recipient_id.eq."+state.user.id).order("created_at",{ascending:false});
  if(q.error)throw q.error;const rows=q.data||[],ids=[...new Set(rows.map(r=>r.requester_id===state.user.id?r.recipient_id:r.requester_id))];
- const p=ids.length?await sb.from("profiles").select("id,username").in("id",ids):{data:[],error:null};if(p.error)throw p.error;
+ const p=ids.length?await sb.from("profiles").select("id,username,avatar_url").in("id",ids):{data:[],error:null};if(p.error)throw p.error;
  const byId=new Map((p.data||[]).map(x=>[x.id,x]));state.relationshipRequests=rows.map(r=>({...r,person:byId.get(r.requester_id===state.user.id?r.recipient_id:r.requester_id)}));
  state.activeRelationship=state.relationshipRequests.find(r=>r.status==="accepted")||null;
  const ended=state.relationshipRequests.find(r=>r.status==="ended"&&r.ended_by&&r.ended_by!==state.user.id);if(ended)showRelationshipEndedPopup(ended);
@@ -200,8 +200,12 @@ function myRelationshipMarkup(){
 }
 function relationshipSubtitleMarkup(r, own=false){
  if(!r||r.status!=="accepted")return "";
- const partner=own?(r.person?.username||"WIRED member"):"you";
- const partnerLink=own&&r.person?.id?'<button type="button" class="profile-relationship-partner-link" data-relationship-partner="'+r.person.id+'">'+escapeHTML(partner)+'</button>':escapeHTML(partner);
+ const partner=own?(r.person?.username||"WIRED member"):(state.profile?.username||"you");
+ const partnerId=own?r.person?.id:state.user?.id;
+ const avatarUrl=own?r.person?.avatar_url:state.profile?.avatar_url;
+ const avatar=avatarUrl?'<img src="'+escapeHTML(avatarUrl)+'" alt="'+escapeHTML(partner)+' avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">':'<span aria-hidden="true">'+escapeHTML(partner.slice(0,1).toUpperCase())+'</span>';
+ const portrait='<span class="relationship-partner-avatar" style="display:inline-flex;flex:none;width:30px;height:30px;border-radius:50%;overflow:hidden;align-items:center;justify-content:center;background:#321b48;border:1px solid #a66bdd;color:#fff;vertical-align:middle">'+avatar+'</span>';
+ const partnerLink=partnerId?'<button type="button" class="profile-relationship-partner-link" data-relationship-partner="'+escapeHTML(partnerId)+'" style="display:inline-flex;align-items:center;gap:8px;vertical-align:middle">'+portrait+'<span>'+escapeHTML(partner)+'</span></button>':portrait+' '+escapeHTML(partner);
  return '<div class="profile-relationship-subtitle-row"><p class="profile-relationship-subtitle">In a relationship with '+partnerLink+'</p>'+(own?'<button type="button" class="ghost small" id="relationshipEndOwnBtn">End relationship</button>':'')+'</div>';
 }
 function relationshipMarkup(p){
