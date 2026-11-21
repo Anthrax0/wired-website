@@ -1,4 +1,5 @@
 /* WIRED website — connected to the existing Supabase project and wired-api Edge Function. */
+// Fresh main-branch deployment: gothic yokai portrait syntax was corrected.
 const SUPABASE_URL = "https://kovvnvvkopqkgjmcvvdw.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ptGg0nN4LZbi3Au4jVnB_Q_zaWr1N2X";
 const API_BASE = `${SUPABASE_URL}/functions/v1/wired-api`;
