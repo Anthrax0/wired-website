@@ -553,7 +553,7 @@ function yokaiPortraitUrl(name,slug,evolved){
   const base="https://raw.githubusercontent.com/Anthrax0/wired-website/main/assets/yokai/";
   const sprites={
     kappa:base+"yokai_kappa.webp",
-    sasquatch:base+"sasquatch.webp",
+    sasquatch:base+"bigfoot.webp",
     bigfoot:base+"bigfoot.webp",
     yeti:base+"yeti.webp",
     kodama:base+"kodama.svg",
