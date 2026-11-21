@@ -6,7 +6,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null,relationshipEndChannel:null,relationshipEndPopup:null};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null,relationshipEndChannel:null,relationshipEndPopup:null,quizResults:{}};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -566,12 +566,27 @@ async function openCommunity(id){
  }catch(e){toast(errorText(e));}
 }
 function renderPostCard(p){
- const options=Array.isArray(p.metadata?.options)?p.metadata.options:[], votes=(p.vote_counts||[]), total=votes.reduce((a,n)=>a+n,0);
- const mediaUrls=Array.isArray(p.metadata?.media_urls)?p.metadata.media_urls:(p.metadata?.media_url?[p.metadata.media_url]:[]);const media=mediaUrls.map((url,i)=>'<img class="post-media" src="'+escapeHTML(url)+'" alt="Post image '+(i+1)+'" loading="lazy">').join('');
- let poll='';if(['poll','quiz'].includes(p.kind)){poll='<div class="poll-options">'+options.map((o,i)=>{const n=votes[i]||0,percent=total?Math.round(n/total*100):0;return '<button class="poll-option '+(p.my_vote===i?'selected':'')+'" data-vote-post="'+escapeHTML(p.id)+'" data-vote-option="'+i+'"><span>'+escapeHTML(o)+'</span><span class="poll-result">'+n+' · '+percent+'%</span><span class="poll-bar" style="width:'+percent+'%"></span></button>';}).join('')+'</div><p class="hint">'+(p.my_vote===null?'Vote to see community results':'Your vote is recorded · '+total+' vote(s)')+'</p>';}
- const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};const reactions=Object.keys(icons).map(r=>'<button class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
+ const options=Array.isArray(p.metadata?.options)?p.metadata.options:[],votes=(p.vote_counts||[]),total=votes.reduce((a,n)=>a+n,0);
+ const mediaUrls=Array.isArray(p.metadata?.media_urls)?p.metadata.media_urls:(p.metadata?.media_url?[p.metadata.media_url]:[]);
+ const media=mediaUrls.map((url,i)=>'<img class="post-media" src="'+escapeHTML(url)+'" alt="Post image '+(i+1)+'" loading="lazy">').join('');
+ let interactive='';
+ if(p.kind==='poll'){
+  interactive='<div class="poll-options">'+options.map((o,i)=>{const n=votes[i]||0,percent=total?Math.round(n/total*100):0;return '<button class="poll-option '+(p.my_vote===i?'selected':'')+'" data-vote-post="'+escapeHTML(p.id)+'" data-vote-option="'+i+'"><span>'+escapeHTML(o)+'</span><span class="poll-result">'+n+' · '+percent+'%</span><span class="poll-bar" style="width:'+percent+'%"></span></button>';}).join('')+'</div><p class="hint">'+(p.my_vote===null?'Vote to see community results':'Your vote is recorded · '+total+' vote(s)')+'</p>';
+ }else if(p.kind==='quiz'&&Array.isArray(p.metadata?.questions)){
+  const questions=p.metadata.questions,result=state.quizResults?.[p.id];
+  if(result){
+   const rows=questions.map((q,i)=>{const r=result.results?.[i]||{},correctText=q.options?.[r.correct_index]||'Unavailable';return '<article class="quiz-result-question"><b>'+(i+1)+'. '+escapeHTML(q.prompt)+'</b><p class="'+(r.correct?'quiz-answer-correct':'quiz-answer-wrong')+'">'+(r.correct?'✓ Correct':'✕ Incorrect')+' · Correct answer: '+escapeHTML(correctText)+'</p></article>';}).join('');
+   interactive='<section class="quiz-results"><div class="quiz-score"><span>YOUR SCORE</span><strong>'+Number(result.score)+' / '+Number(result.total)+'</strong><small>'+Math.round(Number(result.score)/Math.max(1,Number(result.total))*100)+'% correct</small></div>'+rows+'<button type="button" class="ghost small" data-quiz-retake="'+escapeHTML(p.id)+'">Retake quiz</button></section>';
+  }else{
+   interactive='<form class="quiz-run-form" data-quiz-submit="'+escapeHTML(p.id)+'"><ol class="quiz-run-questions">'+questions.map((q,i)=>'<li class="quiz-run-question"><b>'+escapeHTML(q.prompt)+'</b><div class="quiz-run-options">'+(q.options||[]).map((option,j)=>'<label class="quiz-run-option"><input type="radio" name="quiz-answer-'+i+'" value="'+j+'" required><span>'+escapeHTML(option)+'</span></label>').join('')+'</div></li>').join('')+'</ol><button class="primary" type="submit">Submit quiz</button></form>';
+  }
+ }else if(p.kind==='quiz'){
+  interactive='<div class="poll-options">'+options.map((o,i)=>'<button class="poll-option '+(p.my_vote===i?'selected':'')+'" data-vote-post="'+escapeHTML(p.id)+'" data-vote-option="'+i+'"><span>'+escapeHTML(o)+'</span></button>').join('')+'</div><p class="hint">Legacy quiz · choose an answer</p>';
+ }
+ const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};
+ const reactions=Object.keys(icons).map(r=>'<button class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
  const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b><p>'+escapeHTML(z.body)+'</p></div>').join('');
- return '<article class="card post"><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+poll+'<div class="post-reactions">'+reactions+'</div><div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
+ return '<article class="card post"><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div><div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
 }
 function renderCommunity(){
  const c=state.activeCommunity,v=$('view'),joined=!!state.activeCommunityRole,manager=['owner','mod'].includes(state.activeCommunityRole);
@@ -579,7 +594,7 @@ function renderCommunity(){
  if(state.leaderboardOpen){html+='<section class="card community-leaderboard-panel"><div class="section-head"><h2>Community leaderboard</h2><button type="button" class="ghost small" id="closeCommunityLeaderboard">Close</button></div>'+(state.communityLeaderboard.length?state.communityLeaderboard.map((m,i)=>'<div class="moderation-row"><b>#'+(i+1)+' '+escapeHTML(m.username)+'</b><span>'+Number(m.points)+' points · '+Number(m.checkins)+' check-ins</span></div>').join(''):'<p class="hint">No check-ins yet. Be the first on the leaderboard!</p>')+'</section>';}
  if(c.rules)html+='<article class="card"><h3>Community rules</h3><p>'+escapeHTML(c.rules)+'</p></article>';
  if(joined&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
- if(joined){html+='<button class="community-action" id="communityChatBtn">Open community chat <small style="display:block;font-weight:400;color:#bba5d1">Talk with members in real time</small></button><div class="card form-card"><div class="section-head"><h3>Create a post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Answer options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label><div id="quizCorrectWrap" hidden><label class="field">Correct quiz answer<select id="quizCorrectIndex"></select></label></div></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button class="primary">Publish to community</button></form></div>';}
+ if(joined){html+='<button class="community-action" id="communityChatBtn">Open community chat <small style="display:block;font-weight:400;color:#bba5d1">Talk with members in real time</small></button><div class="card form-card"><div class="section-head"><h3>Create a post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button class="primary">Publish to community</button></form></div>';}
  else if(c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
  else html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
  if(manager){
@@ -612,8 +627,8 @@ function renderCommunity(){
  $('communityLeaderboardBtn')?.addEventListener('click',openCommunityLeaderboard);
  $('closeCommunityLeaderboard')?.addEventListener('click',()=>{state.leaderboardOpen=false;renderCommunity()});
  $('backDiscover').addEventListener('click',()=>nav('discover'));$('openCommunityManager')?.addEventListener('click',()=>{state.managerOpen=true;renderCommunity()});$('closeCommunityManager')?.addEventListener('click',()=>{state.managerOpen=false;renderCommunity()});$('managerSettingsForm')?.addEventListener('submit',saveCommunitySettings);$('joinFromCommunity')?.addEventListener('click',()=>joinCommunity(c.id));$('communityChatBtn')?.addEventListener('click',()=>openCommunityChat(c.id));$('postForm')?.addEventListener('submit',createPost);
- $('postType')?.addEventListener('change',updatePostComposer);$('pollOptions')?.addEventListener('input',updateQuizOptions);$('postImage')?.addEventListener('change',e=>{const host=$('postImagePreview');if(!host)return;const files=Array.from(e.target.files||[]);host.innerHTML=files.slice(0,5).map(f=>'<span>'+escapeHTML(f.name)+'</span>').join(' · ');});updatePostComposer();
- v.querySelectorAll('[data-vote-post]').forEach(b=>b.addEventListener('click',()=>voteOnPost(b.dataset.votePost,Number(b.dataset.voteOption))));
+ $('postType')?.addEventListener('change',updatePostComposer);$('pollOptions')?.addEventListener('input',()=>{});$('addQuizQuestion')?.addEventListener('click',addQuizQuestion);$('quizQuestionBuilder')?.addEventListener('input',e=>{if(e.target.matches('[data-quiz-options]'))updateQuizQuestionOptions(e.target.closest('[data-quiz-question]'));});$('quizQuestionBuilder')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-quiz-question]');if(!b)return;const host=$('quizQuestionBuilder');b.closest('[data-quiz-question]')?.remove();Array.from(host.querySelectorAll('[data-quiz-question]')).forEach((card,i)=>{const heading=card.querySelector('.quiz-question-editor-head b');if(heading)heading.textContent='Question '+(i+1);});});$('postImage')?.addEventListener('change',e=>{const host=$('postImagePreview');if(!host)return;const files=Array.from(e.target.files||[]);host.innerHTML=files.slice(0,5).map(f=>'<span>'+escapeHTML(f.name)+'</span>').join(' · ');});updatePostComposer();
+ v.querySelectorAll('[data-vote-post]').forEach(b=>b.addEventListener('click',()=>voteOnPost(b.dataset.votePost,Number(b.dataset.voteOption))));v.querySelectorAll('[data-quiz-submit]').forEach(form=>form.addEventListener('submit',e=>submitQuiz(e,form.dataset.quizSubmit)));v.querySelectorAll('[data-quiz-retake]').forEach(b=>b.addEventListener('click',()=>{delete state.quizResults[b.dataset.quizRetake];renderCommunity();}));
  v.querySelectorAll('[data-react-post]').forEach(b=>b.addEventListener('click',()=>togglePostReaction(b.dataset.reactPost,b.dataset.reaction)));
  v.querySelectorAll('[data-comment-form]').forEach(form=>form.addEventListener('submit',e=>submitPostComment(e,form.dataset.commentForm)));
  v.querySelectorAll('[data-profile-id]').forEach(b=>b.addEventListener('click',()=>openMemberProfile(b.dataset.profileId)));
@@ -655,14 +670,76 @@ async function saveCommunitySettings(e){
 async function reviewJoinRequest(id,status){try{await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/requests/'+encodeURIComponent(id),'PATCH',{status});toast(status==='approved'?'Member approved.':'Request declined.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}}
 let postMediaFile=null;
 function postOptions(){return ($('pollOptions')?.value||'').split(String.fromCharCode(10)).map(x=>x.trim()).filter(Boolean).slice(0,8)}
-function updateQuizOptions(){const sel=$('quizCorrectIndex');if(!sel)return;const options=postOptions(),prior=sel.value;sel.innerHTML=options.map((x,i)=>'<option value="'+i+'">'+(i+1)+'. '+escapeHTML(x)+'</option>').join('');if(prior&&Number(prior)<options.length)sel.value=prior;}
-function updatePostComposer(){const type=$('postType')?.value||'blog';if($('pollFields'))$('pollFields').hidden=!['poll','quiz'].includes(type);if($('quizCorrectWrap'))$('quizCorrectWrap').hidden=type!=='quiz';if($('postImageWrap'))$('postImageWrap').hidden=false;updateQuizOptions();}
+function quizQuestionEditor(index){
+ return '<article class="quiz-question-editor" data-quiz-question><div class="quiz-question-editor-head"><b>Question '+(index+1)+'</b><button type="button" class="ghost small" data-remove-quiz-question>Remove</button></div><label class="field">Question prompt<input data-quiz-prompt maxlength="300" required placeholder="Enter the question"></label><label class="field">Answer options (one per line)<textarea data-quiz-options rows="4" placeholder="Answer one&#10;Answer two&#10;Answer three"></textarea></label><label class="field">Correct answer<select data-quiz-correct><option value="">Add answer options first</option></select></label></article>';
+}
+function updateQuizQuestionOptions(card){
+ const select=card?.querySelector('[data-quiz-correct]'),area=card?.querySelector('[data-quiz-options]');if(!select||!area)return;
+ const options=area.value.split(String.fromCharCode(10)).map(x=>x.trim()).filter(Boolean).slice(0,6),prior=select.value;
+ select.innerHTML=options.length?options.map((x,i)=>'<option value="'+i+'">'+(i+1)+'. '+escapeHTML(x)+'</option>').join(''):'<option value="">Add answer options first</option>';
+ if(prior!==''&&Number(prior)<options.length)select.value=prior;
+}
+function addQuizQuestion(){
+ const host=$('quizQuestionBuilder');if(!host)return;
+ const count=host.querySelectorAll('[data-quiz-question]').length;if(count>=20){toast('A quiz can contain up to 20 questions.');return;}
+ host.insertAdjacentHTML('beforeend',quizQuestionEditor(count));
+}
+function readQuizQuestions(){
+ const cards=Array.from(document.querySelectorAll('#quizQuestionBuilder [data-quiz-question]'));
+ if(!cards.length)throw new Error('Add at least one quiz question.');
+ return cards.map((card,i)=>{
+  const prompt=card.querySelector('[data-quiz-prompt]')?.value.trim()||'';
+  const options=(card.querySelector('[data-quiz-options]')?.value||'').split(String.fromCharCode(10)).map(x=>x.trim()).filter(Boolean).slice(0,6);
+  const correct=Number(card.querySelector('[data-quiz-correct]')?.value);
+  if(!prompt)throw new Error('Add a prompt for question '+(i+1)+'.');
+  if(options.length<2)throw new Error('Question '+(i+1)+' needs at least two answer options.');
+  if(options.length>6)throw new Error('Each question can have up to six answer options.');
+  if(!Number.isInteger(correct)||correct<0||correct>=options.length)throw new Error('Choose the correct answer for question '+(i+1)+'.');
+  return {prompt,options,correct_index:correct};
+ });
+}
+function updatePostComposer(){
+ const type=$('postType')?.value||'blog';
+ if($('pollFields'))$('pollFields').hidden=type!=='poll';
+ if($('quizFields'))$('quizFields').hidden=type!=='quiz';
+ if($('postImageWrap'))$('postImageWrap').hidden=false;
+ if(type==='quiz'&&!$('quizQuestionBuilder')?.querySelector('[data-quiz-question]'))addQuizQuestion();
+}
 async function refreshCommunityPosts(){const d=await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/posts');state.posts=d.items||[];renderCommunity();}
-async function createPost(e){e.preventDefault();try{const kind=$('postType').value,metadata={},files=Array.from($('postImage')?.files||[]);if(files.length>5)throw new Error('You can attach up to 5 images to one post.');if(kind==='image'&&!files.length)throw new Error('Choose at least one image for an image post.');if(['poll','quiz'].includes(kind)){metadata.options=postOptions();if(metadata.options.length<2)throw new Error('Add at least two answer options.');if(kind==='quiz')metadata.correct_index=Number($('quizCorrectIndex').value);}
- const urls=[];for(const file of files){if(file.size>10*1024*1024)throw new Error('Each image must be under 10 MB.');const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[file.type];if(!ext)throw new Error('Choose JPG, PNG, WEBP, or GIF images.');const path=state.user.id+'/'+crypto.randomUUID()+'.'+ext;const {error:uploadError}=await sb.storage.from('post-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});if(uploadError)throw uploadError;urls.push(sb.storage.from('post-media').getPublicUrl(path).data.publicUrl);}
- if(urls.length){metadata.media_urls=urls;metadata.media_url=urls[0];}
- await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/posts','POST',{title:$('postTitle').value.trim(),body:$('postBody').value.trim(),kind,metadata});toast('Your '+kind+' has been published.');await refreshCommunityPosts();}catch(err){toast(errorText(err))}}
+async function createPost(e){
+ e.preventDefault();
+ try{
+  const kind=$('postType').value,metadata={},files=Array.from($('postImage')?.files||[]);
+  if(files.length>5)throw new Error('You can attach up to 5 images to one post.');
+  if(kind==='image'&&!files.length)throw new Error('Choose at least one image for an image post.');
+  if(kind==='poll'){metadata.options=postOptions();if(metadata.options.length<2)throw new Error('Add at least two poll options.');}
+  if(kind==='quiz')metadata.questions=readQuizQuestions();
+  const urls=[];
+  for(const file of files){
+   if(file.size>10*1024*1024)throw new Error('Each image must be under 10 MB.');
+   const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[file.type];
+   if(!ext)throw new Error('Choose JPG, PNG, WEBP, or GIF images.');
+   const path=state.user.id+'/'+crypto.randomUUID()+'.'+ext;
+   const {error:uploadError}=await sb.storage.from('post-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+   if(uploadError)throw uploadError;
+   urls.push(sb.storage.from('post-media').getPublicUrl(path).data.publicUrl);
+  }
+  if(urls.length){metadata.media_urls=urls;metadata.media_url=urls[0];}
+  await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/posts','POST',{title:$('postTitle').value.trim(),body:$('postBody').value.trim(),kind,metadata});
+  toast('Your '+kind+' has been published.');
+  await refreshCommunityPosts();
+ }catch(err){toast(errorText(err));}
+}
 async function voteOnPost(id,option_index){try{const post=state.posts.find(p=>p.id===id);const result=await api('/posts/'+encodeURIComponent(id)+'/vote','POST',{option_index});if(post?.kind==='quiz')toast(result.correct?'Correct answer!':'Not quite — try another answer.');await refreshCommunityPosts()}catch(e){toast(errorText(e))}}
+async function submitQuiz(e,id){
+ e.preventDefault();
+ const post=state.posts.find(p=>p.id===id),questions=post?.metadata?.questions||[],answers=[];
+ for(let i=0;i<questions.length;i++){const choice=e.currentTarget.querySelector('input[name="quiz-answer-'+i+'"]:checked');if(!choice){toast('Answer every question before submitting.');return;}answers.push(Number(choice.value));}
+ const button=e.currentTarget.querySelector('button[type="submit"]');if(button){button.disabled=true;button.textContent='Scoring…';}
+ try{const result=await api('/posts/'+encodeURIComponent(id)+'/quiz-submit','POST',{answers});state.quizResults[id]=result;renderCommunity();}
+ catch(err){if(button){button.disabled=false;button.textContent='Submit quiz';}toast(errorText(err));}
+}
+
 async function togglePostReaction(id,reaction){try{await api('/posts/'+encodeURIComponent(id)+'/reactions','POST',{reaction});await refreshCommunityPosts()}catch(e){toast(errorText(e))}}
 async function submitPostComment(e,id){e.preventDefault();const input=e.currentTarget.elements.comment;try{await api('/posts/'+encodeURIComponent(id)+'/comments','POST',{body:input.value.trim()});await refreshCommunityPosts()}catch(err){toast(errorText(err))}}
 async function loadThreads(){if(!state.user)return;try{const d=await api("/threads");state.threads=d.items||[];if(state.page==="chats")render()}catch(e){toast(errorText(e))}}
