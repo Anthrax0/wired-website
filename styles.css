@@ -639,3 +639,25 @@ footer{border-color:#4b2864}
 .quiz-answer-wrong{color:#fda4af}
 .quiz-results>[data-quiz-retake]{margin-top:12px}
 @media(max-width:600px){.quiz-run-form,.quiz-results{padding:12px}.quiz-question-editor{padding:12px}}
+
+
+/* WIRED Pet Paradise */
+.pet-hero{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:22px 0 28px;padding:clamp(22px,4vw,36px);border:1px solid #69418f;border-radius:22px;background:radial-gradient(circle at 85% 20%,#63318b55,transparent 36%),linear-gradient(135deg,#241333,#100d18 70%);box-shadow:0 18px 55px #0004}
+.pet-hero h2{font-size:clamp(28px,5vw,42px);margin:7px 0;background:linear-gradient(90deg,#f2ddff,#b98bff);background-clip:text;color:transparent}
+.pet-hero p{color:var(--muted);margin:0}.pet-kicker{font-size:10px;letter-spacing:2px;font-weight:850;color:#d5b4ff}
+.pet-hero-count{width:82px;height:82px;flex:0 0 82px;border-radius:50%;display:grid;align-content:center;text-align:center;background:#9b5cff18;border:1px solid #a66be5}.pet-hero-count b{font-size:27px;line-height:1.1}.pet-hero-count span{font-size:10px;color:var(--muted)}
+.pet-section{margin:28px 0}.pet-collection,.pet-adoption-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:15px}
+.pet-card,.pet-adopt-card{position:relative;overflow:hidden;padding:19px;border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,#1d1628,#100d17)}
+.pet-card:before,.pet-adopt-card:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,#9b5cff,#dfb5ff)}
+.pet-rarity-rare:before{background:linear-gradient(90deg,#46b8ff,#a5e8ff)}.pet-rarity-epic:before{background:linear-gradient(90deg,#b45cff,#ff9be8)}.pet-rarity-legendary:before{background:linear-gradient(90deg,#ffbd4b,#fff0a0)}
+.pet-card-top{display:flex;justify-content:space-between;align-items:center}.pet-rarity{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#d7baff;font-weight:850}.pet-level{font-size:11px;border:1px solid #69418f;border-radius:30px;padding:4px 9px;color:#e7d6ff}
+.pet-creature{display:grid;place-items:center;height:130px;font-size:76px;margin:8px 0 0;filter:drop-shadow(0 12px 18px #9b5cff33);animation:pet-float 3s ease-in-out infinite}
+@keyframes pet-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.pet-card h3,.pet-adopt-card h3{margin:3px 0;font-size:21px}.pet-species{color:var(--muted);margin:0 0 14px;font-size:12px}
+.pet-xp{margin:14px 0}.pet-xp>div,.pet-stat>div:first-child{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted)}.pet-xp>i,.pet-stat-track{height:7px;display:block;overflow:hidden;border-radius:10px;background:#08060d;margin-top:6px}.pet-xp>i span,.pet-stat-track i{display:block;height:100%;border-radius:10px;background:linear-gradient(90deg,#8d4be2,#d9b6ff)}
+.pet-stat{margin:10px 0}.pet-stat>div:first-child b{color:#f5eaff}.pet-stat-track{height:6px}.pet-stat-track i{background:linear-gradient(90deg,#7440b5,#bf8aff)}
+.pet-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:17px 0 8px}.pet-action{padding:10px 5px;border-radius:11px;border:1px solid #67458a;background:#21152f;color:#f1e5ff;font-weight:700;font-size:12px;cursor:pointer}.pet-action:hover{background:#342047}.pet-action:disabled{opacity:.5;cursor:wait}.pet-footnote{font-size:10px;color:#9888a5;margin:10px 0 0}
+.pet-empty{padding:35px 18px;text-align:center;border:1px dashed #6b4a88;border-radius:18px;background:#171020}.pet-empty>div{font-size:48px}.pet-empty h3{margin:8px 0}.pet-empty p{color:var(--muted);margin:0}
+.pet-nickname-field{max-width:380px}.pet-adopt-card{display:flex;flex-direction:column;align-items:flex-start}.pet-adopt-art{width:100%;height:104px;display:grid;place-items:center;font-size:64px;border-radius:14px;background:radial-gradient(circle,#6d3d8b44,transparent 70%);margin:3px 0 12px}.pet-adopt-card p{font-size:12px;line-height:1.5;min-height:38px}.pet-adopt-card .primary{margin-top:auto;width:100%;font-size:12px;padding:11px}.pet-adopt-card .primary:disabled{opacity:.48;cursor:not-allowed;filter:grayscale(.5)}
+.pet-kindness{text-align:center;color:#cdb6e3;font-size:12px;padding:16px;border-top:1px solid var(--line)}
+@media(max-width:540px){.pet-hero{align-items:flex-start}.pet-hero-count{width:65px;height:65px;flex-basis:65px}.pet-hero-count b{font-size:22px}.pet-actions{gap:5px}.pet-action{font-size:11px}}
