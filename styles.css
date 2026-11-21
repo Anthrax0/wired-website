@@ -732,3 +732,5 @@ footer{border-color:#4b2864}
 @keyframes yokai-slink{0%,100%{transform:translateX(0) rotate(0)}50%{transform:translateX(5px) rotate(5deg)}}
 @keyframes yokai-awaken{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-8px) scale(1.08)}}
 @media(prefers-reduced-motion:reduce){.yokai-motion .pet-body,.yokai-awakened .pet-body{animation:none!important}}
+
+.yokai-mossling .pet-body{animation:yokai-float 3.5s ease-in-out infinite}.yokai-cloudkit .pet-body{animation:yokai-bob 2.8s ease-in-out infinite}.yokai-emberpup .pet-body{animation:yokai-bob 1.9s ease-in-out infinite}.yokai-moonfox .pet-body{animation:yokai-sway 3.5s ease-in-out infinite}.yokai-starwhale .pet-body{animation:yokai-slink 4s ease-in-out infinite}.yokai-glimmerdragon .pet-body{animation:yokai-breathe 2.4s ease-in-out infinite}.yokai-auroraphenix .pet-body{animation:yokai-wing 2.2s ease-in-out infinite}
