@@ -689,3 +689,22 @@ footer{border-color:#4b2864}
 @keyframes pet-twinkle{0%,100%{opacity:0;transform:scale(.55) rotate(0)}35%,65%{opacity:.95;transform:scale(1.15) rotate(35deg)}}
 @keyframes pet-happy-hop{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-17px) scale(1.08)}65%{transform:translateY(-5px) scale(.98)}}
 @media(prefers-reduced-motion:reduce){.pet-creature,.pet-body,.pet-equipped-accessories,.pet-creature::before,.pet-creature::after{animation:none!important}.pet-card:hover .pet-body{transform:none}}
+
+
+/* Japanese yokai sanctuary visual refresh */
+.pet-hero{border-color:#8a6b45;background:radial-gradient(circle at 82% 18%,rgba(231,183,94,.2),transparent 34%),radial-gradient(circle at 12% 100%,rgba(85,131,116,.2),transparent 42%),linear-gradient(135deg,#1d2926,#100d18 72%)}
+.pet-hero h2{background:linear-gradient(90deg,#fff0c8,#d6aa65,#b7d7c4);background-clip:text}
+.pet-kicker{color:#e5c58b}
+.pet-card:before,.pet-adopt-card:before{background:linear-gradient(90deg,#668c78,#d6b477,#b77d55)}
+.pet-rarity-rare:before{background:linear-gradient(90deg,#6c9eaa,#b9d9d5)}
+.pet-rarity-epic:before{background:linear-gradient(90deg,#a66a83,#e5a9ad)}
+.pet-rarity-legendary:before{background:linear-gradient(90deg,#d4a64d,#fff0b0)}
+.pet-creature{filter:drop-shadow(0 12px 18px rgba(195,164,105,.25))}
+.pet-adopt-art{background:radial-gradient(circle,rgba(197,166,111,.19),transparent 70%)}
+.pet-action{border-color:#786348;background:#1b2925;color:#f7ebd6}
+.pet-action:hover{background:#2c4037}
+.pet-xp>i span,.pet-stat-track i{background:linear-gradient(90deg,#648b76,#d2b074)}
+.pet-empty{border-color:#8a7555;background:linear-gradient(145deg,#18251f,#171020)}
+.pet-kindness{color:#d8c7a7}
+.pet-merch-art{background:radial-gradient(circle at 50% 42%,rgba(202,164,103,.25),rgba(16,18,16,.96) 72%)!important}
+.pet-merch-art>small{color:#e6c990}
