@@ -605,3 +605,7 @@ footer{border-color:#4b2864}
 .orange-fruit-frame::after{bottom:-7px;left:0;transform:rotate(205deg)}
 .orange-fruit-frame img{border-radius:50%;border:2px solid #ffdf83}
 .store-preview-avatar.orange-fruit-frame{display:flex;align-items:center;justify-content:center;width:92px;height:92px;margin:18px auto 12px;font-size:39px}
+
+/* Clickable partner name in the compact profile relationship line */
+.profile-relationship-partner-link{appearance:none;border:0;padding:0;margin:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-decoration:underline;text-decoration-color:rgba(217,167,255,.65);text-underline-offset:3px;cursor:pointer}
+.profile-relationship-partner-link:focus-visible{outline:2px solid #47dfff;outline-offset:3px;border-radius:3px}
