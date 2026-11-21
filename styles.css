@@ -750,8 +750,6 @@ footer{border-color:#4b2864}
 .yokai-motion .yokai-portrait-image{animation:yokai-portrait-drift 4s ease-in-out infinite;transform-origin:50% 80%}
 .yokai-sasquatch .yokai-portrait-image{animation:yokai-sasquatch-motion 3.4s ease-in-out infinite;transform-origin:50% 88%}
 .yokai-kitsune .yokai-portrait-image{animation:yokai-portrait-sway 4.2s ease-in-out infinite}
-/* Blend the white matte in the uploaded Kitsune GIF into the dark card surface. */
-.yokai-kitsune .yokai-portrait-image{mix-blend-mode:multiply}
 
 .yokai-oni .yokai-portrait-image{animation:yokai-portrait-pulse 3s ease-in-out infinite}
 .yokai-awakened .yokai-portrait-image{filter:drop-shadow(0 0 17px rgba(220,142,171,.72))}
