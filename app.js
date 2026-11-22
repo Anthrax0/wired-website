@@ -488,7 +488,11 @@ async function equipGlobalStoreItem(id){
 }
 async function purchaseGlobalStoreItem(id){
  try{
-  const result=await api('/store/purchase','POST',{item_id:id});
+  const item=(state.globalStoreItems||[]).find(x=>String(x.id)===String(id));
+  if(!item)throw new Error('Store item not found. Refresh the store and try again.');
+  const itemKey=item.item_key||item.sku;
+  if(!itemKey)throw new Error('This store item has no purchase key.');
+  const result=await api('/store/purchase','POST',{itemKey});
   await loadGlobalStore();toast('Purchase complete. Your item is now in My purchases.');render();
  }catch(e){toast(errorText(e));}
 }
