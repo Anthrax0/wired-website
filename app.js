@@ -557,19 +557,19 @@ function yokaiAccessoryOverlay(items){
  const skus=new Set((items||[]).map(x=>String(x.global_store_items?.sku||"")));
  const piece=(sku,art,style)=>skus.has(sku)?'<span title="'+escapeHTML(sku.replace(/pet-/g,"").replace(/-/g," "))+'" style="position:absolute;'+style+';font-size:clamp(20px,5vw,34px);line-height:1;filter:drop-shadow(0 2px 6px #000);pointer-events:none">'+art+'</span>':'';
  return '<span class="yokai-accessory-layer" style="position:absolute;inset:0;pointer-events:none;z-index:3">'+
- piece("pet-ear-crown","👑","top:3%;left:50%;transform:translateX(-50%)")+
- piece("pet-bunny-ears","🐰","top:0;right:17%")+
- piece("pet-rainbow-halo","✨","top:5%;left:16%")+
- piece("pet-bow-collar","🎀","bottom:28%;left:50%;transform:translateX(-50%)")+
- piece("pet-star-collar","🌟","bottom:26%;left:52%")+
- piece("pet-rubber-duck","🦆","bottom:5%;right:10%")+
+ piece("pet-ear-crown","🔔","top:3%;left:50%;transform:translateX(-50%)")+
+ piece("pet-bunny-ears","🦊","top:0;right:17%")+
+ piece("pet-rainbow-halo","🌑","top:5%;left:16%")+
+ piece("pet-bow-collar","⛓️","bottom:28%;left:50%;transform:translateX(-50%)")+
+ piece("pet-star-collar","🧿","bottom:26%;left:52%")+
+ piece("pet-rubber-duck","🪆","bottom:5%;right:10%")+
  piece("pet-crystal-ball","🔮","bottom:5%;left:8%")+
- piece("pet-cloud-bed","☁️","bottom:0;left:35%")+
- piece("pet-mushroom-house","🍄","bottom:2%;right:2%")+'</span>';
+ piece("pet-cloud-bed","⚰️","bottom:0;left:35%")+
+ piece("pet-mushroom-house","⛩️","bottom:2%;right:2%")+'</span>';
 }
 function petStoreEmoji(item){
  const sku=String(item?.sku||"");
- return ({'pet-ear-crown':'🎐','pet-bunny-ears':'🦊','pet-rainbow-halo':'⛩️','pet-bow-collar':'🪢','pet-star-collar':'🧿','pet-rubber-duck':'🪆','pet-crystal-ball':'🔮','pet-cloud-bed':'🏮','pet-mushroom-house':'🏯'})[sku]||'🐾';
+ return ({'pet-ear-crown':'🔔','pet-bunny-ears':'🦊','pet-rainbow-halo':'🌑','pet-bow-collar':'⛓️','pet-star-collar':'🧿','pet-rubber-duck':'🪆','pet-crystal-ball':'🔮','pet-cloud-bed':'⚰️','pet-mushroom-house':'⛩️' ,'sanctuary-bundle':'🪦','yokai-plushie':'👻'})[sku]||'🕯️';
 }
 async function equipPetStoreItem(itemId,petId,button){
  if(!itemId||!petId){toast("Choose one of your yokai first.");return;}
@@ -586,7 +586,7 @@ function renderGlobalStore(){
  const purchases=state.globalStorePurchases||[];
  const petPurchases=purchases.filter(p=>String(p.global_store_items?.category||"").startsWith("Yokai "));
  const profilePurchases=purchases.filter(p=>!String(p.global_store_items?.category||"").startsWith("Yokai "));
- const petShop=petItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>🐾 Yokai merchandise</h2><p class="hint">Dress up your companions with accessories, toys and cozy homes.</p></div></div><div class="store-grid">'+petItems.map(item=>'<article class="card store-item pet-store-item"><div class="store-item-art pet-merch-art"><span>'+petStoreEmoji(item)+'</span><small>YOKAI PREVIEW</small></div><span class="pill">'+escapeHTML(item.category)+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>Purchase</button></div></article>').join('')+'</div></section>':'';
+ const petShop=petItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>🐾 Yokai merchandise</h2><p class="hint">Equip haunted relics, cursed charms, and eerie resting places.</p></div></div><div class="store-grid">'+petItems.map(item=>'<article class="card store-item pet-store-item"><div class="store-item-art pet-merch-art"><span>'+petStoreEmoji(item)+'</span><small>YOKAI PREVIEW</small></div><span class="pill">'+escapeHTML(item.category)+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>Purchase</button></div></article>').join('')+'</div></section>':'';
  const profileShop=profileItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>✨ Profile cosmetics</h2><p class="hint">Customize your global profile.</p></div></div><div class="store-grid">'+profileItems.map(item=>'<article class="card store-item"><div class="store-item-art store-art-'+storeCosmeticType(item)+'">'+storeItemArt(item)+'<span class="store-preview-caption">PROFILE PREVIEW</span></div><span class="pill">'+escapeHTML(item.category||'Digital item')+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>Purchase</button></div></article>').join('')+'</div></section>':'';
  const petInventory=petPurchases.length?petPurchases.map(p=>'<article class="store-purchase-row pet-merch-inventory"><span class="store-purchase-icon pet-inventory-emoji">'+petStoreEmoji({sku:p.global_store_items?.sku})+'</span><div><b>'+escapeHTML(p.global_store_items?.name||'Yokai merchandise')+'</b><small>'+escapeHTML(p.global_store_items?.description||'')+'</small><label class="pet-equip-picker">Equip to <select data-yokai-target="'+escapeHTML(p.item_id)+'">'+(state.userPets||[]).map(pet=>'<option value="'+escapeHTML(pet.id)+'">'+escapeHTML(pet.nickname)+'</option>').join('')+'</select></label></div><button class="ghost" data-pet-equip-item="'+escapeHTML(p.item_id)+'" '+(!(state.userPets||[]).length?'disabled':'')+'>Equip to yokai</button></article>').join(''):'<div class="empty">Your yokai wardrobe is empty. Choose a charm or relic above!</div>';
  const profileInventory=profilePurchases.length?profilePurchases.map(p=>'<article class="store-purchase-row purchase-'+storeCosmeticType(p.global_store_items||p)+'"><span class="store-purchase-icon">'+storeItemArt(p.global_store_items||p)+'</span><div><b>'+escapeHTML(p.global_store_items?.name||'WIRED store item')+'</b><small>'+escapeHTML(p.global_store_items?.description||'')+'</small></div><button class="ghost" data-store-equip="'+escapeHTML(p.item_id)+'">Equip</button></article>').join(''):'<div class="empty">No profile cosmetics purchased yet.</div>';
