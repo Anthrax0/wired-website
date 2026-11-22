@@ -972,3 +972,17 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 /* High-visibility staff bug reporting navigation */
 .tabs .tab[data-page="bugs"],.tabs .tab[data-page="bugs"] .bug-tab-icon{color:#ff3030!important;font-weight:800;text-shadow:0 0 9px rgba(255,30,30,.42)}
 .tabs .tab[data-page="bugs"].active{color:#ff4747!important;border-color:#ff3030!important}
+
+/* Eerie gothic treatment for the Yokai navigation label. */
+.tabs .tab[data-page="pets"]{
+ color:#d7b5ff!important;
+ font-family:Georgia,"Times New Roman",serif!important;
+ font-weight:800!important;
+ font-variant:small-caps;
+ letter-spacing:.13em;
+ text-shadow:0 0 5px #7d29c9,0 0 12px rgba(138,38,202,.9),1px 2px 1px #13021f;
+}
+.tabs .tab[data-page="pets"]:hover,.tabs .tab[data-page="pets"].active{
+ color:#f0d5ff!important;
+ text-shadow:0 0 5px #dcb4ff,0 0 13px #9c38ef,0 0 22px #6a0ca8;
+}
