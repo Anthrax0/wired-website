@@ -708,12 +708,14 @@ function yokaiPortraitUrl(name,slug,evolved){
     kamaitachi:"kamaitachi.GIF",komainu:"komainu.GIF",nekomata:"nekomata.GIF",
     nurarihyon:"nurarihyon.GIF",nurikabe:"nurikabe.GIF",oni:"oni.GIF",
     onryo:"onryō.GIF",rokurokubi:"rokurokubi.GIF",
-    shinigami:"shinigami.GIF",tengu:"tengu.GIF",yatagarasu:"yatagarasu.GIF"
+    shinigami:"shinigami.GIF",tengu:"tengu.GIF",yatagarasu:"yatagarasu.GIF",
+    kodama:"kodama.GIF",gashadokuro:"gashadokuro.GIF",kasaobake:"kasa-obake.GIF",
+    yukionna:"yuki-onna.GIF",futakuchionna:"futakuchi-onna .GIF"
   };
   const aliases={mythicalyeti:"yeti",yokaiyeti:"yeti",snowyeti:"yeti",mythicalsasquatch:"sasquatch"};
   for(const key of keys){
     const match=gifs[key]||gifs[aliases[key]];
-    if(match) return base+encodeURIComponent(match);
+    if(match) return base+encodeURIComponent(match)+"?v=100";
   }
   return "";
 }
