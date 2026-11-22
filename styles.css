@@ -1014,3 +1014,26 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  box-shadow:none!important;
  outline:0!important;
 }
+
+/* Eight global navigation tabs: four per row, Me below Home. */
+.tabs{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-auto-flow:row;gap:5px!important}
+.tabs .tab[data-page="home"]{grid-column:1;grid-row:1}
+.tabs .tab[data-page="discover"]{grid-column:2;grid-row:1}
+.tabs .tab[data-page="chats"]{grid-column:3;grid-row:1}
+.tabs .tab[data-page="pets"]{grid-column:4;grid-row:1}
+.tabs .tab[data-page="profile"]{grid-column:1;grid-row:2}
+.tabs .tab[data-page="store"]{grid-column:2;grid-row:2}
+.tabs .tab[data-page="features"]{grid-column:3;grid-row:2}
+.tabs .tab[data-page="bugs"]{grid-column:4;grid-row:2}
+.tabs .tab[data-page="features"],.tabs .tab[data-page="bugs"]{
+ white-space:nowrap!important;
+ font-size:clamp(9px,2.35vw,15px)!important;
+ letter-spacing:0!important;
+ padding-inline:2px!important;
+}
+.tabs .tab[data-page="features"] span,.tabs .tab[data-page="bugs"] span{
+ display:inline!important;
+ white-space:nowrap!important;
+}
+.tabs .tab[data-page="features"] span{color:#00f5ff!important}
+.tabs .tab[data-page="bugs"] span{color:#ff3030!important}
