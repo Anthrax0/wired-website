@@ -612,25 +612,23 @@ async function releasePet(id,button){
   }
 }
 function yokaiPortraitUrl(name,slug,evolved){
-  const keys=[slug,name].filter(Boolean).map(value=>String(value).toLowerCase().replace(/[^a-z0-9]/g,""));
+  const keys=[slug,name].filter(Boolean).map(value=>String(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,""));
   const base="./assets/yokai/";
-  const sprites={
-    kitsune:base+"kitsune.GIF",
-    bakeneko:base+"bakeneko.GIF",
-    kappa:base+"yokai_kappa.webp",
-    sasquatch:base+"bigfoot.webp",
-    bigfoot:base+"bigfoot.webp",
-    yeti:base+"yeti.webp",
-    kodama:base+"kodama.svg",
-    "yokai-kodama":base+"kodama.svg",
-    kodamaspirit:base+"kodama.svg",
-    mythicalyeti:base+"yeti.webp",
-    yokaiyeti:base+"yeti.webp",
-    snowyeti:base+"yeti.webp"
+  const gifs={
+    kitsune:"kitsune.GIF",bakeneko:"bakeneko.GIF",kappa:"kappa.GIF",
+    sasquatch:"Sasquatch.GIF",bigfoot:"Sasquatch.GIF",yeti:"yeti.GIF",
+    amabie:"amabie.GIF",jorogumo:"jurogumo.GIF",jurogumo:"jurogumo.GIF",
+    kamaitachi:"kamaitachi.GIF",komainu:"komainu.GIF",nekomata:"nekomata.GIF",
+    nurarihyon:"nurarihyon.GIF",nurikabe:"nurikabe.GIF",oni:"oni.GIF",
+    onryo:"onryō.GIF",rokurokubi:"rokurokubi.GIF",
+    shinigami:"shinigami.GIF",tengu:"tengu.GIF",yatagarasu:"yatagarasu.GIF"
   };
-  if(keys.some(key=>key.includes("kitsune"))) return base+"kitsune.GIF";
-  if(keys.some(key=>key.includes("bakeneko"))) return base+"bakeneko.GIF";
-  return keys.map(key=>sprites[key]).find(Boolean)||"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' rx='24' fill='%23181124'/%3E%3Cpath d='M80 22 94 62 136 80 94 98 80 138 66 98 24 80 66 62Z' fill='%23c77dff'/%3E%3C/svg%3E";
+  const aliases={mythicalyeti:"yeti",yokaiyeti:"yeti",snowyeti:"yeti",mythicalsasquatch:"sasquatch"};
+  for(const key of keys){
+    const match=gifs[key]||gifs[aliases[key]];
+    if(match) return base+encodeURIComponent(match);
+  }
+  return "";
 }
 function petStat(label,value,icon){
   const n=Math.max(0,Math.min(100,Number(value)||0));
