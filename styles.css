@@ -831,3 +831,14 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .equipped-inferno-nameplate{background:linear-gradient(110deg,#1a0908,#84280d)!important;border:2px solid #ffa23f!important;color:#ffe1b4!important;text-shadow:0 0 9px #ff682e!important}
 .equipped-frostbound-theme{background:linear-gradient(145deg,#050b18,#16324d)!important;border-color:#6abfef!important}
 .equipped-inferno-theme{background:linear-gradient(145deg,#170809,#4d190f)!important;border-color:#ed7036!important}
+
+/* Individually recognizable yokai and shinobi cosmetics */
+.store-preview-avatar.moonlit-frame,.equipped-moonlit-frame{border:4px double #d8d4ff!important;outline:2px solid #7183b9;background:radial-gradient(circle,#404579,#0a1029 70%);box-shadow:0 0 22px #8b9fe7!important;color:#e9e6ff}
+.store-preview-avatar.shinobi-frame,.equipped-shinobi-frame{border:4px solid #81335f!important;outline:2px solid #d13e54;background:radial-gradient(circle,#43234f,#080710 70%);box-shadow:0 0 17px #c22d57!important;color:#e5a1da}
+.store-preview-nameplate.shinobi-nameplate,.equipped-shinobi-nameplate{padding:12px;border:2px solid #a03e7a!important;background:linear-gradient(120deg,#08080d,#32142c,#09080f)!important;color:#f5d5ee!important;box-shadow:0 0 14px #a72755!important}
+.store-preview-profile.shadow-ninja-theme,.equipped-shadow-ninja-theme{background:linear-gradient(135deg,#07070d,#21132e 65%,#110812)!important;border:2px solid #9d315b!important;color:#f0d5ef}
+.store-preview-profile.shadow-ninja-theme .store-preview-cover{background:linear-gradient(110deg,#080911,#44224e,#190812);color:#e5b3e9;text-align:center;font-size:36px}
+.store-preview-hoodie{position:relative;width:150px;height:175px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#e3c7ff}
+.store-preview-hoodie .hoodie-ears{color:#b777e8;font-size:28px;line-height:1}
+.store-preview-hoodie .hoodie-body{width:110px;height:115px;display:flex;align-items:center;justify-content:center;font-size:48px;border-radius:42px 42px 20px 20px;background:linear-gradient(140deg,#5e2a8a,#160e2d);border:3px solid #a760e5;box-shadow:0 0 16px #632aa2}
+.store-preview-hoodie small{position:absolute;bottom:12px;font-size:10px;letter-spacing:2px}
