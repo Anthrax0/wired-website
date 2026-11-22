@@ -519,7 +519,7 @@ function storeItemArt(item){
  if(known)return storeCosmeticArt(type);
  const title=escapeHTML(item?.name||'WIRED cosmetic');
  const symbol=kind==='frame'?'✦':kind==='nameplate'?'◆':kind==='theme'?'◈':'✧';
- if(kind==='frame')return '<div class="store-preview-avatar store-generated-art"><span>'+symbol+'</span><small>'+title+'</small></div>';
+ if(kind==='frame')return '<div class="store-preview-avatar store-generated-art" aria-label="Empty decorative profile photo frame"></div>';
  if(kind==='nameplate')return '<div class="store-preview-nameplate store-generated-art">'+symbol+' '+title+'</div>';
  if(kind==='theme')return '<div class="store-preview-profile store-generated-art"><div class="store-preview-cover">'+symbol+'</div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">W</span><div><b>'+title+'</b><small>Global profile</small></div></div></div>';
  return '<div class="store-preview-generic-art">'+symbol+'<small>'+title+'</small></div>';
