@@ -920,3 +920,17 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
   .amino-community-grid .amino-card-content h3{font-size:20px}
   .amino-community-grid .amino-enter,.amino-community-grid .amino-join{font-size:12px;padding:11px 14px}
 }
+
+/* Match Featured/New/My Communities cards to Explore All Communities cards. */
+.discovery-shelf{grid-auto-columns:clamp(260px, 46vw, 340px);gap:14px}
+.discovery-shelf .amino-community-card{height:auto;min-height:310px;padding:14px}
+@media(max-width:700px){
+ .discovery-shelf{grid-auto-columns:min(46vw, 340px);gap:12px}
+ .discovery-shelf .amino-community-card{height:auto;min-height:245px;padding:11px;border-radius:14px}
+ .discovery-shelf .amino-card-content h3{font-size:15px}
+ .discovery-shelf .amino-enter,.discovery-shelf .amino-join{font-size:10px;padding:9px 10px}
+ .amino-community-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .amino-community-grid .amino-community-card{min-height:245px;padding:11px}
+ .amino-community-grid .amino-card-content h3{font-size:15px}
+ .amino-community-grid .amino-enter,.amino-community-grid .amino-join{font-size:10px;padding:9px 10px}
+}
