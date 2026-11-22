@@ -966,3 +966,5 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .bug-report-history{display:grid;gap:10px}
 .bug-report-entry{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:15px;border:1px solid #6b388c;border-radius:12px;background:#160c21}
 .bug-report-entry span{color:#bfa4d5;font-size:13px}
+
+.tabs .tab[hidden]{display:none!important}
