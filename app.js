@@ -627,16 +627,40 @@ async function loadPetParadise(){
   state.userPets=data.owned||[];
   state.petEquipment=data.equipment||[];
 }
+function yokaiAcquisitionDialog(species,petId){
+ document.getElementById("yokaiAcquisitionOverlay")?.remove();
+ const overlay=document.createElement("div");overlay.id="yokaiAcquisitionOverlay";overlay.className="yokai-acquisition-overlay";
+ const title=escapeHTML(species.name||"Yokai");
+ const close=()=>overlay.remove();
+ const showName=()=>{
+  overlay.querySelector(".yokai-acquisition-box").innerHTML='<h2>Name your new companion</h2><p>What would you like to call your '+title+'?</p><form id="yokaiNewNameForm"><input id="yokaiNewNameInput" maxlength="24" required placeholder="Companion name" autocomplete="off"><div class="yokai-acquisition-actions"><button type="button" class="ghost" id="yokaiSkipName">Maybe later</button><button class="primary" type="submit">Save name</button></div></form>';
+  overlay.querySelector("#yokaiSkipName").onclick=close;
+  overlay.querySelector("#yokaiNewNameForm").onsubmit=async e=>{
+   e.preventDefault();const name=overlay.querySelector("#yokaiNewNameInput").value.trim();if(!name||!petId)return;
+   const btn=e.currentTarget.querySelector('[type="submit"]');btn.disabled=true;btn.textContent="Saving…";
+   const {data,error}=await sb.from("user_pets").update({nickname:name}).eq("id",petId).eq("owner_id",state.user.id).select("id");
+   if(error||!data?.length){toast(errorText(error||new Error("Could not save companion name.")));btn.disabled=false;btn.textContent="Save name";return;}
+   close();await loadPetParadise();render();toast("Your companion is now named "+name+"!");
+  };
+  overlay.querySelector("#yokaiNewNameInput").focus();
+ };
+ overlay.innerHTML='<div class="yokai-acquisition-box" role="dialog" aria-modal="true" aria-label="New Yokai companion"><h2>Congratulations!</h2><p>You’ve befriended a '+title+'. Would you like to name your new companion?</p><div class="yokai-acquisition-actions"><button type="button" class="ghost" id="yokaiNameLater">Not now</button><button type="button" class="primary" id="yokaiNameNow">Yes, name them</button></div></div>';
+ document.body.appendChild(overlay);
+ overlay.querySelector("#yokaiNameLater").onclick=close;
+ overlay.querySelector("#yokaiNameNow").onclick=showName;
+}
 async function adoptPet(slug){
-  const species=state.petSpecies.find(p=>p.slug===slug);if(!species)return;
-  const nickname=$("petNickname")?.value.trim()||species.name;
-  const button=document.querySelector('[data-pet-adopt="'+CSS.escape(slug)+'"]');
-  if(button){button.disabled=true;button.textContent="Adopting…";}
-  try{
-    const {error}=await sb.rpc("adopt_pet",{p_species_slug:slug,p_nickname:nickname});
-    if(error)throw error;
-    await loadPetParadise();toast("Welcome home, "+nickname+"! 🐾");render();
-  }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent=species.adoption_cost?"Adopt · "+species.adoption_cost+" pts":"Adopt for free";}}
+ const species=state.petSpecies.find(p=>p.slug===slug);if(!species)return;
+ const button=document.querySelector('[data-pet-adopt="'+CSS.escape(slug)+'"]');
+ if(button){button.disabled=true;button.textContent="Adopting…";}
+ try{
+  const before=new Set((state.userPets||[]).map(p=>String(p.id)));
+  const {error}=await sb.rpc("adopt_pet",{p_species_slug:slug,p_nickname:species.name});
+  if(error)throw error;
+  await loadPetParadise();render();
+  const pet=(state.userPets||[]).find(p=>!before.has(String(p.id))&&(p.species_id===species.id||p.species?.slug===slug||p.slug===slug))||(state.userPets||[]).find(p=>!before.has(String(p.id)));
+  yokaiAcquisitionDialog(species,pet?.id);
+ }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent=species.adoption_cost?"Adopt · "+species.adoption_cost+" pts":"Adopt for free";}}
 }
 // Companion dialogue is cosmetic: the server remains authoritative for care rewards.
 const YOKAI_WHISPERS={"Kodama":["The roots remember every footstep.","The forest has been listening.","Do not wake what sleeps beneath the bark."],"Zashiki-warashi":["I heard someone breathing in the empty room.","Will you stay? The others never do.","The house remembers those who leave."],"Kappa":["The river is deeper than it looks.","Come closer. The water is lovely.","I know what waits beneath the surface."],"Kitsune":["You believe everything I tell you? How delightful.","One of my faces is telling the truth.","A secret for a secret, little mortal."],"Bakeneko":["The shadows obey me better than you do.","Did you hear the voice behind you?","I have worn many faces before this one."],"Oni":["Do not mistake patience for mercy.","I hunger for a worthy challenge.","Even mountains tremble when I wake."],"Yatagarasu":["Three paths lie ahead. Two end in darkness.","I have seen the omen already.","The sky remembers what you have forgotten."],"Tengu":["Pride is a blade. Yours is dull.","The mountain has judged you.","Earn my respect, or face the wind."],"Yuki-onna":["The snow will keep your secrets forever.","Your breath is so wonderfully fragile.","Silence is prettiest beneath the ice."],"Nurikabe":["There is no way around me.","The road behind you has vanished.","I can wait longer than you can."],"Rokurokubi":["I saw what you hid after midnight.","Your window was open last night.","There is nowhere my gaze cannot reach."],"Jorogumo":["Every thread leads back to me.","Struggle if you wish. It amuses me.","My web has room for one more secret."],"Nekomata":["The dead have excellent stories.","My second tail knows your secrets.","The candles flicker when I am pleased."],"Kasa-obake":["Did that shadow just blink?","Rain hides the loveliest screams.","Peekaboo. I was behind you all along."],"Shinigami":["Your time is borrowed.","I can hear the silence between your heartbeats.","Every name finds its way into my ledger."],"Amabie":["The tide brings a warning tonight.","Some futures should remain beneath the waves.","I have seen what the sea will claim."],"Gashadokuro":["The bones beneath the earth are restless.","I hear the living from miles away.","My hunger outlives empires."],"Ushi-oni":["The shore is no place for the careless.","The black tide rises for me.","I do not forgive trespassers."],"Onryō":["Betrayal echoes beyond the grave.","I have not forgotten a single face.","Revenge is patient. So am I."],"Komainu":["The shrine is watching through my eyes.","One step closer, and be judged.","My oath was carved in stone."],"Futakuchi-onna":["One mouth smiles. The other hungers.","Did you hear my hair whisper?","There is never enough to satisfy me."],"Kamaitachi":["Too slow. The wind already cut you.","I dance where blades cannot be seen.","Hear that? The storm is laughing."],"Nurarihyon":["You seem surprised to find me here.","This house has always been mine.","Do sit. I insist."],"Sasquatch":["I have watched you from the tree line.","The wilderness keeps its own laws.","You are not alone among these trees."],"Yeti":["The mountain has no mercy.","I can smell fear through the snow.","Even the blizzard knows my name."]};
