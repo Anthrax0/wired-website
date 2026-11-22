@@ -901,3 +901,10 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .wired-store-choice small{color:#cbb8df;font-size:12px;line-height:1.4}
 .wired-store-choice>span:last-child{color:#d5a4ff;font-weight:700;font-size:13px}
 .wired-store-back{margin:14px 0 20px}
+
+/* Frames decorate the outside of an avatar; previews must have empty centers. */
+.store-preview-avatar{background:transparent!important}
+.store-preview-avatar.store-generated-art{border:5px solid #b56be9;outline:2px solid #62398e;box-shadow:0 0 16px #8c4dba}
+.store-preview-avatar>span,.store-preview-avatar>small{display:none!important}
+.profile-avatar[class*="frame"],.profile-summary-avatar[class*="frame"]{background:transparent!important}
+.profile-avatar[class*="frame"] img,.profile-summary-avatar[class*="frame"] img{width:100%;height:100%;object-fit:cover;border-radius:50%}
