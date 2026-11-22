@@ -857,3 +857,8 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .store-preview-generic-art{display:flex;flex-direction:column;align-items:center;gap:10px;font-size:46px;color:#d7a2ff;text-align:center}
 .store-preview-generic-art small{font-size:12px;max-width:220px;overflow-wrap:anywhere}
 @media(max-width:480px){.store-item-art .store-preview-profile{max-width:92%}.store-item-art .store-preview-nameplate{max-width:90%}}
+
+/* Six equal global navigation tabs, including the dedicated Store. */
+.tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;overflow-x:visible}
+.tabs .tab{min-width:0;padding:10px 2px;white-space:normal;text-align:center}
+@media(max-width:600px){.tabs{grid-template-columns:repeat(6,minmax(0,1fr));gap:1px}.tabs .tab{font-size:10px;padding:9px 1px}.tabs .tab:before{font-size:17px}.tab[data-page="store"]:before{content:"◇";display:block;margin-bottom:3px}}
