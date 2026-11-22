@@ -800,11 +800,32 @@ function renderPetParadise(){
   v.querySelectorAll("[data-yokai-skill]").forEach(b=>b.addEventListener("click",()=>invokeYokaiSkill(b.dataset.yokaiSkill,b)));
   v.querySelectorAll("[data-pet-release]").forEach(b=>b.addEventListener("click",()=>releasePet(b.dataset.petRelease,b)));
 }
+async function renderBugReports(){
+ const v=$("view");if(!v)return;
+ if(!state.user){v.innerHTML='<section class="card"><h2>Report a Bug</h2><p>Log in to submit and track issues with WIRED.</p></section>';return;}
+ v.innerHTML='<section class="bug-report-page"><h2>Report a Bug</h2><p class="hint">Found something broken? Tell us what happened so we can investigate.</p><form id="wiredBugForm" class="bug-report-form"><label class="field">Area<select name="category" required><option value="Profiles">Profiles</option><option value="Yokai">Yokai</option><option value="Communities">Communities</option><option value="Chats">Chats</option><option value="Store">Store</option><option value="Notifications">Notifications</option><option value="Other">Other</option></select></label><label class="field">Short summary<input name="title" required minlength="3" maxlength="140" placeholder="What is not working?"></label><label class="field">Describe the problem<textarea name="description" required minlength="10" maxlength="4000" rows="5" placeholder="What happened? What did you expect?"></textarea></label><label class="field">Steps to reproduce (optional)<textarea name="steps" maxlength="2000" rows="3" placeholder="1. Open… 2. Tap… 3. Error appears…"></textarea></label><button type="submit" class="primary">Submit bug report</button><p id="wiredBugFeedback" role="status"></p></form><h3>My Reports</h3><div id="wiredBugHistory" class="bug-report-history"><p class="hint">Loading reports…</p></div></section>';
+ const form=$("wiredBugForm");
+ form.addEventListener("submit",async e=>{
+  e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;button.textContent="Submitting…";
+  const data=new FormData(form);
+  const {error}=await sb.from("bug_reports").insert({reporter_id:state.user.id,category:String(data.get("category")),title:String(data.get("title")).trim(),description:String(data.get("description")).trim(),steps_to_reproduce:String(data.get("steps")).trim(),page:"global"});
+  if(error){$("wiredBugFeedback").textContent=errorText(error);button.disabled=false;button.textContent="Submit bug report";return;}
+  form.reset();$("wiredBugFeedback").textContent="Bug report submitted. Thank you!";button.disabled=false;button.textContent="Submit bug report";await loadBugHistory();
+ });
+ await loadBugHistory();
+}
+async function loadBugHistory(){
+ const host=$("wiredBugHistory");if(!host||!state.user)return;
+ const {data,error}=await sb.from("bug_reports").select("id,title,category,status,created_at").eq("reporter_id",state.user.id).order("created_at",{ascending:false}).limit(30);
+ if(error){host.textContent="Could not load reports: "+errorText(error);return;}
+ host.innerHTML=(data||[]).length?data.map(r=>'<article class="bug-report-entry"><strong>'+escapeHTML(r.title)+'</strong><span>'+escapeHTML(r.category)+' · '+escapeHTML(r.status)+' · '+escapeHTML(new Date(r.created_at).toLocaleDateString())+'</span></article>').join(''):'<p class="hint">No bug reports submitted yet.</p>';
+}
 function render(){
  const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";updateNotificationBell();
  const hero=document.querySelector("#app > .hero");
  if(hero)hero.hidden=!(state.page==="home"||state.page==="discover");
  const v=$("view");
+ if(state.page==="bugs"){renderBugReports();return;}
  if(state.page==="home"){
   v.innerHTML=`<div class="section-head"><h2>Your WIRED community</h2><span class="pill">18+ only</span></div><div class="grid"><article class="card"><span class="pill">WELCOME</span><h3>${state.user?`Welcome, ${escapeHTML(state.profile?.username||state.user.email||"member")}`:"Stay connected."}</h3><p>Make new friends, discover interests, and find your people.</p></article><article class="card"><span class="pill">DISCOVER</span><h3>Explore something new</h3><p>Browse communities built around what you love.</p><button class="ghost" data-go="discover">Explore →</button></article><article class="card"><span class="pill">CREATE</span><h3>Start a community</h3><p>Bring people together around a shared interest.</p><button class="ghost" data-go="create">Create community →</button></article></div><div class="section-head"><h2>Communities</h2></div>${state.user?`<div class="grid">${communityCards(state.communities.slice(0,3))}</div>`:`<div class="empty">Log in to discover and join WIRED communities.</div>`}`;
  }
@@ -1140,7 +1161,7 @@ sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setT
 async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();subscribeRelationshipEnds();await loadRelationshipData().catch(()=>{});}
  let savedPage="home",savedCommunity=null;
  try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");}catch(e){}
- const tabs=new Set(["home","discover","chats","pets","store","profile","communities","people"]);
+ const tabs=new Set(["home","discover","chats","pets","store","profile","communities","people","bugs"]);
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);return;}
  if(tabs.has(savedPage)&&savedPage!=="home"){nav(savedPage);return;}
  render()}
