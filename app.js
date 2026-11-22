@@ -468,7 +468,7 @@ function renderDiscoveryResults(){
  const publicItems=state.communities.filter(c=>c.visibility!=="private"&&matches(c));
  const newest=[...publicItems].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
  const mine=state.communities.filter(c=>(c.joined||c.owner_id===state.user?.id||c.role)&&matches(c));
- const featured=publicItems.filter(c=>!mine.some(m=>m.id===c.id)).slice(0,6);
+ const featured=[...publicItems].sort((a,b)=>Number(String(b.name||"").trim().toLowerCase()==="wired")-Number(String(a.name||"").trim().toLowerCase()==="wired")).filter(c=>String(c.name||"").trim().toLowerCase()==="wired"||!mine.some(m=>m.id===c.id)).slice(0,6);
  const fill=(id,items,empty)=>{const host=$(id);if(!host)return;host.innerHTML=items.length?communityCards(items):'<div class="empty">'+empty+'</div>';host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));};
  fill("featuredCommunities",featured,"No featured communities yet. Check back soon.");
  fill("newCommunities",newest.slice(0,8),"No new communities yet.");
