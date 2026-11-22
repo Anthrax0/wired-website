@@ -8,7 +8,7 @@
   <title>WIRED — Stay connected.</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="wired-logo.png"><link rel="apple-touch-icon" href="wired-logo.png">
-  <link rel="stylesheet" href="styles.css?v=114">
+  <link rel="stylesheet" href="styles.css?v=115">
 </head>
 <body>
   <header class="topbar">
@@ -29,6 +29,7 @@
       <button class="tab" data-page="pets">Yokai</button>
       <button class="tab" data-page="store">Store</button>
       <button class="tab" data-page="profile">Me</button>
+      <button class="tab" data-page="features" hidden><span aria-hidden="true">❗</span> Add Features <span aria-hidden="true">❗</span></button>
       <button class="tab" data-page="bugs" hidden><span class="bug-tab-icon" aria-hidden="true">❗</span> Report a Bug <span class="bug-tab-icon" aria-hidden="true">❗</span></button>
     </nav>
     <section id="view" aria-live="polite"></section>
@@ -79,7 +80,7 @@
         script.src = sources[index];
         script.onload = function () {
           const app = document.createElement("script");
-          app.src = "app.js?v=112";
+          app.src = "app.js?v=115";
           app.onerror = function () {
             document.getElementById("view").innerHTML =
               '<div class="card"><h2>WIRED could not start</h2><p>The app script did not load. Please reload the page.</p><button class="primary" onclick="location.reload()">Reload WIRED</button></div>';
