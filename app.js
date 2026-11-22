@@ -26,6 +26,7 @@ async function loadProfile(){
     api("/profile/me").catch(e=>{console.warn("Profile companion unavailable",e);return {companion:null};})
   ]);
   if(profileResult.error) throw profileResult.error; state.profile={...profileResult.data,companion:companionResult.companion||null};
+  if(!state.globalStoreItems.length)await loadGlobalStore().catch(e=>console.warn('Cosmetic catalog unavailable',e));
   state.profileComments=await loadProfileComments(state.user.id).catch(e=>{console.warn("Profile comments unavailable",e);return [];});
 }
 async function loadProfileComments(profileId){
