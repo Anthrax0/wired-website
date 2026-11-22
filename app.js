@@ -420,14 +420,23 @@ async function loadCommunities(){
   if(!state.user){state.communities=[];return;}
   const data=await api("/communities");state.communities=data.items||[];
 }
+let wiredStaffAccess=false;
+async function refreshWiredStaffAccess(){
+ wiredStaffAccess=false;
+ if(state.user){const {data,error}=await sb.rpc("is_wired_staff");wiredStaffAccess=!error&&data===true;}
+ const tab=document.querySelector('.tab[data-page="bugs"]');
+ if(tab)tab.hidden=!wiredStaffAccess;
+ if(!wiredStaffAccess&&state.page==="bugs")state.page="home";
+}
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
   state.user=session?.user||null;
   if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();subscribeRelationshipEnds();await loadRelationshipData().catch(e=>console.warn("Relationship data unavailable",e));}
   else {if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}state.relationshipEndPopup=null;document.getElementById("relationshipEndOverlay")?.remove();state.profile=null;state.communities=[];}
+  await refreshWiredStaffAccess();
   render();
 }
-function nav(page){if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadGlobalStore(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){if(page==="bugs"&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadGlobalStore(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 $("notificationsBtn")?.addEventListener("click",openNotifications);
@@ -802,6 +811,7 @@ function renderPetParadise(){
 }
 async function renderBugReports(){
  const v=$("view");if(!v)return;
+ if(!wiredStaffAccess){nav("home");return;}
  if(!state.user){v.innerHTML='<section class="card"><h2>Report a Bug</h2><p>Log in to submit and track issues with WIRED.</p></section>';return;}
  v.innerHTML='<section class="bug-report-page"><h2>Report a Bug</h2><p class="hint">Found something broken? Tell us what happened so we can investigate.</p><form id="wiredBugForm" class="bug-report-form"><label class="field">Area<select name="category" required><option value="Profiles">Profiles</option><option value="Yokai">Yokai</option><option value="Communities">Communities</option><option value="Chats">Chats</option><option value="Store">Store</option><option value="Notifications">Notifications</option><option value="Other">Other</option></select></label><label class="field">Short summary<input name="title" required minlength="3" maxlength="140" placeholder="What is not working?"></label><label class="field">Describe the problem<textarea name="description" required minlength="10" maxlength="4000" rows="5" placeholder="What happened? What did you expect?"></textarea></label><label class="field">Steps to reproduce (optional)<textarea name="steps" maxlength="2000" rows="3" placeholder="1. Open… 2. Tap… 3. Error appears…"></textarea></label><button type="submit" class="primary">Submit bug report</button><p id="wiredBugFeedback" role="status"></p></form><h3>My Reports</h3><div id="wiredBugHistory" class="bug-report-history"><p class="hint">Loading reports…</p></div></section>';
  const form=$("wiredBugForm");
@@ -1159,11 +1169,12 @@ async function savePassword(e){
 async function logout(){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}if(state.notificationChannel){await sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}await sb.auth.signOut();state.user=null;state.profile=null;state.communities=[];state.threads=[];toast("Logged out.");nav("home")}
 sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setTimeout(()=>refreshUser().catch(e=>console.warn(e)),0)});
 async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();subscribeRelationshipEnds();await loadRelationshipData().catch(()=>{});}
+ await refreshWiredStaffAccess();
  let savedPage="home",savedCommunity=null;
  try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");}catch(e){}
  const tabs=new Set(["home","discover","chats","pets","store","profile","communities","people","bugs"]);
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);return;}
- if(tabs.has(savedPage)&&savedPage!=="home"){nav(savedPage);return;}
+ if(tabs.has(savedPage)&&savedPage!=="home"&&(savedPage!=="bugs"||wiredStaffAccess)){nav(savedPage);return;}
  render()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 init().catch(e=>{console.error(e);render()});
