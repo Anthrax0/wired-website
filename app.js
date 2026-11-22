@@ -492,12 +492,39 @@ async function purchaseGlobalStoreItem(id){
   await loadGlobalStore();toast('Purchase complete. Your item is now in My purchases.');render();
  }catch(e){toast(errorText(e));}
 }
-function storeCosmeticType(item){const key=String(item?.sku||item?.name||'').toLowerCase();if(key.includes('black-rose-nameplate'))return 'black-rose-nameplate';if(key.includes('black-rose-profile-frame'))return 'black-rose-frame';if(key.includes('black-rose-profile-theme'))return 'black-rose-theme';if(key.includes('orange-fruit-nameplate'))return 'orange-nameplate';if(key.includes('orange-fruit-profile-frame'))return 'orange-frame';for(const family of ['frostbound','inferno']){if(key.includes(family)){if(key.includes('frame'))return family+'-frame';if(key.includes('nameplate'))return family+'-nameplate';if(key.includes('theme'))return family+'-theme';}}if(key.includes('moonlit')&&key.includes('frame'))return 'moonlit-frame';if(key.includes('shinobi')&&key.includes('frame'))return 'shinobi-frame';if(key.includes('shinobi')&&key.includes('nameplate'))return 'shinobi-nameplate';if(key.includes('shadow-ninja')&&key.includes('theme'))return 'shadow-ninja-theme';if(key.includes('kitsune')&&key.includes('hoodie'))return 'kitsune-hoodie';if(key.includes('frame'))return 'frame';if(key.includes('orange-fruit'))return 'orange-fruit';if(key.includes('nameplate'))return 'nameplate';if(key.includes('theme'))return 'theme';return 'generic';}
+function storeCosmeticType(item){
+ const key=String([item?.sku,item?.name].filter(Boolean).join(' ')).toLowerCase();
+ const families=[
+ ['black-rose',/black[ -]?rose/],['orange',/orange[ -]?fruit/],
+ ['frostbound',/frostbound/],['inferno',/inferno/],
+ ['moonlit',/moonlit/],['shinobi',/shinobi|shadow[ -]?ninja/],
+ ['kitsune',/kitsune/],['violet',/violet/],['cyberpunk',/cyberpunk/],['neon',/neon/]
+ ];
+ const family=(families.find(([,re])=>re.test(key))||[])[0]||'custom';
+ const kind=/hoodie|apparel|outfit|clothing/.test(key)?'apparel':/frame/.test(key)?'frame':/nameplate/.test(key)?'nameplate':/theme/.test(key)?'theme':'generic';
+ if(family==='orange')return kind==='frame'?'orange-frame':kind==='nameplate'?'orange-nameplate':'orange-fruit';
+ if(family==='black-rose')return kind==='frame'?'black-rose-frame':kind==='nameplate'?'black-rose-nameplate':'black-rose-theme';
+ if(family==='shinobi')return kind==='theme'?'shadow-ninja-theme':'shinobi-'+kind;
+ if(family==='kitsune'&&kind==='apparel')return 'kitsune-hoodie';
+ if(family==='custom')return kind;
+ return family+'-'+kind;
+}
+function storeItemArt(item){
+ const type=storeCosmeticType(item), kind=/frame$/.test(type)?'frame':/nameplate$/.test(type)?'nameplate':/theme$|orange-fruit$/.test(type)?'theme':/hoodie$|apparel$/.test(type)?'apparel':'generic';
+ const known=type!=='generic'&&type!==kind;
+ if(known)return storeCosmeticArt(type);
+ const title=escapeHTML(item?.name||'WIRED cosmetic');
+ const symbol=kind==='frame'?'✦':kind==='nameplate'?'◆':kind==='theme'?'◈':'✧';
+ if(kind==='frame')return '<div class="store-preview-avatar store-generated-art"><span>'+symbol+'</span><small>'+title+'</small></div>';
+ if(kind==='nameplate')return '<div class="store-preview-nameplate store-generated-art">'+symbol+' '+title+'</div>';
+ if(kind==='theme')return '<div class="store-preview-profile store-generated-art"><div class="store-preview-cover">'+symbol+'</div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">W</span><div><b>'+title+'</b><small>Global profile</small></div></div></div>';
+ return '<div class="store-preview-generic-art">'+symbol+'<small>'+title+'</small></div>';
+}
 function equippedCosmeticClass(itemId,kind){
  if(!itemId)return '';
  const item=(state.globalStoreItems||[]).find(x=>String(x.id)===String(itemId));
  const type=item?storeCosmeticType(item):'';
- if(type==='moonlit-'+kind||type==='shinobi-'+kind||type==='shadow-ninja-'+kind||type==='frostbound-'+kind||type==='inferno-'+kind)return 'equipped-'+type;
+ if(type==='moonlit-'+kind||type==='shinobi-'+kind||type==='shadow-ninja-'+kind||type==='frostbound-'+kind||type==='inferno-'+kind||type==='kitsune-'+kind)return 'equipped-'+type;
  if(type==='black-rose-'+kind)return 'black-rose-'+kind;
  if(type==='orange-'+kind)return 'orange-fruit-'+kind;
  return '';
@@ -555,9 +582,9 @@ function renderGlobalStore(){
  const petPurchases=purchases.filter(p=>String(p.global_store_items?.category||"").startsWith("Yokai "));
  const profilePurchases=purchases.filter(p=>!String(p.global_store_items?.category||"").startsWith("Yokai "));
  const petShop=petItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>🐾 Yokai merchandise</h2><p class="hint">Dress up your companions with accessories, toys and cozy homes.</p></div></div><div class="store-grid">'+petItems.map(item=>'<article class="card store-item pet-store-item"><div class="store-item-art pet-merch-art"><span>'+petStoreEmoji(item)+'</span><small>YOKAI PREVIEW</small></div><span class="pill">'+escapeHTML(item.category)+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>Purchase</button></div></article>').join('')+'</div></section>':'';
- const profileShop=profileItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>✨ Profile cosmetics</h2><p class="hint">Customize your global profile.</p></div></div><div class="store-grid">'+profileItems.map(item=>'<article class="card store-item"><div class="store-item-art store-art-'+storeCosmeticType(item)+'">'+storeCosmeticArt(storeCosmeticType(item))+'<span class="store-preview-caption">PROFILE PREVIEW</span></div><span class="pill">'+escapeHTML(item.category||'Digital item')+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>Purchase</button></div></article>').join('')+'</div></section>':'';
+ const profileShop=profileItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>✨ Profile cosmetics</h2><p class="hint">Customize your global profile.</p></div></div><div class="store-grid">'+profileItems.map(item=>'<article class="card store-item"><div class="store-item-art store-art-'+storeCosmeticType(item)+'">'+storeItemArt(item)+'<span class="store-preview-caption">PROFILE PREVIEW</span></div><span class="pill">'+escapeHTML(item.category||'Digital item')+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>Purchase</button></div></article>').join('')+'</div></section>':'';
  const petInventory=petPurchases.length?petPurchases.map(p=>'<article class="store-purchase-row pet-merch-inventory"><span class="store-purchase-icon pet-inventory-emoji">'+petStoreEmoji({sku:p.global_store_items?.sku})+'</span><div><b>'+escapeHTML(p.global_store_items?.name||'Yokai merchandise')+'</b><small>'+escapeHTML(p.global_store_items?.description||'')+'</small><label class="pet-equip-picker">Equip to <select data-yokai-target="'+escapeHTML(p.item_id)+'">'+(state.userPets||[]).map(pet=>'<option value="'+escapeHTML(pet.id)+'">'+escapeHTML(pet.nickname)+'</option>').join('')+'</select></label></div><button class="ghost" data-pet-equip-item="'+escapeHTML(p.item_id)+'" '+(!(state.userPets||[]).length?'disabled':'')+'>Equip to yokai</button></article>').join(''):'<div class="empty">Your yokai wardrobe is empty. Choose a charm or relic above!</div>';
- const profileInventory=profilePurchases.length?profilePurchases.map(p=>'<article class="store-purchase-row purchase-'+storeCosmeticType(p.global_store_items||p)+'"><span class="store-purchase-icon">'+storeCosmeticArt(storeCosmeticType(p.global_store_items||p))+'</span><div><b>'+escapeHTML(p.global_store_items?.name||'WIRED store item')+'</b><small>'+escapeHTML(p.global_store_items?.description||'')+'</small></div><button class="ghost" data-store-equip="'+escapeHTML(p.item_id)+'">Equip</button></article>').join(''):'<div class="empty">No profile cosmetics purchased yet.</div>';
+ const profileInventory=profilePurchases.length?profilePurchases.map(p=>'<article class="store-purchase-row purchase-'+storeCosmeticType(p.global_store_items||p)+'"><span class="store-purchase-icon">'+storeItemArt(p.global_store_items||p)+'</span><div><b>'+escapeHTML(p.global_store_items?.name||'WIRED store item')+'</b><small>'+escapeHTML(p.global_store_items?.description||'')+'</small></div><button class="ghost" data-store-equip="'+escapeHTML(p.item_id)+'">Equip</button></article>').join(''):'<div class="empty">No profile cosmetics purchased yet.</div>';
  v.innerHTML='<div class="store-heading"><button class="link" id="storeBack">← Back to Discover</button><div class="section-head"><div><span class="pill">APP-WIDE STORE</span><h2>WIRED Global Store</h2><p>One store for your entire WIRED account. Spend points on profile style and yokai keepsakes.</p></div><div class="store-wallet"><span>Your points</span><b>◉ '+Number(state.globalStoreBalance||0)+'</b></div></div></div>'+petShop+profileShop+'<section class="store-purchases"><div class="section-head"><div><h2>🐾 Yokai wardrobe</h2><span>Choose a companion to equip each item to.</span></div></div>'+petInventory+'</section><section class="store-purchases"><div class="section-head"><h2>✨ My profile purchases</h2><span>Your account inventory</span></div>'+profileInventory+'</section>';
  v.querySelector('#storeBack')?.addEventListener('click',()=>nav('discover'));
  v.querySelectorAll('[data-store-buy]').forEach(b=>b.addEventListener('click',()=>purchaseGlobalStoreItem(b.dataset.storeBuy)));
