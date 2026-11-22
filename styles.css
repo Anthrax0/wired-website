@@ -955,3 +955,14 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  .topbar{min-height:116px;padding-top:12px!important;padding-bottom:12px!important}
  .header-account-stack #accountBtn,.header-account-stack #notificationsBtn{min-height:38px}
 }
+
+/* Global bug reporting */
+.bug-report-page{max-width:850px;margin:0 auto;padding:20px 4px 60px}
+.bug-report-page h2{margin:0 0 10px}
+.bug-report-form{display:grid;gap:15px;padding:22px;margin:20px 0 30px;border:1px solid #793caa;border-radius:18px;background:#170c24}
+.bug-report-form .field{display:grid;gap:8px}
+.bug-report-form input,.bug-report-form select,.bug-report-form textarea{box-sizing:border-box;width:100%;max-width:100%;padding:12px;border:1px solid #7742a4;border-radius:10px;background:#0b0712;color:#f4eaff;font:inherit}
+.bug-report-form textarea{resize:vertical}
+.bug-report-history{display:grid;gap:10px}
+.bug-report-entry{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:15px;border:1px solid #6b388c;border-radius:12px;background:#160c21}
+.bug-report-entry span{color:#bfa4d5;font-size:13px}
