@@ -873,3 +873,13 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .store-category-section .store-item .store-item-buy .primary{max-width:100%}
 @media(min-width:850px){.store-category-section .store-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}}
 @media(max-width:420px){.store-category-section .store-grid{gap:8px}.store-category-section .store-item{padding:9px}.store-category-section .store-item-art{height:110px}.store-category-section .store-item .store-item-buy .primary{width:100%;padding:9px 6px;font-size:13px}}
+
+/* Wider Discovery community cards on phones and tablets. */
+.discovery-shelf{grid-auto-columns:clamp(260px, 72vw, 340px)}
+.discovery-shelf .amino-community-card{height:320px}
+@media(max-width:600px){
+  .discovery-shelf{grid-auto-columns:min(78vw, 320px);gap:14px}
+  .discovery-shelf .amino-community-card{height:315px;padding:14px}
+  .discovery-shelf .amino-community-card .amino-card-content h3{font-size:20px}
+  .discovery-shelf .amino-enter,.discovery-shelf .amino-join{font-size:12px;padding:11px 14px}
+}
