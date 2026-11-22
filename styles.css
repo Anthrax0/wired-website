@@ -934,3 +934,10 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  .amino-community-grid .amino-card-content h3{font-size:15px}
  .amino-community-grid .amino-enter,.amino-community-grid .amino-join{font-size:10px;padding:9px 10px}
 }
+
+/* Account and notifications share a right-aligned vertical stack. */
+.header-account-stack{display:flex;flex-direction:column;align-items:stretch;gap:7px;min-width:0}
+.header-account-stack #accountBtn,.header-account-stack #notificationsBtn{width:100%;text-align:center}
+.header-account-stack #notificationsBtn{padding:7px 10px;font-size:12px}
+.header-account-stack #notificationsBtn[hidden]{display:none!important}
+@media(max-width:480px){.header-account-stack{gap:5px}.header-account-stack #notificationsBtn{padding:6px 7px;font-size:11px}.header-actions{gap:7px}}
