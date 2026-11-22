@@ -1058,3 +1058,10 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .tabs .tab[data-page="features"] .tab-exclamation,.tabs .tab[data-page="bugs"] .tab-exclamation{
  display:inline!important;white-space:nowrap!important;
 }
+
+/* Keep each staff tab title and both exclamation marks on one line. */
+.tabs .tab .staff-tab-label{display:inline-block!important;white-space:nowrap!important;line-height:1.3}
+@media(max-width:600px){
+ .tabs .tab[data-page="features"],.tabs .tab[data-page="bugs"]{font-size:clamp(7px,1.95vw,11px)!important}
+ .tabs .tab .staff-tab-label{letter-spacing:-.04em}
+}
