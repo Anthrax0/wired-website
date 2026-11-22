@@ -947,3 +947,11 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .yokai-acquisition-box h2{font-size:26px;margin:0 0 14px}.yokai-acquisition-box p{line-height:1.6;margin:0 0 24px}
 .yokai-acquisition-box input{display:block;width:100%;box-sizing:border-box;margin:0 0 20px;padding:13px;border-radius:10px;border:1px solid #9650c8;background:#0d0814;color:white;font:inherit}
 .yokai-acquisition-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}.yokai-acquisition-actions button{flex:1 1 130px}
+
+/* Fit the account and notifications stack fully inside the sticky banner. */
+.topbar{height:auto!important;min-height:116px;box-sizing:border-box;padding-top:12px!important;padding-bottom:12px!important;align-items:center}
+.header-account-stack{flex-shrink:0}
+@media(max-width:700px){
+ .topbar{min-height:116px;padding-top:12px!important;padding-bottom:12px!important}
+ .header-account-stack #accountBtn,.header-account-stack #notificationsBtn{min-height:38px}
+}
