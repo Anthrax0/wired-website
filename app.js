@@ -424,9 +424,8 @@ let wiredStaffAccess=false;
 async function refreshWiredStaffAccess(){
  wiredStaffAccess=false;
  if(state.user){const {data,error}=await sb.rpc("is_wired_staff");wiredStaffAccess=!error&&data===true;}
- const tab=document.querySelector('.tab[data-page="bugs"]');
- if(tab)tab.hidden=!wiredStaffAccess;
- if(!wiredStaffAccess&&state.page==="bugs")state.page="home";
+ document.querySelectorAll('.tab[data-page="bugs"],.tab[data-page="features"]').forEach(tab=>tab.hidden=!wiredStaffAccess);
+ if(!wiredStaffAccess&&(state.page==="bugs"||state.page==="features"))state.page="home";
 }
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
@@ -436,7 +435,7 @@ async function refreshUser(){
   await refreshWiredStaffAccess();
   render();
 }
-function nav(page){if(page==="bugs"&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadGlobalStore(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadGlobalStore(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 $("notificationsBtn")?.addEventListener("click",openNotifications);
@@ -830,12 +829,34 @@ async function loadBugHistory(){
  if(error){host.textContent="Could not load reports: "+errorText(error);return;}
  host.innerHTML=(data||[]).length?data.map(r=>'<article class="bug-report-entry"><strong>'+escapeHTML(r.title)+'</strong><span>'+escapeHTML(r.category)+' · '+escapeHTML(r.status)+' · '+escapeHTML(new Date(r.created_at).toLocaleDateString())+'</span></article>').join(''):'<p class="hint">No bug reports submitted yet.</p>';
 }
+async function renderFeatureRequests(){
+ const v=$("view");if(!v)return;
+ if(!wiredStaffAccess){nav("home");return;}
+ v.innerHTML='<section class="bug-report-page"><h2>❗ Add Features ❗</h2><p class="hint">Suggest new features, improvements, or updates for WIRED. Requests are visible only to global owners and administrators.</p><form id="wiredFeatureForm" class="bug-report-form"><label class="field">Request type<select name="request_type" required><option value="new_feature">New feature</option><option value="improvement">Improve existing feature</option><option value="update">App update</option></select></label><label class="field">Feature or update title<input name="title" required minlength="3" maxlength="140" placeholder="What should be added or changed?"></label><label class="field">Details<textarea name="description" required minlength="10" maxlength="4000" rows="5" placeholder="Describe how it should work and why it would help."></textarea></label><label class="field">Priority<select name="priority"><option value="normal">Normal</option><option value="low">Low</option><option value="high">High</option></select></label><button class="primary" type="submit">Submit feature request</button><p id="wiredFeatureFeedback" role="status"></p></form><h3>Staff Feature Requests</h3><div id="wiredFeatureHistory" class="bug-report-history"><p class="hint">Loading requests…</p></div></section>';
+ const form=$("wiredFeatureForm");
+ form.addEventListener("submit",async e=>{
+  e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;button.textContent="Submitting…";
+  const data=new FormData(form);
+  const {error}=await sb.from("feature_requests").insert({requester_id:state.user.id,request_type:String(data.get("request_type")),title:String(data.get("title")).trim(),description:String(data.get("description")).trim(),priority:String(data.get("priority"))});
+  button.disabled=false;button.textContent="Submit feature request";
+  if(error){$("wiredFeatureFeedback").textContent=errorText(error);return;}
+  form.reset();$("wiredFeatureFeedback").textContent="Feature request submitted.";await loadFeatureRequests();
+ });
+ await loadFeatureRequests();
+}
+async function loadFeatureRequests(){
+ const host=$("wiredFeatureHistory");if(!host||!wiredStaffAccess)return;
+ const {data,error}=await sb.from("feature_requests").select("id,title,request_type,priority,status,created_at").order("created_at",{ascending:false}).limit(50);
+ if(error){host.textContent="Could not load requests: "+errorText(error);return;}
+ host.innerHTML=(data||[]).length?data.map(r=>'<article class="bug-report-entry"><strong>'+escapeHTML(r.title)+'</strong><span>'+escapeHTML(r.request_type.replaceAll("_"," "))+' · '+escapeHTML(r.priority)+' priority · '+escapeHTML(r.status)+' · '+escapeHTML(new Date(r.created_at).toLocaleDateString())+'</span></article>').join(''):'<p class="hint">No feature requests submitted yet.</p>';
+}
 function render(){
  const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";updateNotificationBell();
  const hero=document.querySelector("#app > .hero");
  if(hero)hero.hidden=!(state.page==="home"||state.page==="discover");
  const v=$("view");
  if(state.page==="bugs"){renderBugReports();return;}
+ if(state.page==="features"){renderFeatureRequests();return;}
  if(state.page==="home"){
   v.innerHTML=`<div class="section-head"><h2>Your WIRED community</h2><span class="pill">18+ only</span></div><div class="grid"><article class="card"><span class="pill">WELCOME</span><h3>${state.user?`Welcome, ${escapeHTML(state.profile?.username||state.user.email||"member")}`:"Stay connected."}</h3><p>Make new friends, discover interests, and find your people.</p></article><article class="card"><span class="pill">DISCOVER</span><h3>Explore something new</h3><p>Browse communities built around what you love.</p><button class="ghost" data-go="discover">Explore →</button></article><article class="card"><span class="pill">CREATE</span><h3>Start a community</h3><p>Bring people together around a shared interest.</p><button class="ghost" data-go="create">Create community →</button></article></div><div class="section-head"><h2>Communities</h2></div>${state.user?`<div class="grid">${communityCards(state.communities.slice(0,3))}</div>`:`<div class="empty">Log in to discover and join WIRED communities.</div>`}`;
  }
@@ -1172,9 +1193,9 @@ async function init(){const {data:{session}}=await sb.auth.getSession();state.us
  await refreshWiredStaffAccess();
  let savedPage="home",savedCommunity=null;
  try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");}catch(e){}
- const tabs=new Set(["home","discover","chats","pets","store","profile","communities","people","bugs"]);
+ const tabs=new Set(["home","discover","chats","pets","store","profile","communities","people","bugs","features"]);
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);return;}
- if(tabs.has(savedPage)&&savedPage!=="home"&&(savedPage!=="bugs"||wiredStaffAccess)){nav(savedPage);return;}
+ if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){nav(savedPage);return;}
  render()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 init().catch(e=>{console.error(e);render()});
