@@ -968,3 +968,7 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .bug-report-entry span{color:#bfa4d5;font-size:13px}
 
 .tabs .tab[hidden]{display:none!important}
+
+/* High-visibility staff bug reporting navigation */
+.tabs .tab[data-page="bugs"],.tabs .tab[data-page="bugs"] .bug-tab-icon{color:#ff3030!important;font-weight:800;text-shadow:0 0 9px rgba(255,30,30,.42)}
+.tabs .tab[data-page="bugs"].active{color:#ff4747!important;border-color:#ff3030!important}
