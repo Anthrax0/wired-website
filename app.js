@@ -735,6 +735,8 @@ function renderPetParadise(){
 }
 function render(){
  const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";updateNotificationBell();
+ const hero=document.querySelector("#app > .hero");
+ if(hero)hero.hidden=!(state.page==="home"||state.page==="discover");
  const v=$("view");
  if(state.page==="home"){
   v.innerHTML=`<div class="section-head"><h2>Your WIRED community</h2><span class="pill">18+ only</span></div><div class="grid"><article class="card"><span class="pill">WELCOME</span><h3>${state.user?`Welcome, ${escapeHTML(state.profile?.username||state.user.email||"member")}`:"Stay connected."}</h3><p>Make new friends, discover interests, and find your people.</p></article><article class="card"><span class="pill">DISCOVER</span><h3>Explore something new</h3><p>Browse communities built around what you love.</p><button class="ghost" data-go="discover">Explore →</button></article><article class="card"><span class="pill">CREATE</span><h3>Start a community</h3><p>Bring people together around a shared interest.</p><button class="ghost" data-go="create">Create community →</button></article></div><div class="section-head"><h2>Communities</h2></div>${state.user?`<div class="grid">${communityCards(state.communities.slice(0,3))}</div>`:`<div class="empty">Log in to discover and join WIRED communities.</div>`}`;
