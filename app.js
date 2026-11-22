@@ -702,20 +702,38 @@ function yokaiPortraitUrl(name,slug,evolved){
   const keys=[slug,name].filter(Boolean).map(value=>String(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,""));
   const base="./assets/yokai/";
   const gifs={
-    kitsune:"kitsune.GIF",bakeneko:"bakeneko.GIF",kappa:"kappa.GIF",
-    sasquatch:"Sasquatch.GIF",bigfoot:"Sasquatch.GIF",yeti:"yeti.GIF",
-    amabie:"amabie.GIF",jorogumo:"jurogumo.GIF",jurogumo:"jurogumo.GIF",
-    kamaitachi:"kamaitachi.GIF",komainu:"komainu.GIF",nekomata:"nekomata.GIF",
-    nurarihyon:"nurarihyon.GIF",nurikabe:"nurikabe.GIF",oni:"oni.GIF",
-    onryo:"onryō.GIF",rokurokubi:"rokurokubi.GIF",
-    shinigami:"shinigami.GIF",tengu:"tengu.GIF",yatagarasu:"yatagarasu.GIF",
-    kodama:"kodama.GIF",gashadokuro:"gashadokuro.GIF",kasaobake:"kasa-obake.GIF",
-    yukionna:"yuki-onna.GIF",futakuchionna:"futakuchi-onna .GIF"
+    "sasquatch":"Sasquatch.GIF",
+    "amabie":"amabie.GIF",
+    "bakeneko":"bakeneko.GIF",
+    "futakuchionna":"futakuchi-onna .GIF",
+    "gashadokuro":"gashadokuro.GIF",
+    "jurogumo":"jurogumo.GIF",
+    "kamaitachi":"kamaitachi.GIF",
+    "kappa":"kappa.GIF",
+    "kasaobake":"kasa-obake.GIF",
+    "kitsune":"kitsune.GIF",
+    "kodama":"kodama.GIF",
+    "komainu":"komainu.GIF",
+    "nekomata":"nekomata.GIF",
+    "nurarihyon":"nurarihyon.GIF",
+    "nurikabe":"nurikabe.GIF",
+    "oni":"oni.GIF",
+    "onryo":"onryō.GIF",
+    "rokurokubi":"rokurokubi.GIF",
+    "shinigami":"shinigami.GIF",
+    "tengu":"tengu.GIF",
+    "ushioni":"ushi-oni.gif",
+    "yatagarasu":"yatagarasu.GIF",
+    "yeti":"yeti.GIF",
+    "yukionna":"yuki-onna.GIF",
+    "zashikiwarashi":"zashiki-warashi.GIF",
+    "bigfoot":"Sasquatch.GIF",
+    "jorogumo":"jurogumo.GIF"
   };
   const aliases={mythicalyeti:"yeti",yokaiyeti:"yeti",snowyeti:"yeti",mythicalsasquatch:"sasquatch"};
   for(const key of keys){
     const match=gifs[key]||gifs[aliases[key]];
-    if(match) return base+encodeURIComponent(match)+"?v=100";
+    if(match) return base+encodeURIComponent(match)+"?v=101";
   }
   return "";
 }
