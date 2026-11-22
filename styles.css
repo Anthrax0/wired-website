@@ -941,3 +941,9 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .header-account-stack #notificationsBtn{padding:7px 10px;font-size:12px}
 .header-account-stack #notificationsBtn[hidden]{display:none!important}
 @media(max-width:480px){.header-account-stack{gap:5px}.header-account-stack #notificationsBtn{padding:6px 7px;font-size:11px}.header-actions{gap:7px}}
+
+.yokai-acquisition-overlay{position:fixed;inset:0;z-index:9999;background:#07030ce8;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.yokai-acquisition-box{width:min(100%,440px);border:1px solid #a659eb;border-radius:22px;padding:26px;background:linear-gradient(145deg,#251036,#10091b);box-shadow:0 0 45px #9238da55;text-align:center;color:#f9f1ff}
+.yokai-acquisition-box h2{font-size:26px;margin:0 0 14px}.yokai-acquisition-box p{line-height:1.6;margin:0 0 24px}
+.yokai-acquisition-box input{display:block;width:100%;box-sizing:border-box;margin:0 0 20px;padding:13px;border-radius:10px;border:1px solid #9650c8;background:#0d0814;color:white;font:inherit}
+.yokai-acquisition-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}.yokai-acquisition-actions button{flex:1 1 130px}
