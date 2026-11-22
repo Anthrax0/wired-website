@@ -991,3 +991,13 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .tabs .tab[data-page="features"]{color:#00f5ff!important;font-weight:800!important;text-shadow:0 0 6px rgba(0,245,255,.7),0 0 14px rgba(0,195,255,.35)}
 .tabs .tab[data-page="features"].active,.tabs .tab[data-page="features"]:hover{color:#8dffff!important;text-shadow:0 0 8px #00f5ff,0 0 18px #00bfe8}
 .tabs .tab[data-page="features"][hidden]{display:none!important}
+
+/* Place Me directly beneath Home in the global navigation grid. */
+.tabs .tab[data-page="home"]{grid-column:1;grid-row:1}
+.tabs .tab[data-page="profile"]{grid-column:1;grid-row:2}
+.tabs .tab[data-page="discover"]{grid-column:2;grid-row:1}
+.tabs .tab[data-page="chats"]{grid-column:3;grid-row:1}
+.tabs .tab[data-page="pets"]{grid-column:4;grid-row:1}
+.tabs .tab[data-page="store"]{grid-column:5;grid-row:1}
+.tabs .tab[data-page="features"]{grid-column:2;grid-row:2}
+.tabs .tab[data-page="bugs"]{grid-column:3;grid-row:2}
