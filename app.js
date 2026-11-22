@@ -534,19 +534,19 @@ function equippedCosmeticClass(itemId,kind){
  return '';
 }
 function storeCosmeticArt(type){
- if(type==='frostbound-frame'||type==='inferno-frame')return '<div class="store-preview-avatar '+type+'"><span>A</span></div>';
+ if(type==='frostbound-frame'||type==='inferno-frame')return '<div class="store-preview-avatar '+type+'"></div>';
  if(type==='frostbound-nameplate'||type==='inferno-nameplate')return '<div class="store-preview-nameplate '+type+'">'+(type==='frostbound-nameplate'?'❄ FROSTBOUND':'🔥 INFERNO')+' <small>WIRED</small></div>';
  if(type==='frostbound-theme'||type==='inferno-theme')return '<div class="store-preview-profile '+type+'"><div class="store-preview-cover"></div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">A</span><div><b>anthrax</b><small>'+ (type==='frostbound-theme'?'Frostbound':'Inferno')+' profile</small></div></div></div>';
- if(type==='moonlit-frame')return '<div class="store-preview-avatar moonlit-frame"><span>☾</span></div>';
- if(type==='shinobi-frame')return '<div class="store-preview-avatar shinobi-frame"><span>⚔</span></div>';
+ if(type==='moonlit-frame')return '<div class="store-preview-avatar moonlit-frame"></div>';
+ if(type==='shinobi-frame')return '<div class="store-preview-avatar shinobi-frame"></div>';
  if(type==='shinobi-nameplate')return '<div class="store-preview-nameplate shinobi-nameplate">⛩ SHINOBI <small>WIRED</small></div>';
  if(type==='shadow-ninja-theme')return '<div class="store-preview-profile shadow-ninja-theme"><div class="store-preview-cover">☾</div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">忍</span><div><b>SHADOW NINJA</b><small>Global profile</small></div></div></div>';
  if(type==='kitsune-hoodie')return '<div class="store-preview-hoodie"><div class="hoodie-ears">▲　▲</div><div class="hoodie-body">🦊</div><small>KITSUNE</small></div>';
- if(type==='black-rose-frame')return '<div class="store-preview-avatar black-rose-frame"><span>🥀</span></div>';
+ if(type==='black-rose-frame')return '<div class="store-preview-avatar black-rose-frame"></div>';
  if(type==='black-rose-nameplate')return '<div class="store-preview-nameplate black-rose-nameplate">🥀 BLACK ROSE <small>WIRED</small></div>';
  if(type==='black-rose-theme')return '<div class="store-preview-profile black-rose-theme"><div class="store-preview-cover">🥀</div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">🥀</span><div><b>BLACK ROSE</b><small>Gothic profile</small></div></div></div>';
- if(type==='orange-frame')return '<div class="store-preview-avatar orange-fruit-frame"><span>🍊</span></div>';
- if(type==='frame')return '<div class="store-preview-avatar equipped-neon-frame"><span>A</span></div>';
+ if(type==='orange-frame')return '<div class="store-preview-avatar orange-fruit-frame"></div>';
+ if(type==='frame')return '<div class="store-preview-avatar equipped-neon-frame"></div>';
  if(type==='orange-nameplate')return '<div class="store-preview-nameplate orange-fruit-nameplate"><span>🍃</span> WIRED <small>@anthrax</small><span>🍊</span></div>';
  if(type==='nameplate')return '<div class="store-preview-nameplate equipped-nameplate">WIRED <small>@anthrax</small></div>';
  if(type==='orange-fruit')return '<div class="store-preview-profile equipped-profile-theme orange-fruit-preview"><div class="store-preview-cover"><span>🍊</span><span>🍃</span><span>🍊</span></div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">🍊</span><div><b>WIRED MEMBER</b><small>Global profile · Citrus edition</small></div></div><div class="store-preview-bio"><i></i><i></i></div><div class="orange-fruit-preview-stamp">FRESH • BRIGHT • BOLD</div></div>';
