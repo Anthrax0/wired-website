@@ -883,3 +883,11 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
   .discovery-shelf .amino-community-card .amino-card-content h3{font-size:20px}
   .discovery-shelf .amino-enter,.discovery-shelf .amino-join{font-size:12px;padding:11px 14px}
 }
+
+/* Global profile companion selector */
+.profile-companion-switch{margin:16px 0;padding:16px;border:1px solid #7837b5;border-radius:16px;background:#1b1029}
+.profile-companion-switch label{display:block;font-weight:700;margin-bottom:10px;color:#f4eaff}
+.profile-companion-switch-row{display:flex;gap:10px;flex-wrap:wrap}
+.profile-companion-switch select{flex:1 1 180px;min-width:0;padding:12px;border:1px solid #8141bd;border-radius:10px;background:#10091b;color:#fff}
+.profile-companion-switch button{flex:0 0 auto}
+@media(max-width:480px){.profile-companion-switch-row button{width:100%}}
