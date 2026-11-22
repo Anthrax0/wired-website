@@ -511,7 +511,7 @@ function storeCosmeticType(item){
 }
 function storeItemArt(item){
  const type=storeCosmeticType(item), kind=/frame$/.test(type)?'frame':/nameplate$/.test(type)?'nameplate':/theme$|orange-fruit$/.test(type)?'theme':/hoodie$|apparel$/.test(type)?'apparel':'generic';
- const known=type!=='generic'&&type!==kind;
+ const known=['black-rose-frame','black-rose-nameplate','black-rose-theme','orange-frame','orange-nameplate','orange-fruit','frostbound-frame','frostbound-nameplate','frostbound-theme','inferno-frame','inferno-nameplate','inferno-theme','moonlit-frame','shinobi-frame','shinobi-nameplate','shadow-ninja-theme','kitsune-hoodie'].includes(type);
  if(known)return storeCosmeticArt(type);
  const title=escapeHTML(item?.name||'WIRED cosmetic');
  const symbol=kind==='frame'?'✦':kind==='nameplate'?'◆':kind==='theme'?'◈':'✧';
