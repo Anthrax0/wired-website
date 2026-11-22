@@ -1037,3 +1037,24 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 }
 .tabs .tab[data-page="features"] span{color:#00f5ff!important}
 .tabs .tab[data-page="bugs"] span{color:#ff3030!important}
+
+/* Global navigation: four equal columns per row for staff; Me beneath Home. */
+.tabs{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}
+.tabs .tab[data-page="home"]{grid-column:1;grid-row:1}
+.tabs .tab[data-page="discover"]{grid-column:2;grid-row:1}
+.tabs .tab[data-page="chats"]{grid-column:3;grid-row:1}
+.tabs .tab[data-page="pets"]{grid-column:4;grid-row:1}
+.tabs .tab[data-page="profile"]{grid-column:1;grid-row:2}
+.tabs .tab[data-page="store"]{grid-column:2;grid-row:2}
+.tabs .tab[data-page="features"]{grid-column:3;grid-row:2}
+.tabs .tab[data-page="bugs"]{grid-column:4;grid-row:2}
+.tabs .tab[data-page="features"],.tabs .tab[data-page="bugs"]{
+ white-space:nowrap!important;
+ overflow:visible!important;
+ font-size:clamp(9px,2.3vw,15px)!important;
+ letter-spacing:normal!important;
+ padding-inline:2px!important;
+}
+.tabs .tab[data-page="features"] .tab-exclamation,.tabs .tab[data-page="bugs"] .tab-exclamation{
+ display:inline!important;white-space:nowrap!important;
+}
