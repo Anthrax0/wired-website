@@ -650,7 +650,7 @@ async function invokeYokaiSkill(id,button){
   const pet=(state.userPets||[]).find(p=>String(p.id)===String(id));
   const skill=data?.skill||pet?.pet_species?.ability_name||"Yokai skill";
   yokaiSpeech.set(String(id),"✦ "+skill+" unleashed! "+(data?.critical?"A rare omen magnifies its power. ":"")+"+"+Number(data?.xp||0)+" XP · +"+Number(data?.points||0)+" points"+(data?.energy?" · +"+data.energy+" energy":"")+(data?.happiness?" · +"+data.happiness+" happiness":"")+(data?.fullness?" · +"+data.fullness+" fullness":""));
-  await loadPetParadise();render();toast(skill+" activated! Skill recharges in 1 hour.");
+  await Promise.all([loadPetParadise(),loadGlobalStore()]);render();toast(skill+" activated! +"+Number(data?.points||0)+" points. Skill recharges in 1 hour.");
  }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent="✦ Invoke Skill";}}
 }
 async function releasePet(id,button){
