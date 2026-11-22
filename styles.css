@@ -908,3 +908,15 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .store-preview-avatar>span,.store-preview-avatar>small{display:none!important}
 .profile-avatar[class*="frame"],.profile-summary-avatar[class*="frame"]{background:transparent!important}
 .profile-avatar[class*="frame"] img,.profile-summary-avatar[class*="frame"] img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* Community discovery: wide, readable cards instead of narrow portrait tiles. */
+.discovery-shelf{grid-auto-columns:clamp(300px, 43vw, 480px);gap:18px}
+.discovery-shelf .amino-community-card{height:290px;min-height:290px;padding:18px}
+@media(max-width:700px){
+  .discovery-shelf{grid-auto-columns:min(88vw, 440px);gap:14px}
+  .discovery-shelf .amino-community-card{height:285px;min-height:285px;padding:16px}
+  .amino-community-grid{grid-template-columns:1fr;gap:14px}
+  .amino-community-grid .amino-community-card{min-height:250px;padding:16px}
+  .amino-community-grid .amino-card-content h3{font-size:20px}
+  .amino-community-grid .amino-enter,.amino-community-grid .amino-join{font-size:12px;padding:11px 14px}
+}
