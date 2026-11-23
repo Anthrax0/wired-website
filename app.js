@@ -122,6 +122,59 @@ async function deleteProfileComment(commentId,profileId){
  }catch(err){toast(errorText(err));}
 }
 
+async function loadCommunityProfileComments(cid,profileId){
+ const {data,error}=await sb.from('community_profile_comments').select('id,community_id,profile_id,author_id,body,created_at,parent_comment_id').eq('community_id',cid).eq('profile_id',profileId).order('created_at',{ascending:true}).limit(300);
+ if(error)throw error;
+ const ids=[...new Set((data||[]).map(x=>x.author_id))];
+ const {data:authors,error:authorError}=ids.length?await sb.from('profiles').select('id,username,avatar_url').in('id',ids):{data:[],error:null};
+ if(authorError)throw authorError;
+ const byId=new Map((authors||[]).map(x=>[x.id,x]));
+ return (data||[]).map(x=>({...x,author:byId.get(x.author_id)||{username:'WIRED member'}}));
+}
+async function renderCommunityProfileComments(panel,cid,profileId){
+ const slot=panel.querySelector('#communityProfileComments');
+ if(!slot)return;
+ try{
+  const comments=await loadCommunityProfileComments(cid,profileId);
+  if(!slot.isConnected)return;
+  // Reuse the global profile comment tree, reply indentation and controls.
+  slot.innerHTML=profileCommentsMarkup(profileId,comments).replace('id="profileCommentForm"','id="communityProfileCommentForm"').replace('id="profileCommentBody"','id="communityProfileCommentBody"');
+  slot.querySelector('#communityProfileCommentForm')?.addEventListener('submit',async e=>{
+   e.preventDefault();
+   const form=e.currentTarget,body=form.querySelector('textarea')?.value.trim();if(!body)return;
+   const button=form.querySelector('button[type="submit"]');button.disabled=true;
+   try{
+    const {error}=await sb.from('community_profile_comments').insert({community_id:cid,profile_id:profileId,author_id:state.user.id,body});
+    if(error)throw error;
+    await renderCommunityProfileComments(panel,cid,profileId);toast('Comment posted.');
+   }catch(err){toast('Could not post comment: '+errorText(err));button.disabled=false;}
+  });
+  slot.querySelectorAll('[data-show-reply]').forEach(b=>b.addEventListener('click',()=>{
+   const form=slot.querySelector('[data-reply-form="'+CSS.escape(b.dataset.showReply)+'"]');
+   if(form){form.hidden=!form.hidden;if(!form.hidden)form.querySelector('textarea')?.focus();}
+  }));
+  slot.querySelectorAll('[data-reply-form]').forEach(form=>form.addEventListener('submit',async e=>{
+   e.preventDefault();const body=form.querySelector('textarea')?.value.trim(),parentId=form.dataset.replyForm;
+   if(!body||!parentId)return;
+   const button=form.querySelector('button[type="submit"]');button.disabled=true;
+   try{
+    const {data:parent,error:parentError}=await sb.from('community_profile_comments').select('id').eq('id',parentId).eq('community_id',cid).eq('profile_id',profileId).single();
+    if(parentError)throw parentError;
+    const {error}=await sb.from('community_profile_comments').insert({community_id:cid,profile_id:profileId,author_id:state.user.id,body,parent_comment_id:parent.id});
+    if(error)throw error;
+    await renderCommunityProfileComments(panel,cid,profileId);toast('Reply posted.');
+   }catch(err){toast('Could not post reply: '+errorText(err));button.disabled=false;}
+  }));
+  slot.querySelectorAll('[data-delete-profile-comment]').forEach(b=>b.addEventListener('click',async()=>{
+   if(!confirm('Delete this community profile comment?'))return;
+   try{
+    const {error}=await sb.from('community_profile_comments').delete().eq('id',b.dataset.deleteProfileComment).eq('community_id',cid).eq('profile_id',profileId);
+    if(error)throw error;
+    await renderCommunityProfileComments(panel,cid,profileId);toast('Comment deleted.');
+   }catch(err){toast('Could not delete comment: '+errorText(err));}
+  }));
+ }catch(err){slot.innerHTML='<p class="hint">Comments unavailable: '+escapeHTML(errorText(err))+'</p>';}
+}
 async function loadGlobalNotifications(){
  if(!state.user){state.notifications=[];state.notificationUnread=0;updateNotificationBell();return;}
  const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,thread_id,request_status,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
@@ -1453,9 +1506,11 @@ async function openCommunityMemberProfile(userId){
   const own=userId===uid;
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
   panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><p class="hint">'+escapeHTML(state.activeCommunity?.name||'Community')+' profile</p><h2>'+escapeHTML(name)+'</h2></div></div>'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'')+'<div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(local?.show_global_companion?'<section class="community-companion-section">'+(companion?profileYokaiMarkup(companion):'<p class="hint">'+escapeHTML(companionMessage)+'</p>')+'</section>':'')+'<section class="community-profile-biography"><h3>About Me</h3><p id="communityProfileBio">'+escapeHTML(local?.bio||'No community biography yet.')+'</p></section>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
+  panel.insertAdjacentHTML('beforeend','<div id="communityProfileComments"><p class="hint">Loading comments…</p></div>');
   const host=document.getElementById('view');
   if(!host)throw new Error('Community page is not available.');
   host.replaceChildren(panel);
+  renderCommunityProfileComments(panel,cid,userId);
   if(own)await loadCommunityLocalProfile();
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>{try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}renderCommunity();});
   panel.querySelectorAll('[data-community-social]').forEach(button=>button.addEventListener('click',async()=>{
