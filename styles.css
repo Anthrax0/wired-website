@@ -1289,3 +1289,10 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .wired-community-tabs button.active:after{background:linear-gradient(90deg,#8325db,#c34bff);box-shadow:0 0 12px rgba(185,74,249,.65)}
 .wired-back,.wired-bell,.wired-store{color:#f3dcff}
 .wired-guidelines{background:#170c25;border-color:#71339e}
+
+
+/* Simplified community landing page: hide the sections marked for removal. */
+.wired-amino-top,
+.wired-checkin,
+.wired-community-tabs{display:none!important}
+.wired-community-identity{padding-top:20px;padding-bottom:20px}
