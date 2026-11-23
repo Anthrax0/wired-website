@@ -671,37 +671,52 @@ async function loadGlobalMemberDirectory(reset=false){
 async function refreshGlobalMemberConnections(){
  if(!state.user)return;
  const id=state.user.id;
- const [{data:following,error:e1},{data:followers,error:e2},{data:friends,error:e3}]=await Promise.all([
+ const [outgoing,incoming,accepted]=await Promise.all([
   sb.from("profile_follows").select("following_id").eq("follower_id",id),
   sb.from("profile_follows").select("follower_id").eq("following_id",id),
   sb.from("friend_requests").select("sender_id,recipient_id").eq("status","accepted").or("sender_id.eq."+id+",recipient_id.eq."+id)
  ]);
- if(e1||e2||e3)throw(e1||e2||e3);
- state.globalMemberFollowing=new Set((following||[]).map(x=>x.following_id));
- state.globalMemberFollowers=new Set((followers||[]).map(x=>x.follower_id));
- state.globalMemberFriends=new Set((friends||[]).map(x=>x.sender_id===id?x.recipient_id:x.sender_id));
+ if(outgoing.error)throw outgoing.error;
+ if(incoming.error)throw incoming.error;
+ // Friend-request records are optional; they must not corrupt follow status.
+ state.globalMemberFollowing=new Set((outgoing.data||[]).map(x=>String(x.following_id)));
+ state.globalMemberFollowers=new Set((incoming.data||[]).map(x=>String(x.follower_id)));
+ state.globalMemberFriends=new Set((accepted.error?[]:accepted.data||[]).map(x=>String(x.sender_id===id?x.recipient_id:x.sender_id)));
 }
 async function toggleDirectoryFollow(userId){
- if(!state.user||userId===state.user.id)return;
+ if(!state.user||String(userId)===String(state.user.id))return;
  const button=[...document.querySelectorAll("[data-directory-follow]")].find(x=>x.dataset.directoryFollow===userId);
  if(button)button.disabled=true;
  try{
-  const following=state.globalMemberFollowing?.has(userId);
-  const query=sb.from("profile_follows");
-  const {error}=following?await query.delete().eq("follower_id",state.user.id).eq("following_id",userId):await query.insert({follower_id:state.user.id,following_id:userId});
-  if(error)throw error;
+  // Read the current relationship from the database, never from a cached button label.
+  const uid=state.user.id;
+  const {data:current,error:readError}=await sb.from("profile_follows").select("follower_id,following_id").eq("follower_id",uid).eq("following_id",userId);
+  if(readError)throw readError;
+  const following=(current||[]).length>0;
+  if(following){
+   const {error}=await sb.from("profile_follows").delete().eq("follower_id",uid).eq("following_id",userId);
+   if(error)throw error;
+  }else{
+   const {error}=await sb.from("profile_follows").insert({follower_id:uid,following_id:userId});
+   if(error)throw error;
+  }
   await refreshGlobalMemberConnections();
+  const verified=state.globalMemberFollowing.has(String(userId));
+  if(verified===following)throw new Error("The follow change was not saved. Please try again.");
   renderGlobalMemberDirectory();
- }catch(e){toast(errorText(e));if(button)button.disabled=false;}
+ }catch(e){
+  toast(errorText(e));
+  try{await refreshGlobalMemberConnections();renderGlobalMemberDirectory();}catch(_){if(button)button.disabled=false;}
+ }
 }
 function renderGlobalMemberDirectory(){
  const v=$("view");if(!v)return;
  const members=state.globalMemberDirectory||[];
  v.innerHTML='<div class="section-head"><div><h2>All Global Members</h2><p>Explore WIRED-wide profiles.</p></div></div><button class="ghost" id="globalMembersBack">← Back to Discover</button><div class="people-grid">'+members.map(p=>{
  const self=p.id===state.user?.id;
- const following=state.globalMemberFollowing?.has(p.id);
- const followsMe=state.globalMemberFollowers?.has(p.id);
- const friend=state.globalMemberFriends?.has(p.id)||(following&&followsMe);
+ const following=state.globalMemberFollowing?.has(String(p.id));
+ const followsMe=state.globalMemberFollowers?.has(String(p.id));
+ const friend=state.globalMemberFriends?.has(String(p.id))||(following&&followsMe);
  const canChat=!self&&(followsMe||friend);
  return '<article class="card global-member-card"><button class="discover-person-result global-member-profile" type="button" data-global-member="'+escapeHTML(p.id)+'"><span class="profile-avatar">'+(p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="">':'W')+'</span><span><b>'+escapeHTML(p.username||"WIRED member")+'</b><small>'+escapeHTML(p.bio||"WIRED member")+'</small></span><span class="discover-person-open">View profile →</span></button><div class="global-member-actions">'+(self?'<span class="hint">Your profile</span>':'<button class="ghost" type="button" data-directory-follow="'+escapeHTML(p.id)+'">'+(following?'Unfollow':'Follow')+'</button><button class="ghost" type="button" data-directory-chat="'+escapeHTML(p.id)+'" '+(canChat?'':'disabled title="Only followers or friends can chat"')+'>Chat</button>')+'</div></article>';
  }).join("")+'</div>'+(state.globalMemberLoading?'<div class="empty">Loading members…</div>':state.globalMemberHasMore?'<button class="ghost" id="globalMembersMore">Load more members</button>':members.length?'':'<div class="empty">No global profiles found.</div>');
