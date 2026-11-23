@@ -1162,16 +1162,32 @@ function showFriendGiftPopup(gift,sender){
  const overlay=document.createElement('div');overlay.id='wiredFriendGiftPopup';overlay.className='wired-dialog-overlay';
  overlay.innerHTML='<section class="wired-dialog wired-gift-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredGiftTitle"><div class="wired-gift-big-emoji">'+escapeHTML(gift.gift_emoji)+'</div><h2 id="wiredGiftTitle">You received a gift!</h2><p><strong>'+escapeHTML(sender||'A WIRED friend')+'</strong> sent you '+escapeHTML(gift.gift_name)+' '+escapeHTML(gift.gift_emoji)+'</p><p class="wired-gift-points">+'+Number(gift.total_points)+' points will be added to your account if accepted, including the 10% gift bonus.</p><div class="wired-gift-response-actions"><button type="button" class="primary" id="acceptWiredGift">Accept gift</button><button type="button" class="ghost" id="rejectWiredGift">Reject gift</button></div></section>';
  document.body.appendChild(overlay);
+ const closeGiftPopup=()=>{overlay.remove();wiredGiftPopupActive=false;};
  const respond=async accept=>{
   const acceptButton=overlay.querySelector('#acceptWiredGift'),rejectButton=overlay.querySelector('#rejectWiredGift');
   acceptButton.disabled=true;rejectButton.disabled=true;
-  const {error}=await sb.rpc('respond_global_friend_gift',{p_gift_id:gift.id,p_accept:accept});
-  if(error){toast(errorText(error));acceptButton.disabled=false;rejectButton.disabled=false;return;}
-  overlay.remove();wiredGiftPopupActive=false;
-  toast(accept?'Gift accepted! Points added to your account.':'Gift rejected. Returned to sender’s gift inventory.');
-  loadGlobalStore().then(()=>{if(state.page==='store')renderGlobalStore();}).catch(()=>{});
-  checkIncomingFriendGifts();
+  try{
+   const {error}=await sb.rpc('respond_global_friend_gift',{p_gift_id:gift.id,p_accept:accept});
+   if(error){
+    // An earlier request may have succeeded even when its response was lost.
+    const {data:current, error:statusError}=await sb.from('global_friend_gifts').select('status').eq('id',gift.id).maybeSingle();
+    if(!statusError&&current&&current.status!=='pending'){
+     closeGiftPopup();toast(current.status==='accepted'?'Gift already accepted!':'Gift already handled.');
+     await loadGlobalStore().catch(()=>{});checkIncomingFriendGifts();return;
+    }
+    throw error;
+   }
+   closeGiftPopup();
+   toast(accept?'Gift accepted! Points added to your account.':'Gift rejected. Returned to sender’s gift inventory.');
+   await loadGlobalStore().catch(()=>{});
+   if(state.page==='store')renderGlobalStore();
+   checkIncomingFriendGifts();
+  }catch(error){toast(errorText(error));acceptButton.disabled=false;rejectButton.disabled=false;}
  };
+ // Verify status before presenting actions: stale tabs must not trap members in an old popup.
+ sb.from('global_friend_gifts').select('status').eq('id',gift.id).maybeSingle().then(({data})=>{
+  if(data&&data.status!=='pending'&&overlay.isConnected){closeGiftPopup();checkIncomingFriendGifts();}
+ }).catch(()=>{});
  overlay.querySelector('#acceptWiredGift').addEventListener('click',()=>respond(true));
  overlay.querySelector('#rejectWiredGift').addEventListener('click',()=>respond(false));
 }
