@@ -1294,8 +1294,14 @@ async function careForPet(id,action,button){
     const caredPet=(state.userPets||[]).find(p=>String(p.id)===String(id));
     if(caredPet)yokaiSpeech.set(String(id),yokaiReaction(caredPet,action));
     render();
-    const reward=5;
-    toast((action==="feed"?"Yum! Your pet enjoyed its snack.":action==="play"?"Training complete!":"Your pet is feeling refreshed.")+" +"+reward+" WIRED points! ✨");
+    // Read the actual server-awarded reward rather than displaying a stale fixed amount.
+    // Each care action is recorded by the care_for_pet RPC in pet_actions.
+    const {data:careHistory,error:careHistoryError}=await sb.from("pet_actions")
+      .select("points_awarded").eq("pet_id",id).eq("action_type",action)
+      .order("created_at",{ascending:false}).limit(1);
+    const reward=careHistoryError?null:careHistory?.[0]?.points_awarded;
+    const message=action==="feed"?"Yum! Your pet enjoyed its snack.":action==="play"?"Training complete!":"Your pet is feeling refreshed.";
+    toast(message+(Number.isFinite(Number(reward))&&reward!==null?" +"+Number(reward)+" WIRED points! ✨":" Points awarded to your wallet."));
   }catch(e){toast(errorText(e));if(button)button.disabled=false;}
 }
 async function invokeEternalYokaiSkill(id,button){
