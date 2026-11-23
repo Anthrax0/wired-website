@@ -1142,29 +1142,6 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
 }
 
-/* Top-hat gentleman silhouette above the Me navigation label. */
-.tabs .tab[data-page="profile"]::before{
- content:"🎩"!important;
- display:block!important;
- font-family:"Apple Color Emoji","Segoe UI Emoji",sans-serif!important;
- font-size:clamp(20px,3.6vw,28px)!important;
- line-height:1.1!important;
- margin-bottom:7px!important;
- font-weight:400!important;
-}
-
-/* Replace top hat with a stick-person figure above Me. */
-.tabs .tab[data-page="profile"]::before{
- content:"♙"!important;
- content:"🚶"!important;
- display:block!important;
- font-family:"Apple Color Emoji","Segoe UI Emoji",sans-serif!important;
- font-size:clamp(20px,3.6vw,28px)!important;
- line-height:1.1!important;
- margin-bottom:7px!important;
- font-weight:400!important;
-}
-
 /* Exact requested warning glyph above Report a Bug. */
 .tabs .tab[data-page="bugs"]::before{
  content:"⚠︎"!important;
@@ -1176,19 +1153,6 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  font-weight:400!important;
  color:#ff3030!important;
  text-shadow:0 0 8px #ff3030,0 0 18px #b60024!important;
-}
-
-/* Exact requested peace-hand text symbol above Me. */
-.tabs .tab[data-page="profile"]::before{
- content:"✌︎"!important;
- display:block!important;
- font-family:"Segoe UI Symbol","Apple Symbols",sans-serif!important;
- font-size:clamp(21px,3.8vw,30px)!important;
- line-height:1.1!important;
- margin-bottom:7px!important;
- font-weight:400!important;
- color:#d7b5ff!important;
- text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
 }
 
 /* Exact requested coffee-cup text symbol above Chats. */
@@ -1226,3 +1190,7 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .tabs .tab[data-page="discover"]::before{content:none!important;display:none!important}
 .tabs .tab[data-page="discover"]{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important}
 .tabs .tab[data-page="discover"] .discover-tab-symbol{display:block!important;font-family:"Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif!important;font-variant:normal!important;font-size:clamp(21px,3.8vw,30px)!important;font-weight:400!important;line-height:1.1!important;margin-bottom:7px!important;color:#d7b5ff!important;text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important}
+
+/* Me uses only the explicit ✌︎ character; no emoji or legacy pseudo-icons. */
+.tabs .tab[data-page="profile"]::before,.tabs .tab[data-page="profile"]::after{content:none!important;display:none!important}
+.tabs .tab[data-page="profile"] .me-tab-symbol{font-family:"Segoe UI Symbol","DejaVu Sans","Noto Sans Symbols 2",sans-serif!important;font-variant:normal!important;font-style:normal!important;font-weight:400!important}
