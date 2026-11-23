@@ -1,15 +1,52 @@
 function communityMemberLevel(points){return Math.min(99,Math.max(1,Math.floor(Math.max(0,Number(points)||0)/100)+1));}
+const COMMUNITY_RANKS=[
+ {min:1,name:'Beginner',symbol:'●',tier:'newblood'},
+ {min:5,name:'Novice',symbol:'●',tier:'initiate'},
+ {min:10,name:'Member',symbol:'◆',tier:'nightwalker'},
+ {min:20,name:'Regular',symbol:'◆',tier:'phantom'},
+ {min:30,name:'Contributor',symbol:'★',tier:'sentinel'},
+ {min:45,name:'Experienced',symbol:'★',tier:'warden'},
+ {min:60,name:'Veteran',symbol:'★',tier:'ascendant'},
+ {min:75,name:'Expert',symbol:'✦',tier:'legend'},
+ {min:90,name:'Elite',symbol:'✦',tier:'monarch'},
+ {min:99,name:'Master',symbol:'✦',tier:'sovereign'}
+];
 function communityLevelTitle(level){
- if(level>=99)return {name:'Eternal Sovereign',symbol:'♛',tier:'sovereign'};
- if(level>=90)return {name:'Void Monarch',symbol:'♛',tier:'monarch'};
- if(level>=75)return {name:'Shadow Legend',symbol:'✧',tier:'legend'};
- if(level>=60)return {name:'Night Ascendant',symbol:'✦',tier:'ascendant'};
- if(level>=45)return {name:'Abyss Warden',symbol:'◆',tier:'warden'};
- if(level>=30)return {name:'Dark Sentinel',symbol:'◇',tier:'sentinel'};
- if(level>=20)return {name:'Phantom',symbol:'☾',tier:'phantom'};
- if(level>=10)return {name:'Nightwalker',symbol:'☽',tier:'nightwalker'};
- if(level>=5)return {name:'Initiate',symbol:'✧',tier:'initiate'};
- return {name:'Newblood',symbol:'✦',tier:'newblood'};
+ const base=[...COMMUNITY_RANKS].reverse().find(rank=>level>=rank.min)||COMMUNITY_RANKS[0];
+ return {...base,name:state.communityRankTitles?.[base.min]||base.name};
+}
+async function loadCommunityRankTitles(communityId){
+ state.communityRankTitles={};
+ const {data,error}=await sb.from('community_rank_titles').select('min_level,title').eq('community_id',communityId);
+ if(error){console.warn('Community rank titles unavailable',error);return;}
+ state.communityRankTitles=Object.fromEntries((data||[]).map(row=>[row.min_level,row.title]));
+}
+async function saveCommunityRankTitles(event){
+ event.preventDefault();
+ if(!['owner','mod'].includes(state.activeCommunityRole))return toast('Only community managers can edit rank titles.');
+ const communityId=state.activeCommunity?.id;
+ if(!communityId)return;
+ const changes=[];
+ for(const rank of COMMUNITY_RANKS){
+  const field=document.getElementById('communityRankTitle'+rank.min);
+  const value=(field?.value||'').trim();
+  if(!value||value.length>32){toast('Rank titles must be 1–32 characters.');return;}
+  changes.push({community_id:communityId,min_level:rank.min,title:value});
+ }
+ const button=document.querySelector('#communityRankForm button[type="submit"]');
+ if(button)button.disabled=true;
+ try{
+  const {error}=await sb.from('community_rank_titles').upsert(changes,{onConflict:'community_id,min_level'});
+  if(error)throw error;
+  await loadCommunityRankTitles(communityId);
+  renderCommunity();toast('Community rank titles saved.');
+ }catch(error){toast(errorText(error));if(button)button.disabled=false;}
+}
+async function resetCommunityRankTitles(){
+ if(!['owner','mod'].includes(state.activeCommunityRole))return;
+ const {error}=await sb.from('community_rank_titles').delete().eq('community_id',state.activeCommunity.id);
+ if(error){toast(errorText(error));return;}
+ await loadCommunityRankTitles(state.activeCommunity.id);renderCommunity();toast('Default rank titles restored.');
 }
 function communityLevelBadge(member){
  const points=Math.max(0,Number(member.communityPoints)||0);
@@ -54,7 +91,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const $ = id => document.getElementById(id);
-const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null,relationshipEndChannel:null,relationshipEndPopup:null,quizResults:{},petSpecies:[],userPets:[]};
+const state = {page:"home", user:null, profile:null, communities:[], activeCommunity:null, activeThread:null, threads:[], messages:[], editAccountOpen:false,activeCommunityRole:null,joinRequests:[],discoveryQuery:"",discoveryCategory:"all",discoverySort:"newest",realtimeChannel:null,managerOpen:false,moderationMembers:[],moderationReports:[],moderationWarnings:[],moderationActions:[],profileImages:[],profileComments:[],profilePosts:[],viewingProfile:null,profileReturnPage:null,people:[],peopleSearchResults:null,discoverPeopleResults:null,peopleSearchRequest:0,discoverPeopleSearchRequest:0,peopleQuery:"",discoverPeopleQuery:"",incomingRequests:[],outgoingRequests:[],friends:[],profileSocial:{following:[],followers:[],friends:[]},profileSocialTab:"following",relationshipRequests:[],activeRelationship:null,communityCheckinState:{checked_in_today:false,points:0,streak:0},communityLeaderboard:[],communityRankTitles:{},leaderboardOpen:false,globalStoreItems:[],globalStorePurchases:[],globalStoreBalance:0,globalStoreEquipped:{},notifications:[],notificationUnread:0,notificationChannel:null,relationshipEndChannel:null,relationshipEndPopup:null,quizResults:{},petSpecies:[],userPets:[]};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800)}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function errorText(e){return e?.message||"Something went wrong. Please try again."}
@@ -1472,7 +1509,7 @@ async function openCommunity(id){
  try{
   const c=state.communities.find(x=>x.id===id)||{id,name:'Community'};state.activeCommunity=c;state.page='community';updateCommunityNavigation();try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',id);}catch(e){}state.activeCommunityRole=null;state.joinRequests=[];state.managerOpen=false;
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
+  const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;await loadCommunityRankTitles(id);if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
   if(state.activeCommunityRole){const d=await api('/communities/'+encodeURIComponent(id)+'/posts');state.posts=d.items||[];if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];await loadModerationData(id);}else{const {data:members,error:membersError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',id).order('joined_at',{ascending:true});if(membersError)throw membersError;state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}else{state.posts=[];state.moderationMembers=[];state.moderationReports=[];state.moderationActions=[];state.moderationWarnings=[];if(state.activeCommunityRole&&state.user){const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}
   if(state.activeCommunityRole&&state.moderationMembers.length){
    try{
@@ -1528,6 +1565,9 @@ function renderCommunity(){
   if(state.managerOpen){
    html+='<section class="manager-panel"><div class="manager-heading"><div><span class="eyebrow">WIRED COMMUNITY TOOLS</span><h2>Community Manager</h2><p class="muted">Manage the look, identity, and settings of your community.</p></div><button class="ghost" id="closeCommunityManager">Back to community</button></div><div class="manager-grid"><article class="manager-tile"><span class="manager-icon">✦</span><b>Appearance</b><small>Theme color and community identity</small></article><article class="manager-tile"><span class="manager-icon">☷</span><b>Community details</b><small>Description, category, rules and welcome</small></article><article class="manager-tile"><span class="manager-icon">⌖</span><b>Discovery</b><small>Visibility in WIRED Discovery</small></article><article class="manager-tile"><span class="manager-icon">♙</span><b>Moderation</b><small>Review member requests below</small></article></div><form id="managerSettingsForm" class="manager-settings"><div class="section-head"><h3>Community settings</h3><span class="pill">'+escapeHTML(state.activeCommunityRole)+'</span></div><label class="field">Community name<input value="'+escapeHTML(c.name||'')+'" disabled aria-describedby="managerNameHint"></label><p class="hint" id="managerNameHint">Community renaming will be added in a later manager update.</p><label class="field">Community icon<input id="managerIconFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><label class="field">Community cover image<input id="managerCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="hint">Upload a JPG, PNG, WEBP, or GIF (up to 10 MB). Leave blank to keep the current image.</p><label class="field">Description<textarea id="managerDescription" maxlength="500">'+escapeHTML(c.description||'')+'</textarea></label><label class="field">Category<input id="managerCategory" maxlength="40" value="'+escapeHTML(c.category||'')+'"></label><label class="field">Community rules<textarea id="managerRules" maxlength="3000">'+escapeHTML(c.rules||'')+'</textarea></label><label class="field">Welcome message<textarea id="managerWelcome" maxlength="1000">'+escapeHTML(c.welcome_message||'')+'</textarea></label><label class="field manager-color-field">Community accent color<input id="managerThemeColor" type="color" value="'+(/^#[0-9a-fA-F]{6}$/.test(c.theme_color||'')?c.theme_color:'#8b5cf6')+'"></label><label class="field">Community visibility<select id="managerVisibility"><option value="public" '+(c.visibility==='public'?'selected':'')+'>Public</option><option value="private" '+(c.visibility==='private'?'selected':'')+'>Private</option></select></label><label class="manager-check"><input id="managerDiscoverable" type="checkbox" '+(c.discoverable!==false?'checked':'')+'> Show this community in Discovery</label><button class="primary">Save community settings</button><p class="hint" id="managerSettingsStatus" aria-live="polite"></p></form></section>';
   }
+  if(state.managerOpen){
+   html+='<section class="card"><div class="section-head"><h3>Community rank titles</h3></div><p class="hint">Rename each level range to fit your community theme. Levels and XP requirements stay the same.</p><form id="communityRankForm" class="manager-settings">'+COMMUNITY_RANKS.map(rank=>'<label class="field">Levels '+rank.min+'–'+(COMMUNITY_RANKS.find(next=>next.min>rank.min)?.min-1||99)+'<input id="communityRankTitle'+rank.min+'" maxlength="32" required value="'+escapeHTML(state.communityRankTitles?.[rank.min]||rank.name)+'"></label>').join('')+'<div class="card-actions"><button type="submit" class="primary">Save rank titles</button><button type="button" class="ghost" id="resetCommunityRanks">Restore defaults</button></div></form></section>';
+  }
   html+='<div class="section-head"><h2>Join requests ('+state.joinRequests.length+')</h2></div>';if(state.joinRequests.length){html+=state.joinRequests.map(r=>'<article class="card"><b>'+escapeHTML(r.username||'WIRED member')+'</b><p class="muted">Requested '+new Date(r.created_at).toLocaleDateString()+'</p><div class="card-actions"><button class="primary small" data-approve-request="'+escapeHTML(r.id)+'">Approve</button><button class="ghost" data-decline-request="'+escapeHTML(r.id)+'">Decline</button></div></article>').join('');}else html+='<div class="empty">No pending join requests.</div>';}
  if(manager){
   html+='<section class="manager-panel moderation-panel"><div class="manager-heading"><div><span class="eyebrow">COMMUNITY SAFETY</span><h2>Moderation tools</h2><p class="muted">Manage members, review reports, and remove posts that break your rules.</p></div></div>';
@@ -1553,7 +1593,7 @@ function renderCommunity(){
  $('communityCheckinBtn')?.addEventListener('click',doCommunityCheckin);
  $('communityLeaderboardBtn')?.addEventListener('click',openCommunityLeaderboard);
  $('closeCommunityLeaderboard')?.addEventListener('click',()=>{state.leaderboardOpen=false;renderCommunity()});
- $('backDiscover')?.addEventListener('click',()=>nav('discover'));$('openCommunityManager')?.addEventListener('click',()=>{state.managerOpen=true;renderCommunity()});$('closeCommunityManager')?.addEventListener('click',()=>{state.managerOpen=false;renderCommunity()});$('managerSettingsForm')?.addEventListener('submit',saveCommunitySettings);$('joinFromCommunity')?.addEventListener('click',()=>joinCommunity(c.id));$('communityChatBtn')?.addEventListener('click',()=>openCommunityChat(c.id));$('postForm')?.addEventListener('submit',createPost);
+ $('backDiscover')?.addEventListener('click',()=>nav('discover'));$('openCommunityManager')?.addEventListener('click',()=>{state.managerOpen=true;renderCommunity()});$('closeCommunityManager')?.addEventListener('click',()=>{state.managerOpen=false;renderCommunity()});$('managerSettingsForm')?.addEventListener('submit',saveCommunitySettings);$('communityRankForm')?.addEventListener('submit',saveCommunityRankTitles);$('resetCommunityRanks')?.addEventListener('click',resetCommunityRankTitles);$('joinFromCommunity')?.addEventListener('click',()=>joinCommunity(c.id));$('communityChatBtn')?.addEventListener('click',()=>openCommunityChat(c.id));$('postForm')?.addEventListener('submit',createPost);
  $('postType')?.addEventListener('change',updatePostComposer);$('pollOptions')?.addEventListener('input',()=>{});$('addQuizQuestion')?.addEventListener('click',addQuizQuestion);$('quizQuestionBuilder')?.addEventListener('input',e=>{if(e.target.matches('[data-quiz-options]'))updateQuizQuestionOptions(e.target.closest('[data-quiz-question]'));});$('quizQuestionBuilder')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-quiz-question]');if(!b)return;const host=$('quizQuestionBuilder');b.closest('[data-quiz-question]')?.remove();Array.from(host.querySelectorAll('[data-quiz-question]')).forEach((card,i)=>{const heading=card.querySelector('.quiz-question-editor-head b');if(heading)heading.textContent='Question '+(i+1);});});$('postImage')?.addEventListener('change',e=>{const host=$('postImagePreview');if(!host)return;const files=Array.from(e.target.files||[]);host.innerHTML=files.slice(0,5).map(f=>'<span>'+escapeHTML(f.name)+'</span>').join(' · ');});updatePostComposer();
  v.querySelectorAll('[data-vote-post]').forEach(b=>b.addEventListener('click',()=>voteOnPost(b.dataset.votePost,Number(b.dataset.voteOption))));v.querySelectorAll('[data-quiz-submit]').forEach(form=>form.addEventListener('submit',e=>submitQuiz(e,form.dataset.quizSubmit)));v.querySelectorAll('[data-quiz-retake]').forEach(b=>b.addEventListener('click',()=>{delete state.quizResults[b.dataset.quizRetake];renderCommunity();}));
  loadCommunityLocalProfile();
