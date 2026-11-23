@@ -441,7 +441,7 @@ footer{border-color:#4b2864}
   content:"CYBERPUNK NAMEPLATE";display:block;margin-bottom:5px;
   color:#72eaff;font-size:9px;line-height:1.2;font-weight:900;letter-spacing:.2em;
 }
-.profile-unified-card.equipped-profile-theme{
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme{
   background:
     radial-gradient(ellipse at 12% 8%,rgba(0,210,255,.24),transparent 38%),
     radial-gradient(ellipse at 92% 88%,rgba(146,55,255,.3),transparent 42%),
@@ -449,20 +449,20 @@ footer{border-color:#4b2864}
   border:2px solid #42dfff!important;
   box-shadow:0 0 0 2px rgba(66,223,255,.12),0 0 28px rgba(31,190,255,.28),inset 0 0 44px rgba(38,115,255,.16)!important;
 }
-.profile-unified-card.equipped-profile-theme .profile-unified-content::before{
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-unified-content::before{
   content:"✦  PROFILE THEME EQUIPPED  ✦";display:inline-flex;align-items:center;
   margin:0 0 16px;padding:7px 12px;border:1px solid #55dfff;border-radius:4px;
   background:linear-gradient(90deg,#08243a,#19204a);color:#8cecff;
   font:900 10px/1.2 ui-monospace,monospace;letter-spacing:.16em;
   box-shadow:0 0 14px rgba(49,204,255,.35);
 }
-.profile-unified-card.equipped-profile-theme .profile-cover{
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-cover{
   background:
     linear-gradient(115deg,rgba(0,190,255,.38),rgba(17,15,49,.18),rgba(146,54,255,.45)),
     repeating-linear-gradient(135deg,transparent 0 22px,rgba(90,225,255,.13) 23px,transparent 25px)!important;
   border-bottom:2px solid #55dfff!important;
 }
-.profile-unified-card.equipped-profile-theme .profile-about{
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-about{
   border-color:#47dfff!important;background:linear-gradient(135deg,rgba(6,34,53,.92),rgba(19,13,42,.94))!important;
   box-shadow:inset 0 0 22px rgba(54,197,255,.13),0 0 12px rgba(54,197,255,.12)!important;
 }
@@ -574,10 +574,10 @@ footer{border-color:#4b2864}
 .orange-fruit-preview .store-preview-bio i{background:rgba(173,73,8,.55)}
 .orange-fruit-preview-stamp{margin-top:7px;color:#873407;font-size:8px;font-weight:950;letter-spacing:.18em;text-align:center}
 .equipped-profile-theme.orange-fruit-theme{background:radial-gradient(ellipse at 12% 0%,rgba(255,174,48,.34),transparent 45%),radial-gradient(ellipse at 92% 90%,rgba(231,83,9,.2),transparent 48%),linear-gradient(145deg,#fff0c8,#ffb34b 42%,#f06a18 78%,#7a2d0b)!important;border:2px solid #ffb13b!important;box-shadow:0 0 0 2px rgba(255,184,67,.16),0 0 30px rgba(245,117,22,.32),inset 0 0 42px rgba(255,247,207,.25)!important;color:#542006!important}
-.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-unified-content::before{content:"🍊  ORANGE GROVE EDITION  🍃";display:inline-flex;align-items:center;margin:0 0 16px;padding:8px 13px;border:1px solid #b94a0b;border-radius:999px;background:linear-gradient(90deg,#ffcf62,#ff8b22);color:#642606;font:950 10px/1.2 ui-monospace,monospace;letter-spacing:.12em;box-shadow:0 0 16px rgba(255,144,31,.32)}
-.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-cover{background:radial-gradient(circle at 18% 50%,rgba(255,218,107,.9) 0 6%,transparent 7%),radial-gradient(circle at 78% 38%,rgba(255,198,69,.8) 0 8%,transparent 9%),linear-gradient(115deg,#e95b0b,#ffb12f 45%,#8d3408)!important;border-bottom:3px solid #ffca58!important}
-.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-about{border-color:#d85c10!important;background:linear-gradient(135deg,rgba(255,242,204,.96),rgba(255,185,88,.94))!important;box-shadow:inset 0 0 22px rgba(255,255,255,.3),0 0 14px rgba(230,103,15,.2)!important;color:#612607!important}
-.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-about h2,.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-about h3{color:#7c3109!important}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme.orange-fruit-theme .profile-unified-content::before{content:"🍊  ORANGE GROVE EDITION  🍃";display:inline-flex;align-items:center;margin:0 0 16px;padding:8px 13px;border:1px solid #b94a0b;border-radius:999px;background:linear-gradient(90deg,#ffcf62,#ff8b22);color:#642606;font:950 10px/1.2 ui-monospace,monospace;letter-spacing:.12em;box-shadow:0 0 16px rgba(255,144,31,.32)}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme.orange-fruit-theme .profile-cover{background:radial-gradient(circle at 18% 50%,rgba(255,218,107,.9) 0 6%,transparent 7%),radial-gradient(circle at 78% 38%,rgba(255,198,69,.8) 0 8%,transparent 9%),linear-gradient(115deg,#e95b0b,#ffb12f 45%,#8d3408)!important;border-bottom:3px solid #ffca58!important}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme.orange-fruit-theme .profile-about{border-color:#d85c10!important;background:linear-gradient(135deg,rgba(255,242,204,.96),rgba(255,185,88,.94))!important;box-shadow:inset 0 0 22px rgba(255,255,255,.3),0 0 14px rgba(230,103,15,.2)!important;color:#612607!important}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme.orange-fruit-theme .profile-about h2,.profile-unified-card.equipped-profile-theme.orange-fruit-theme.orange-fruit-theme .profile-about h3{color:#7c3109!important}
 .store-purchase-icon .orange-fruit-preview{width:70px;height:48px;padding:3px;border-radius:7px}
 .store-purchase-icon .orange-fruit-preview .store-preview-cover{height:12px;margin-bottom:3px}
 .store-purchase-icon .orange-fruit-preview .store-preview-cover span{font-size:9px}
@@ -587,10 +587,10 @@ footer{border-color:#4b2864}
 .store-purchase-icon .orange-fruit-preview .store-preview-profile-head small,.store-purchase-icon .orange-fruit-preview .store-preview-bio,.store-purchase-icon .orange-fruit-preview-stamp{display:none}
 
 /* Theme-slot rendering: full orange fruit treatment for equipped profile themes */
-.profile-unified-card.equipped-profile-theme{background:radial-gradient(ellipse at 12% 8%,rgba(255,210,91,.48),transparent 38%),radial-gradient(ellipse at 92% 88%,rgba(232,83,9,.34),transparent 42%),linear-gradient(135deg,#fff0c8 0%,#ffb13e 48%,#a83c0a 100%)!important;border:2px solid #ffbd45!important;box-shadow:0 0 0 2px rgba(255,184,67,.16),0 0 28px rgba(245,117,22,.28),inset 0 0 44px rgba(255,247,207,.24)!important;color:#612607!important}
-.profile-unified-card.equipped-profile-theme .profile-unified-content::before{content:"🍊  ORANGE GROVE EDITION  🍃";display:inline-flex;align-items:center;margin:0 0 16px;padding:8px 13px;border:1px solid #b94a0b;border-radius:999px;background:linear-gradient(90deg,#ffcf62,#ff8b22);color:#642606;font:950 10px/1.2 ui-monospace,monospace;letter-spacing:.12em;box-shadow:0 0 16px rgba(255,144,31,.32)}
-.profile-unified-card.equipped-profile-theme .profile-cover{background:radial-gradient(circle at 18% 50%,rgba(255,218,107,.9) 0 6%,transparent 7%),radial-gradient(circle at 78% 38%,rgba(255,198,69,.8) 0 8%,transparent 9%),linear-gradient(115deg,#e95b0b,#ffb12f 45%,#8d3408)!important;border-bottom:3px solid #ffca58!important}
-.profile-unified-card.equipped-profile-theme .profile-about{border-color:#d85c10!important;background:linear-gradient(135deg,rgba(255,242,204,.96),rgba(255,185,88,.94))!important;box-shadow:inset 0 0 22px rgba(255,255,255,.3),0 0 14px rgba(230,103,15,.2)!important;color:#612607!important}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme{background:radial-gradient(ellipse at 12% 8%,rgba(255,210,91,.48),transparent 38%),radial-gradient(ellipse at 92% 88%,rgba(232,83,9,.34),transparent 42%),linear-gradient(135deg,#fff0c8 0%,#ffb13e 48%,#a83c0a 100%)!important;border:2px solid #ffbd45!important;box-shadow:0 0 0 2px rgba(255,184,67,.16),0 0 28px rgba(245,117,22,.28),inset 0 0 44px rgba(255,247,207,.24)!important;color:#612607!important}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-unified-content::before{content:"🍊  ORANGE GROVE EDITION  🍃";display:inline-flex;align-items:center;margin:0 0 16px;padding:8px 13px;border:1px solid #b94a0b;border-radius:999px;background:linear-gradient(90deg,#ffcf62,#ff8b22);color:#642606;font:950 10px/1.2 ui-monospace,monospace;letter-spacing:.12em;box-shadow:0 0 16px rgba(255,144,31,.32)}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-cover{background:radial-gradient(circle at 18% 50%,rgba(255,218,107,.9) 0 6%,transparent 7%),radial-gradient(circle at 78% 38%,rgba(255,198,69,.8) 0 8%,transparent 9%),linear-gradient(115deg,#e95b0b,#ffb12f 45%,#8d3408)!important;border-bottom:3px solid #ffca58!important}
+.profile-unified-card.equipped-profile-theme.orange-fruit-theme .profile-about{border-color:#d85c10!important;background:linear-gradient(135deg,rgba(255,242,204,.96),rgba(255,185,88,.94))!important;box-shadow:inset 0 0 22px rgba(255,255,255,.3),0 0 14px rgba(230,103,15,.2)!important;color:#612607!important}
 
 /* Orange Fruit nameplate cosmetic */
 .orange-fruit-nameplate{display:inline-flex!important;align-items:center;gap:7px;padding:7px 13px!important;border:2px solid #ffbd4a!important;border-radius:13px 13px 13px 5px!important;background:linear-gradient(135deg,#ffcf54 0%,#ff8a19 48%,#e94b08 100%)!important;color:#662304!important;font-weight:1000!important;letter-spacing:.07em;text-shadow:0 1px 0 rgba(255,255,255,.55);box-shadow:inset 0 2px 4px rgba(255,255,255,.7),0 3px 12px rgba(239,104,13,.38)!important}
