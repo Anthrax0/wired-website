@@ -1393,7 +1393,7 @@ async function openCommunityMemberProfile(userId){
   const [{data:local,error},{data:global,error:ge},{data:follows,error:fe},{data:relationships,error:re}]=await Promise.all([
    sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
    sb.from('profiles').select('username,avatar_url').eq('id',userId).maybeSingle(),
-   sb.from('community_profile_follows').select('follower_id,following_id').eq('community_id',cid).or('and(follower_id.eq.'+uid+',following_id.eq.'+userId+'),and(follower_id.eq.'+userId+',following_id.eq.'+uid+')'),
+   sb.from('community_profile_follows').select('follower_id,following_id').eq('community_id',cid),
    sb.from('community_relationships').select('id,requester_id,recipient_id,status,ended_by').eq('community_id',cid).in('status',['pending','accepted']).or('and(requester_id.eq.'+uid+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+uid+')').limit(1)
   ]);
   if(error||ge||fe||re)throw error||ge||fe||re;
@@ -1433,7 +1433,7 @@ async function openCommunityMemberProfile(userId){
   panel.querySelector('#communityFollowBtn')?.addEventListener('click',async()=>{
    try{
     const query=sb.from('community_profile_follows');
-    const {error}=following?await query.delete().eq('community_id',cid).eq('follower_id',uid).eq('following_id',userId):await query.insert({community_id:cid,follower_id:uid,following_id:userId});
+    const {error}=following?await query.delete().eq('community_id',cid).eq('follower_id',uid).eq('following_id',userId):await query.upsert({community_id:cid,follower_id:uid,following_id:userId},{onConflict:'community_id,follower_id,following_id',ignoreDuplicates:true});
     if(error)throw error;await openCommunityMemberProfile(userId);
    }catch(e){toast(errorText(e));}
   });
