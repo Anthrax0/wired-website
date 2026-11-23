@@ -559,7 +559,7 @@ function handleCommunityNavigation(page){
 }
 function goGlobalHome(){nav('home');window.scrollTo({top:0,behavior:'smooth'});}
 document.querySelector('.brand')?.addEventListener('click',event=>{event.preventDefault();goGlobalHome();});
-function nav(page){if(handleCommunityNavigation(page))return;if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadProfile(),loadGlobalStore(),loadPetParadise()]).then(()=>{if(state.page==="store")render();}).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){if(handleCommunityNavigation(page))return;if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadProfile(),loadGlobalStore(),loadPetParadise()]).then(()=>{if(state.page==="store")render();}).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 $("notificationsBtn")?.addEventListener("click",openNotifications);
@@ -1389,6 +1389,7 @@ async function submitQuiz(e,id){
 
 async function openCommunityMemberProfile(userId){
  const cid=state.activeCommunity?.id,uid=state.user?.id;if(!cid||!uid)return;
+ try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',cid);sessionStorage.setItem('wired:lastCommunityProfile',userId);}catch(e){}
  try{
   const [{data:local,error},{data:global,error:ge},{data:follows,error:fe},{data:relationships,error:re}]=await Promise.all([
    sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
@@ -1418,7 +1419,7 @@ async function openCommunityMemberProfile(userId){
   if(!host)throw new Error('Community page is not available.');
   host.replaceChildren(panel);
   if(own)await loadCommunityLocalProfile();
-  panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>renderCommunity());
+  panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>{try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}renderCommunity();});
   panel.querySelectorAll('[data-community-social]').forEach(button=>button.addEventListener('click',async()=>{
    const group=button.dataset.communitySocial,ids=socialGroups[group]||[];
    let section=panel.querySelector('#communitySocialList');
@@ -1575,10 +1576,10 @@ async function logout(){if(state.realtimeChannel){await sb.removeChannel(state.r
 sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setTimeout(()=>refreshUser().catch(e=>console.warn(e)),0)});
 async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();subscribeRelationshipEnds();subscribeCommunityRelationshipEnds();await loadRelationshipData().catch(()=>{});}
  await refreshWiredStaffAccess();
- let savedPage="home",savedCommunity=null;
- try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");}catch(e){}
+ let savedPage="home",savedCommunity=null,savedCommunityProfile=null;
+ try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");savedCommunityProfile=sessionStorage.getItem('wired:lastCommunityProfile');}catch(e){}
  const tabs=new Set(["home","discover","chats","pets","store","profile","communities","people","bugs","features"]);
- if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);return;}
+ if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);if(savedCommunityProfile)await openCommunityMemberProfile(savedCommunityProfile);return;}
  if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){nav(savedPage);return;}
  render()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
