@@ -1603,17 +1603,14 @@ async function loadCommunityLocalProfile(){
    if(!nickname)return toast('Enter a community nickname.');
    const saveButton=f.querySelector('[type="submit"]');if(saveButton)saveButton.disabled=true;
    try{
-    const {data:saved,error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'}).select('nickname,bio,avatar_url,show_global_companion').single();
+    const {data:saved,error}=await sb.from('community_profiles').update({nickname,bio,avatar_url,updated_at:new Date().toISOString()}).eq('community_id',cid).eq('user_id',uid).select('nickname,bio,avatar_url').single();
     if(error)throw error;
-    if(!saved||saved.bio!==bio)throw new Error('Community biography could not be verified after saving.');
-    const {data:verified,error:readError}=await sb.from('community_profiles').select('bio,nickname,show_global_companion').eq('community_id',cid).eq('user_id',uid).single();
-    if(readError)throw readError;
-    if(verified.bio!==bio)throw new Error('Community biography did not persist. Please try again.');
+    if(!saved)throw new Error('Community profile update returned no record.');
     const visibleBio=document.getElementById('communityProfileBio');
-    if(visibleBio)visibleBio.textContent=verified.bio||'No community biography yet.';
+    if(visibleBio)visibleBio.textContent=saved.bio||'No community biography yet.';
     toast('Community profile saved.');
-    await refreshCommunityPreview();
-    await openCommunityMemberProfile(uid);
+    try{await refreshCommunityPreview();}catch(refreshError){console.warn('Community preview refresh failed:',refreshError);}
+    try{await openCommunityMemberProfile(uid);}catch(refreshError){console.warn('Community profile refresh failed:',refreshError);}
    }catch(err){toast('Could not save community profile: '+errorText(err));}
    finally{if(saveButton?.isConnected)saveButton.disabled=false;}
   });
