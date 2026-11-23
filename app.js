@@ -527,6 +527,22 @@ async function equipGlobalStoreItem(id){
   render();
  }catch(e){toast(errorText(e));}
 }
+async function toggleGlobalStoreCosmetic(id,button){
+ if(button){button.disabled=true;button.textContent='Updating…';}
+ try{
+  const {data,error}=await sb.rpc('toggle_my_profile_cosmetic',{p_item_id:id});
+  if(error)throw error;
+  if(!data||!['equipped','unequipped'].includes(data.action))throw new Error('Unexpected cosmetic update response.');
+  await loadProfile();
+  const field={frame:'equipped_frame_item_id',nameplate:'equipped_nameplate_item_id',theme:'equipped_theme_item_id'}[data.slot];
+  if(!field)throw new Error('Unknown cosmetic slot.');
+  const actual=state.profile?.[field]||null;
+  if(data.action==='unequipped'&&actual!==null)throw new Error('Server still shows this cosmetic equipped.');
+  if(data.action==='equipped'&&String(actual)!==String(id))throw new Error('Server did not confirm the equipped cosmetic.');
+  toast('Profile '+data.slot+' '+data.action+'.');
+  render();
+ }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent='Retry';}}
+}
 async function unequipGlobalStoreItem(id){
  try{
   const item=(state.globalStoreItems||[]).find(x=>String(x.id)===String(id));
@@ -663,7 +679,7 @@ function renderGlobalStore(){
 
 
  v.querySelectorAll('[data-store-buy]').forEach(b=>b.addEventListener('click',()=>purchaseGlobalStoreItem(b.dataset.storeBuy)));
- v.querySelectorAll('[data-store-equip]').forEach(b=>b.addEventListener('click',()=>equippedProfileIds.has(String(b.dataset.storeEquip))?unequipGlobalStoreItem(b.dataset.storeEquip):equipGlobalStoreItem(b.dataset.storeEquip)));
+ v.querySelectorAll('[data-store-equip]').forEach(b=>b.addEventListener('click',()=>toggleGlobalStoreCosmetic(b.dataset.storeEquip,b)));
  v.querySelectorAll('[data-pet-equip-item]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.petEquipItem,select=v.querySelector('[data-yokai-target="'+CSS.escape(id)+'"]');equipPetStoreItem(id,select?.value,b);}));
 }
 function isGlobalThread(thread){return !thread.community_id&&!thread.communityId&&thread.type!=="community"&&thread.kind!=="community";}
