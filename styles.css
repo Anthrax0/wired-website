@@ -1203,3 +1203,16 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  color:#d7b5ff!important;
  text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
 }
+
+/* Exact requested Korean glyph above Chats. */
+.tabs .tab[data-page="chats"]::before{
+ content:"모"!important;
+ display:block!important;
+ font-family:"Noto Sans CJK KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif!important;
+ font-size:clamp(21px,3.8vw,30px)!important;
+ line-height:1.1!important;
+ margin-bottom:7px!important;
+ font-weight:700!important;
+ color:#d7b5ff!important;
+ text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
+}
