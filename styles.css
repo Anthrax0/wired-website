@@ -1210,3 +1210,11 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .profile-companion-grid .profile-companion-switch select{width:100%;flex:0 0 auto;box-sizing:border-box}
 .profile-companion-grid .profile-companion-switch button{width:100%}
 @media(max-width:600px){.profile-companion-grid{gap:8px}.profile-companion-grid>.profile-yokai-card,.profile-companion-grid>.profile-companion-switch{padding:10px;border-radius:13px}.profile-companion-grid .profile-yokai-card{flex-direction:column;align-items:flex-start}.profile-companion-grid .profile-yokai-art{width:76px;height:76px;flex:0 0 76px}.profile-companion-grid .profile-yokai-kicker{font-size:.6rem}.profile-companion-grid .profile-yokai-info h3{overflow-wrap:anywhere}.profile-companion-grid .profile-companion-switch label{font-size:.85rem}.profile-companion-grid .profile-companion-switch select{font-size:.85rem;padding:9px 6px}.profile-companion-grid .profile-companion-switch button{font-size:.85rem;padding:10px 6px}}
+
+/* Header: points above notifications, logout beneath My Account. */
+.header-notification-stack,.header-account-stack{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;min-width:0}
+.header-notification-stack .header-points{color:#dfbaff;font-size:12px;font-weight:800;text-align:center;white-space:nowrap}
+.header-notification-stack #notificationsBtn,.header-account-stack #accountBtn,.header-account-stack #headerLogoutBtn{width:100%;justify-content:center;text-align:center;box-sizing:border-box}
+.header-account-stack #headerLogoutBtn{font-size:12px;padding:7px 10px}
+.header-notification-stack [hidden],.header-account-stack [hidden]{display:none!important}
+@media(max-width:480px){.header-actions{gap:6px}.header-notification-stack,.header-account-stack{gap:5px}.header-notification-stack .header-points{font-size:10px}.header-notification-stack #notificationsBtn,.header-account-stack #accountBtn,.header-account-stack #headerLogoutBtn{font-size:11px;padding:7px 6px}}
