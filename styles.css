@@ -1620,3 +1620,5 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 #wiredFriendGiftPopup .wired-gift-points{padding:12px 14px;border:1px solid #78429c;border-radius:12px;background:#190d29;color:#e9baff!important;font-weight:800}
 #wiredFriendGiftPopup #acceptWiredGift{width:100%;min-height:48px;margin-top:8px;border:1px solid #c781ff;border-radius:13px;background:linear-gradient(120deg,#a044e4,#59218e);box-shadow:0 0 16px #9b45e044;color:#fff;font-weight:800;cursor:pointer}
 #wiredFriendGiftPopup #acceptWiredGift:hover,#wiredFriendGiftPopup #acceptWiredGift:focus-visible{filter:brightness(1.16);box-shadow:0 0 22px #b65cf577}
+
+.wired-gift-response-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.wired-gift-response-actions button{min-height:48px;border-radius:13px;font-weight:800}.wired-gift-response-actions .ghost{border:1px solid #9456b8;color:#e7c9f6;background:#1d102c}.wired-returned-gifts{margin-top:25px;padding-top:18px;border-top:1px solid #673b84}.wired-returned-gifts .wired-gift-tile{cursor:default}.wired-returned-gifts .wired-gift-tile button{margin-top:5px}
