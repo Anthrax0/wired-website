@@ -1035,9 +1035,9 @@ const WIRED_FRIEND_GIFTS=[
  ['teddy','🧸','Teddy Bear',90],['heart','💝','Heart Gift',90]
 ];
 let wiredGiftFriends=[],wiredGiftInventory=[],wiredGiftChannel=null,wiredGiftPopupActive=false,wiredGiftTarget=null;
-async function openGiftShopForProfile(userId,name){
+async function openGiftShopForProfile(userId,name,communityId=null){
  if(!state.user||userId===state.user.id)return;
- wiredGiftTarget={id:userId,username:name||'WIRED member'};
+ wiredGiftTarget={id:userId,username:name||'WIRED member',communityId};
  wiredStoreSection='gifts';state.page='store';state.activeCommunity=null;
  try{sessionStorage.setItem('wired:lastPage','store');sessionStorage.setItem('wired:storeSection','gifts');}catch(e){}
  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page==='store'));
@@ -1062,7 +1062,7 @@ async function resendReturnedGift(giftId){
  if(!friend)return toast('Choose a recipient.');
  const confirmed=await wiredDialog('Send this gift to '+friend.username+'? No additional points will be charged.',{danger:false});
  if(!confirmed)return;
- const {error}=await sb.rpc('resend_global_friend_gift',{p_gift_id:giftId,p_recipient_id:recipient});
+ const {error}=await sb.rpc('resend_global_friend_gift',{p_gift_id:giftId,p_recipient_id:recipient,p_sender_community_id:(wiredGiftTarget?.id===recipient?wiredGiftTarget.communityId:null)});
  if(error)return toast(errorText(error));
  await loadReturnedGiftInventory();renderGlobalStore();toast('Gift sent to '+friend.username+'.');
 }
@@ -1114,10 +1114,15 @@ function showFriendGiftPopup(gift,sender){
 }
 async function checkIncomingFriendGifts(){
  if(!state.user||wiredGiftPopupActive)return;
- const {data,error}=await sb.from('global_friend_gifts').select('id,sender_id,gift_name,gift_emoji,total_points').eq('recipient_id',state.user.id) .eq('status','pending').order('created_at',{ascending:true}).limit(1);
+ const {data,error}=await sb.from('global_friend_gifts').select('id,sender_id,gift_name,gift_emoji,total_points,sender_profile_scope,sender_community_id').eq('recipient_id',state.user.id) .eq('status','pending').order('created_at',{ascending:true}).limit(1);
  if(error||!data?.length){if(error)console.warn('Gift inbox unavailable',error);return;}
- const gift=data[0],{data:sender}=await sb.from('profiles').select('username').eq('id',gift.sender_id).maybeSingle();
- showFriendGiftPopup(gift,sender?.username);
+ const gift=data[0];let senderName=null;
+ if(gift.sender_profile_scope==='community'&&gift.sender_community_id){
+  const {data:communitySender}=await sb.from('community_profiles').select('nickname').eq('community_id',gift.sender_community_id).eq('user_id',gift.sender_id).maybeSingle();
+  senderName=communitySender?.nickname||null;
+ }
+ if(!senderName){const {data:sender}=await sb.from('profiles').select('username').eq('id',gift.sender_id).maybeSingle();senderName=sender?.username;}
+ showFriendGiftPopup(gift,senderName);
 }
 function subscribeFriendGifts(){
  if(wiredGiftChannel){sb.removeChannel(wiredGiftChannel);wiredGiftChannel=null;}
@@ -1925,7 +1930,7 @@ async function openCommunityMemberProfile(userId){
   host.replaceChildren(panel);
   renderCommunityProfileComments(panel,cid,userId);
   if(own)await loadCommunityLocalProfile();
-  panel.querySelector('#communitySendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(userId,name));
+  panel.querySelector('#communitySendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(userId,name,cid));
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>{try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}renderCommunity();});
   panel.querySelectorAll('[data-community-social]').forEach(button=>button.addEventListener('click',async()=>{
    const group=button.dataset.communitySocial,ids=socialGroups[group]||[];
