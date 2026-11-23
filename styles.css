@@ -1322,3 +1322,10 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 
 /* Community profile avatars match circular global profile photos. */
 .community-local-profile-detail .community-local-avatar{border-radius:50%!important;aspect-ratio:1/1;object-fit:cover;object-position:center;}
+
+/* Center community profile identity without changing global profile layouts. */
+.community-local-profile-detail > .profile-person{justify-content:center;text-align:center;width:100%;margin:18px auto 20px;}
+.community-local-profile-detail > .profile-person > div{width:100%;text-align:center;}
+.community-local-profile-detail > .profile-person .hint{margin:0 0 8px;}
+.community-local-profile-detail > .profile-person h2{margin:0;}
+.community-local-profile-detail > .community-local-avatar{display:block;margin:0 auto 24px;}
