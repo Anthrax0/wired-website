@@ -196,6 +196,30 @@ async function loadGlobalNotifications(){
  state.notifications=rows.map(n=>({...n,actor:actorMap.get(n.actor_id)||{username:"WIRED member"},comment:commentMap.get(n.profile_comment_id),communityName:communityMap.get(n.community_id)||"Community"}));
  state.notificationUnread=rows.filter(n=>!n.read_at).length;updateNotificationBell();
 }
+async function openPointsHistory(){
+ if(!state.user)return;
+ document.getElementById('wiredPointsHistoryOverlay')?.remove();
+ const overlay=document.createElement('div');overlay.id='wiredPointsHistoryOverlay';overlay.className='wired-points-overlay';
+ overlay.innerHTML='<section class="wired-points-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredPointsTitle"><div class="wired-points-dialog-head"><div><span class="pet-kicker">THE LEDGER OF FORTUNES</span><h2 id="wiredPointsTitle">Points history</h2></div><button type="button" class="ghost" data-close-points aria-label="Close points history">✕</button></div><p class="wired-points-current">Current balance: <strong>'+Number(state.globalStoreBalance||0).toLocaleString()+' points</strong></p><div id="wiredPointsHistoryBody"><p class="hint">Loading transactions…</p></div></section>';
+ document.body.appendChild(overlay);
+ const close=()=>overlay.remove();overlay.querySelector('[data-close-points]').addEventListener('click',close);overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+ const host=overlay.querySelector('#wiredPointsHistoryBody');
+ try{
+  const rows=[];let offset=0;const batchSize=500;
+  while(true){
+   const {data,error}=await sb.from('global_wallet_transactions').select('id,amount,transaction_type,description,created_at').eq('user_id',state.user.id).order('created_at',{ascending:false}).range(offset,offset+batchSize-1);
+   if(error)throw error;rows.push(...(data||[]));
+   if(!data||data.length<batchSize)break;
+   offset+=batchSize;
+   if(offset>=10000)break;
+  }
+  if(!host.isConnected)return;
+  const earned=rows.reduce((n,x)=>n+Math.max(0,Number(x.amount)||0),0);
+  const spent=rows.reduce((n,x)=>n+Math.abs(Math.min(0,Number(x.amount)||0)),0);
+  host.innerHTML='<div class="wired-points-totals"><div><span>Earned</span><strong class="points-earned">+'+earned.toLocaleString()+'</strong></div><div><span>Spent</span><strong class="points-spent">−'+spent.toLocaleString()+'</strong></div></div><h3>Transaction history</h3>'+(rows.length?'<div class="wired-points-transactions">'+rows.map(x=>{const amount=Number(x.amount)||0;return '<article class="wired-points-transaction"><div><strong>'+escapeHTML(x.description||x.transaction_type||'Points activity')+'</strong><small>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</small></div><b class="'+(amount>=0?'points-earned':'points-spent')+'">'+(amount>=0?'+':'−')+Math.abs(amount).toLocaleString()+'</b></article>';}).join('')+'</div>':'<p class="hint">No recorded points transactions yet.</p>')+(offset>=10000?'<p class="hint">Showing the latest 10,000 transactions.</p>':'');
+ }catch(err){if(host.isConnected)host.innerHTML='<p class="hint">Could not load points history: '+escapeHTML(errorText(err))+'</p>';}
+}
+document.addEventListener('click',e=>{if(e.target.closest('#headerPoints'))openPointsHistory();});
 function updateNotificationBell(){
  const b=$("notificationsBtn"),count=$("notificationCount");if(!b)return;
  b.hidden=!state.user;
