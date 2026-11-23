@@ -1,5 +1,5 @@
-const CACHE = "wired-pwa-v71";
-const FILES = ["./", "./index.html", "./styles.css?v=169", "./app.js?v=189", "./manifest.webmanifest", "./wired-logo.png"];
+const CACHE = "wired-pwa-v72";
+const FILES = ["./", "./index.html", "./styles.css?v=169", "./app.js?v=190", "./manifest.webmanifest", "./wired-logo.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
