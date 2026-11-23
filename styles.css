@@ -1092,3 +1092,16 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 }
 .tabs .tab[data-page="features"]::before{color:#00f5ff!important;text-shadow:0 0 8px #00f5ff,0 0 18px #00aaff!important}
 .tabs .tab[data-page="bugs"]::before{color:#ff3030!important;text-shadow:0 0 8px #ff3030,0 0 18px #b60024!important}
+
+/* Sinister skull sigil above the Yokai navigation label. */
+.tabs .tab[data-page="pets"]::before{
+ content:"☠"!important;
+ display:block!important;
+ font-family:"Segoe UI Symbol","Apple Symbols",sans-serif!important;
+ font-size:clamp(21px,3.8vw,30px)!important;
+ line-height:1.1!important;
+ margin-bottom:7px!important;
+ font-weight:400!important;
+ color:#d7a5ff!important;
+ text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
+}
