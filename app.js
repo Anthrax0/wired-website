@@ -1540,7 +1540,7 @@ async function loadCommunityLocalProfile(){
       let section=detail.querySelector('.community-companion-section');
       if(next){
        if(!section){section=document.createElement('section');section.className='community-companion-section';const about=detail.querySelector('.community-profile-biography');if(about)about.after(section);}
-       if(section)section.innerHTML='<h3>Global Companion</h3>'+(pet?profileYokaiMarkup(pet):'<p class="hint">No global companion equipped.</p>');
+       if(section)section.innerHTML='<h3>Global Companion</h3>'+(pet?profileYokaiMarkup(pet):'<p class="hint">Companion unavailable. Reopen your profile to retry.</p>');
       }else section?.remove();
      }
     }catch(err){companionSelect.value=previous;toast('Could not update companion: '+errorText(err));}
@@ -1565,16 +1565,16 @@ async function loadCommunityLocalProfile(){
    finally{input.disabled=false;input.value='';}
   });
   el.querySelector('form')?.addEventListener('submit',async e=>{
-   e.preventDefault();const f=e.currentTarget;const nickname=f.elements.nickname.value.trim(),bio=f.elements.bio.value.trim(),avatar_url=f.elements.avatar_url.value.trim()||null,show_global_companion=f.elements.show_global_companion.value==='true';
+   e.preventDefault();const f=e.currentTarget;const nickname=f.elements.nickname.value.trim(),bio=f.elements.bio.value.trim(),avatar_url=f.elements.avatar_url.value.trim()||null;
    if(!nickname)return toast('Enter a community nickname.');
    const saveButton=f.querySelector('[type="submit"]');if(saveButton)saveButton.disabled=true;
    try{
-    const {data:saved,error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,show_global_companion,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'}).select('nickname,bio,avatar_url,show_global_companion').single();
+    const {data:saved,error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'}).select('nickname,bio,avatar_url,show_global_companion').single();
     if(error)throw error;
     if(!saved||saved.bio!==bio)throw new Error('Community biography could not be verified after saving.');
     const {data:verified,error:readError}=await sb.from('community_profiles').select('bio,nickname,show_global_companion').eq('community_id',cid).eq('user_id',uid).single();
     if(readError)throw readError;
-    if(verified.bio!==bio||verified.show_global_companion!==show_global_companion)throw new Error('Community profile settings did not persist. Please try again.');
+    if(verified.bio!==bio)throw new Error('Community biography did not persist. Please try again.');
     const visibleBio=document.getElementById('communityProfileBio');
     if(visibleBio)visibleBio.textContent=verified.bio||'No community biography yet.';
     toast('Community profile saved.');
