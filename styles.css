@@ -1225,3 +1225,6 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .header-actions #notificationsBtn,.header-actions #accountBtn,.header-actions #headerLogoutBtn{height:100%;min-height:0;margin:0;display:flex;align-items:center;justify-content:center}
 .header-actions #notificationsBtn[hidden],.header-actions #headerLogoutBtn[hidden],.header-actions #headerPoints[hidden]{display:none!important}
 @media(max-width:480px){.header-actions .header-notification-stack,.header-actions .header-account-stack{grid-template-rows:40px 40px;gap:6px}}
+
+/* Distinct global direct and group chat sections. */
+.global-chat-section{margin:18px 0 28px}.global-chat-section>.section-head{margin-bottom:12px}.global-chat-section>.grid{margin-bottom:14px}.global-chat-section>.form-card{margin-top:14px}
