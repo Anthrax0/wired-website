@@ -235,7 +235,7 @@ function subscribeGlobalNotifications(){
   }).subscribe();
 }
 async function openNotifications(){
- state.page="notifications";document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+ state.page="notifications";try{sessionStorage.setItem("wired:lastPage","notifications");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
  try{await loadGlobalNotifications();renderNotifications();}catch(e){toast(errorText(e));}
 }
 function renderNotifications(){
@@ -458,7 +458,7 @@ async function openMemberProfile(userId){
   ]);
   if(commentError)throw commentError;
   const commentIds=[...new Set((comments||[]).map(x=>x.author_id))];const {data:commentAuthors,error:authorsError}=commentIds.length?await sb.from('profiles').select('id,username,avatar_url').in('id',commentIds):{data:[],error:null};if(authorsError)throw authorsError;const authorMap=new Map((commentAuthors||[]).map(x=>[x.id,x]));
-  state.viewingProfile={...data,comments:(comments||[]).map(x=>({...x,author:authorMap.get(x.author_id)||{username:'WIRED member'}})),isFollowing:!!follow,followsMe:!!reverseFollow,friendRequest:friend||null,relationshipRequest:relationship||null,currentRelationship:currentRelationship||null};state.page='member-profile';renderMemberProfile();
+  state.viewingProfile={...data,comments:(comments||[]).map(x=>({...x,author:authorMap.get(x.author_id)||{username:'WIRED member'}})),isFollowing:!!follow,followsMe:!!reverseFollow,friendRequest:friend||null,relationshipRequest:relationship||null,currentRelationship:currentRelationship||null};state.page='member-profile';try{sessionStorage.setItem('wired:openedMember',userId);sessionStorage.setItem('wired:lastPage','member-profile');}catch(e){}renderMemberProfile();
  }catch(e){toast(errorText(e));}
 }
 function profileYokaiMarkup(companion){
@@ -639,7 +639,7 @@ function handleCommunityNavigation(page){
 }
 function goGlobalHome(){nav('home');window.scrollTo({top:0,behavior:'smooth'});}
 document.querySelector('.brand')?.addEventListener('click',event=>{event.preventDefault();goGlobalHome();});
-function nav(page){if(page==="discover")state.discoveryMode="";if(page==="pets")state.yokaiSanctuaryView="home";if(handleCommunityNavigation(page))return;if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities"||page==="all-communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="profile")loadProfileComments(state.user.id).then(comments=>{if(state.page==="profile"){state.profileComments=comments;render();}}).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadProfile(),loadGlobalStore(),loadPetParadise()]).then(()=>{if(state.page==="store")render();}).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page){try{sessionStorage.removeItem("wired:openedMember");sessionStorage.removeItem("wired:sanctuaryView");}catch(e){}if(page==="discover")state.discoveryMode="";if(page==="pets")state.yokaiSanctuaryView="home";if(handleCommunityNavigation(page))return;if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities"||page==="all-communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="profile")loadProfileComments(state.user.id).then(comments=>{if(state.page==="profile"){state.profileComments=comments;render();}}).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadProfile(),loadGlobalStore(),loadPetParadise()]).then(()=>{if(state.page==="store")render();}).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 $("notificationsBtn")?.addEventListener("click",openNotifications);
@@ -1184,7 +1184,7 @@ function renderPetParadise(){
   const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button></div>';
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Sanctuary</button>';
   v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:choices)+footer;
-  v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{state.yokaiSanctuaryView=button.dataset.yokaiView;renderPetParadise();}));
+  v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{state.yokaiSanctuaryView=button.dataset.yokaiView;try{sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);}catch(e){}renderPetParadise();}));
 
   v.querySelectorAll("[data-pet-adopt]").forEach(b=>b.addEventListener("click",()=>adoptPet(b.dataset.petAdopt)));
   v.querySelectorAll("[data-pet-care]").forEach(b=>b.addEventListener("click",()=>careForPet(b.dataset.petCare,b.dataset.action,b)));
@@ -1878,8 +1878,10 @@ async function init(){const {data:{session}}=await sb.auth.getSession();state.us
  let savedPage="home",savedCommunity=null,savedCommunityProfile=null;
  try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");savedCommunityProfile=sessionStorage.getItem('wired:lastCommunityProfile');}catch(e){}
  const tabs=new Set(["home","all-communities","discover","chats","pets","store","profile","communities","people","bugs","features"]);
+ if(savedPage==="member-profile"&&state.user){const member=sessionStorage.getItem("wired:openedMember");if(member){await openMemberProfile(member);return;}}
+ if(savedPage==="notifications"&&state.user){await openNotifications();return;}
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);if(savedCommunityProfile)await openCommunityMemberProfile(savedCommunityProfile);return;}
- if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){nav(savedPage);return;}
+ if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){const savedSanctuary=savedPage==="pets"?sessionStorage.getItem("wired:sanctuaryView"):null;nav(savedPage);if(savedSanctuary){state.yokaiSanctuaryView=savedSanctuary;sessionStorage.setItem("wired:sanctuaryView",savedSanctuary);if(savedPage==="pets")loadPetParadise().then(()=>{if(state.page==="pets")renderPetParadise()}).catch(()=>{});}return;}
  render()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 init().catch(e=>{console.error(e);render()});
