@@ -1944,16 +1944,50 @@ async function savePassword(e){
 }
 async function logout(){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}if(state.notificationChannel){await sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}await sb.auth.signOut();state.user=null;state.profile=null;state.communities=[];state.threads=[];toast("Logged out.");nav("home")}
 sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setTimeout(()=>refreshUser().catch(e=>console.warn(e)),0)});
+// Persist the actual open view, not just the bottom navigation tab.
+let wiredRestoringRoute=true;
+function saveWiredRoute(){
+ if(wiredRestoringRoute)return;
+ try{
+  const route={page:state.page,communityId:state.activeCommunity?.id||null,communityProfileId:sessionStorage.getItem('wired:lastCommunityProfile')||null,memberId:state.page==='member-profile'?state.viewingProfile?.id:null,threadId:state.page==='chats'?state.activeThread:null,discoveryMode:state.discoveryMode||'',socialTab:state.profileSocialTab||'following',storeSection:wiredStoreSection,sanctuaryView:state.yokaiSanctuaryView||'home'};
+  sessionStorage.setItem('wired:route:v2',JSON.stringify(route));
+  sessionStorage.setItem('wired:lastPage',route.page||'home');
+ }catch(e){console.warn('Could not save WIRED route',e);}
+}
+window.addEventListener('pagehide',saveWiredRoute);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveWiredRoute();});
+document.addEventListener('click',()=>queueMicrotask(saveWiredRoute),true);
+setInterval(saveWiredRoute,400);
+async function restoreWiredRoute(route){
+ if(!route||!state.user&&['member-profile','profile-social','global-members','community','notifications','chats'].includes(route.page))return false;
+ if(route.page==='member-profile'&&route.memberId){await openMemberProfile(route.memberId);return true;}
+ if(route.page==='community'&&route.communityId){await openCommunity(route.communityId);if(route.communityProfileId)await openCommunityMemberProfile(route.communityProfileId);return true;}
+ if(route.page==='global-members'){state.page='global-members';renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return true;}
+ if(route.page==='notifications'){await openNotifications();return true;}
+ if(route.page==='profile-social'){state.page='profile-social';state.profileSocialTab=route.socialTab||'following';render();return true;}
+ if(route.page==='chats'&&route.threadId){state.page='chats';await loadThreads();await openThread(route.threadId);return true;}
+ const pages=new Set(['home','discover','all-communities','chats','pets','store','profile','communities','people','create','bugs','features']);
+ if(!pages.has(route.page)||(['bugs','features'].includes(route.page)&&!wiredStaffAccess))return false;
+ nav(route.page);
+ if(route.page==='discover'){state.discoveryMode=route.discoveryMode||'';render();}
+ if(route.page==='store'){wiredStoreSection=['home','profile','yokai'].includes(route.storeSection)?route.storeSection:'home';sessionStorage.setItem('wired:storeSection',wiredStoreSection);renderGlobalStore();}
+ if(route.page==='pets'){state.yokaiSanctuaryView=route.sanctuaryView||'home';sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);await loadPetParadise().catch(()=>{});if(state.page==='pets')renderPetParadise();}
+ return true;
+}
 async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();subscribeRelationshipEnds();subscribeCommunityRelationshipEnds();await loadRelationshipData().catch(()=>{});}
  await refreshWiredStaffAccess();
  let savedPage="home",savedCommunity=null,savedCommunityProfile=null;
  try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");savedCommunityProfile=sessionStorage.getItem('wired:lastCommunityProfile');}catch(e){}
+ let restoredRoute=null;
+ try{restoredRoute=JSON.parse(sessionStorage.getItem('wired:route:v2')||'null');}catch(e){}
+ if(restoredRoute){try{if(await restoreWiredRoute(restoredRoute)){wiredRestoringRoute=false;saveWiredRoute();return;}}catch(e){console.warn('WIRED route restore failed',e);}}
+ wiredRestoringRoute=false;
  const tabs=new Set(["home","all-communities","discover","chats","pets","store","profile","communities","people","bugs","features"]);
  if(savedPage==="member-profile"&&state.user){const member=sessionStorage.getItem("wired:openedMember");if(member){await openMemberProfile(member);return;}}
  if(savedPage==="notifications"&&state.user){await openNotifications();return;}
  if(savedPage==="global-members"&&state.user){state.page="global-members";document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page==="discover"));renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return;}
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);if(savedCommunityProfile)await openCommunityMemberProfile(savedCommunityProfile);return;}
  if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){const savedSanctuary=savedPage==="pets"?sessionStorage.getItem("wired:sanctuaryView"):null;nav(savedPage);if(savedPage==="store"){const savedStore=sessionStorage.getItem("wired:storeSection");if(["home","profile","yokai"].includes(savedStore)){wiredStoreSection=savedStore;renderGlobalStore();}}if(savedSanctuary){state.yokaiSanctuaryView=savedSanctuary;sessionStorage.setItem("wired:sanctuaryView",savedSanctuary);if(savedPage==="pets")loadPetParadise().then(()=>{if(state.page==="pets")renderPetParadise()}).catch(()=>{});}return;}
- render()}
+ render();saveWiredRoute()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 init().catch(e=>{console.error(e);render()});
