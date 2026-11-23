@@ -1112,7 +1112,7 @@ function renderPostCard(p){
   interactive='<div class="poll-options">'+options.map((o,i)=>'<button class="poll-option '+(p.my_vote===i?'selected':'')+'" data-vote-post="'+escapeHTML(p.id)+'" data-vote-option="'+i+'"><span>'+escapeHTML(o)+'</span></button>').join('')+'</div><p class="hint">Legacy quiz · choose an answer</p>';
  }
  const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};
- const reactions=Object.keys(icons).map(r=>'<button class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
+ const reactions=Object.keys(icons).map(r=>'<button type="button" aria-label="React '+r+'" class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
  const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b><p>'+escapeHTML(z.body)+'</p></div>').join('');
  return '<article class="card post"><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div><div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
 }
@@ -1268,7 +1268,24 @@ async function submitQuiz(e,id){
  catch(err){if(button){button.disabled=false;button.textContent='Submit quiz';}toast(errorText(err));}
 }
 
-async function togglePostReaction(id,reaction){try{await api('/posts/'+encodeURIComponent(id)+'/reactions','POST',{reaction});await refreshCommunityPosts()}catch(e){toast(errorText(e))}}
+async function togglePostReaction(id,reaction){
+ const button=Array.from(document.querySelectorAll('[data-react-post]')).find(el=>el.dataset.reactPost===id&&el.dataset.reaction===reaction);
+ if(button?.disabled)return;
+ if(button)button.disabled=true;
+ try{
+  const result=await api('/posts/'+encodeURIComponent(id)+'/reactions','POST',{reaction});
+  const post=(state.posts||[]).find(p=>String(p.id)===String(id));
+  if(post){
+   const active=!!result.active;
+   const oldActive=(post.my_reactions||[]).includes(reaction);
+   post.my_reactions=active?[...new Set([...(post.my_reactions||[]),reaction])]:(post.my_reactions||[]).filter(r=>r!==reaction);
+   post.reaction_counts={...(post.reaction_counts||{})};
+   if(active!==oldActive)post.reaction_counts[reaction]=Math.max(0,Number(post.reaction_counts[reaction]||0)+(active?1:-1));
+  }
+  await refreshCommunityPosts();
+ }catch(e){toast('Could not save reaction: '+errorText(e));}
+ finally{if(button?.isConnected)button.disabled=false;}
+}
 async function submitPostComment(e,id){e.preventDefault();const input=e.currentTarget.elements.comment;try{await api('/posts/'+encodeURIComponent(id)+'/comments','POST',{body:input.value.trim()});await refreshCommunityPosts()}catch(err){toast(errorText(err))}}
 async function loadThreads(){
  if(!state.user){state.threads=[];return;}
