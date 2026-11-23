@@ -776,8 +776,8 @@ function yokaiPortraitUrl(name,slug,evolved){
   const gifs={
     "betobetosan":"betobeto-san.GIF",
     "dodomeki":"dodomeki.GIF",
-    "kejoro":"kejōrō.gif",
-    "kejorō":"kejōrō.gif",
+    "kejoro":"kejōrō.GIF",
+    "kejorō":"kejōrō.GIF",
     "keukegen":"keukegen.GIF",
     "nuppeppo":"nuppeppō.GIF",
     "yanari":"yanari.GIF",
@@ -812,7 +812,7 @@ function yokaiPortraitUrl(name,slug,evolved){
   const aliases={mythicalyeti:"yeti",yokaiyeti:"yeti",snowyeti:"yeti",mythicalsasquatch:"sasquatch"};
   for(const key of keys){
     const match=gifs[key]||gifs[aliases[key]];
-    if(match) return base+encodeURIComponent(match)+"?v=103";
+    if(match) return base+encodeURIComponent(match)+"?v=104";
   }
   return "";
 }
