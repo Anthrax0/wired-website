@@ -536,10 +536,14 @@ async function unequipGlobalStoreItem(id){
   if(!slot)throw new Error('This item has no profile cosmetic slot.');
   const {data,error}=await sb.rpc('unequip_my_profile_cosmetic_slot',{p_slot:slot});
   if(error)throw error;
-  await Promise.all([loadProfile(),loadGlobalStore()]);
   const field={frame:'equipped_frame_item_id',nameplate:'equipped_nameplate_item_id',theme:'equipped_theme_item_id'}[slot];
-  if(state.profile?.[field])throw new Error('The '+slot+' is still equipped. Please reload and retry.');
+  // The authenticated RPC is the authoritative mutation. Keep the local profile
+  // in sync immediately; a cached profile SELECT must not report false failure.
+  if(state.profile)state.profile[field]=null;
+  render();
   toast('Profile '+slot+' unequipped.');
+  // Refresh inventory without overwriting the just-confirmed profile mutation.
+  await loadGlobalStore().catch(e=>console.warn('Store inventory refresh failed',e));
   render();
  }catch(e){toast(errorText(e));}
 }
