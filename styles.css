@@ -1567,3 +1567,27 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .community-avatar-level-sovereign{--crest:#ffe5a0;border-radius:10px 10px 4px 4px;background:linear-gradient(135deg,#8d6c30,#27163d,#8d6c30);box-shadow:0 0 12px #f3c56d,0 0 5px #fff6;min-width:30px;height:36px}
 .community-local-avatar-wrap{margin-left:16px}.community-local-avatar-wrap .community-avatar-level{left:-15px;min-width:34px;height:42px;font-size:13px}.community-local-avatar-wrap .community-avatar-level-symbol{font-size:16px}.community-local-avatar-wrap .community-avatar-level-number{font-size:13px}
 .community-local-avatar-fallback{display:inline-flex;align-items:center;justify-content:center;background:#24132e;color:#fff;border-radius:50%;width:80px;height:80px}
+
+/* Compact community level corner badges: overlap only the avatar's left edge. */
+.community-avatar-wrap .community-avatar-level{
+ left:-4px;top:77%;transform:translateY(-50%);
+ min-width:17px;width:auto;height:19px;padding:1px 2px;
+ border-width:1px;border-radius:5px;font-size:8px;gap:0;
+ box-shadow:0 1px 4px #0009;
+}
+.community-avatar-wrap .community-avatar-level-symbol{font-size:8px;line-height:8px}
+.community-avatar-wrap .community-avatar-level-number{font-size:8px;line-height:9px}
+.community-avatar-wrap .community-avatar-level-warden,
+.community-avatar-wrap .community-avatar-level-legend,
+.community-avatar-wrap .community-avatar-level-sovereign{width:20px;min-width:20px;height:21px}
+.community-local-avatar-wrap .community-avatar-level{
+ left:-5px;top:77%;transform:translateY(-50%);
+ min-width:21px;width:auto;height:25px;padding:1px 3px;
+ border-width:1px;border-radius:6px;box-shadow:0 1px 5px #000a;
+}
+.community-local-avatar-wrap .community-avatar-level-symbol{font-size:10px;line-height:11px}
+.community-local-avatar-wrap .community-avatar-level-number{font-size:10px;line-height:11px}
+.community-local-avatar-wrap .community-avatar-level-warden,
+.community-local-avatar-wrap .community-avatar-level-legend,
+.community-local-avatar-wrap .community-avatar-level-sovereign{width:25px;min-width:25px;height:27px}
+.community-local-avatar-wrap{margin-left:4px}
