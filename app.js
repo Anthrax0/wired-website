@@ -1380,7 +1380,7 @@ function render(){
  v.querySelectorAll("[data-discovery-mode]").forEach(button=>button.addEventListener("click",()=>{state.discoveryMode=button.dataset.discoveryMode;render();}));
  $("discoveryBack")?.addEventListener("click",()=>{state.discoveryMode="";render();});
  $("discoverPeopleSearch")?.addEventListener("input",e=>{state.discoverPeopleQuery=e.target.value;searchGlobalPeople(state.discoverPeopleQuery,"discover");});
- $("viewAllGlobalMembers")?.addEventListener("click",()=>{state.page="global-members";renderGlobalMemberDirectory();loadGlobalMemberDirectory(true);});
+ $("viewAllGlobalMembers")?.addEventListener("click",()=>{state.page="global-members";try{sessionStorage.setItem("wired:lastPage","global-members");}catch(e){}renderGlobalMemberDirectory();loadGlobalMemberDirectory(true);});
  $("communitySearch")?.addEventListener("input",e=>{state.discoveryQuery=e.target.value;renderDiscoveryResults()});
  $("communityCategory")?.addEventListener("change",e=>{state.discoveryCategory=e.target.value;renderDiscoveryResults()});
  $("communitySort")?.addEventListener("change",e=>{state.discoverySort=e.target.value;renderDiscoveryResults()});
@@ -1951,6 +1951,7 @@ async function init(){const {data:{session}}=await sb.auth.getSession();state.us
  const tabs=new Set(["home","all-communities","discover","chats","pets","store","profile","communities","people","bugs","features"]);
  if(savedPage==="member-profile"&&state.user){const member=sessionStorage.getItem("wired:openedMember");if(member){await openMemberProfile(member);return;}}
  if(savedPage==="notifications"&&state.user){await openNotifications();return;}
+ if(savedPage==="global-members"&&state.user){state.page="global-members";document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page==="discover"));renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return;}
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);if(savedCommunityProfile)await openCommunityMemberProfile(savedCommunityProfile);return;}
  if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){const savedSanctuary=savedPage==="pets"?sessionStorage.getItem("wired:sanctuaryView"):null;nav(savedPage);if(savedSanctuary){state.yokaiSanctuaryView=savedSanctuary;sessionStorage.setItem("wired:sanctuaryView",savedSanctuary);if(savedPage==="pets")loadPetParadise().then(()=>{if(state.page==="pets")renderPetParadise()}).catch(()=>{});}return;}
  render()}
