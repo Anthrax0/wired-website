@@ -1515,3 +1515,10 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 /* Apply the equipped Orange Fruit nameplate artwork to other members' global profiles too. */
 .profile-custom-card .profile-person h2.orange-fruit-nameplate{display:inline-flex!important;align-items:center!important;gap:7px;max-width:100%;padding:9px 15px!important;border:2px solid #ffbd4a!important;border-radius:13px 13px 13px 5px!important;background:linear-gradient(135deg,#ffcf54,#ff8a19 48%,#e94b08)!important;color:#662304!important;box-shadow:inset 0 2px 4px rgba(255,255,255,.7),0 3px 12px rgba(239,104,13,.38)!important}
 .profile-custom-card .profile-person h2.orange-fruit-nameplate::before{content:"🍊";display:inline-block;margin-right:4px;font:inherit}
+
+/* Yokai wardrobe: actions share a dedicated vertical column instead of overlapping descriptions. */
+.store-purchase-row:has(.yokai-wardrobe-actions){display:grid;grid-template-columns:84px minmax(0,1fr) minmax(142px,auto);align-items:start;gap:14px}
+.store-purchase-row .yokai-wardrobe-actions{display:flex;flex-direction:column;align-items:stretch;justify-content:start;gap:10px;min-width:0}
+.store-purchase-row .yokai-wardrobe-actions button{width:100%;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.35;text-align:center;margin:0}
+.store-purchase-row:has(.yokai-wardrobe-actions)>div:not(.yokai-wardrobe-actions){min-width:0}
+@media(max-width:620px){.store-purchase-row:has(.yokai-wardrobe-actions){grid-template-columns:70px minmax(0,1fr);gap:12px}.store-purchase-row:has(.yokai-wardrobe-actions)>.store-purchase-icon{width:70px;height:70px;flex-basis:70px}.store-purchase-row .yokai-wardrobe-actions{grid-column:2;grid-row:2;width:100%}}
