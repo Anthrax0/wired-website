@@ -1518,7 +1518,35 @@ async function loadCommunityLocalProfile(){
   }
   const currentName=data?.nickname||defaultNickname;
   const currentAvatar=data?.avatar_url||globalAvatar;
-  el.innerHTML='<div class="community-cover-editor"><label class="field">Community profile banner<input id="communityCoverUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="hint">Upload a banner for this community profile only (up to 10 MB).</p></div><form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(currentName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(currentAvatar||'')+'"></label><label class="field">Yokai companion<select name="show_global_companion"><option value="false"'+(!data?.show_global_companion?' selected':'')+'>No companion</option><option value="true"'+(data?.show_global_companion?' selected':'')+'>Show my global companion</option></select></label><p class="hint">Companions can only be changed on your global profile. This community setting only controls visibility.</p><button type="submit" class="primary small">Save Community Profile</button></form>';
+  el.innerHTML='<div class="community-cover-editor"><label class="field">Community profile banner<input id="communityCoverUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="hint">Upload a banner for this community profile only (up to 10 MB).</p></div><form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(currentName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(currentAvatar||'')+'"></label><label class="field">Yokai companion<select name="show_global_companion" autocomplete="off"><option value="false"'+(!data?.show_global_companion?' selected':'')+'>No companion</option><option value="true"'+(data?.show_global_companion?' selected':'')+'>Show my global companion</option></select></label><p class="hint">Companions can only be changed on your global profile. This community setting only controls visibility.</p><button type="submit" class="primary small">Save Community Profile</button></form>';
+  // Safari can restore stale form values on refresh, overriding the server-selected option.
+  const companionSelect=el.querySelector('select[name="show_global_companion"]');
+  if(companionSelect){
+   companionSelect.value=data?.show_global_companion===true?'true':'false';
+   companionSelect.dataset.savedValue=companionSelect.value;
+   companionSelect.addEventListener('change',async()=>{
+    const next=companionSelect.value==='true',previous=companionSelect.dataset.savedValue;
+    companionSelect.disabled=true;
+    try{
+     const {data:updated,error:updateError}=await sb.from('community_profiles').update({show_global_companion:next,updated_at:new Date().toISOString()}).eq('community_id',cid).eq('user_id',uid).select('show_global_companion').single();
+     if(updateError)throw updateError;
+     if(updated?.show_global_companion!==next)throw new Error('Companion setting was not saved.');
+     companionSelect.dataset.savedValue=next?'true':'false';
+     toast(next?'Global companion enabled for this community.':'Community companion hidden.');
+     const {data:pet,error:petError}=next?await sb.rpc('my_bonded_companion'):{data:null,error:null};
+     if(petError)console.warn('Community companion preview:',petError);
+     const detail=document.querySelector('.community-local-profile-detail');
+     if(detail){
+      let section=detail.querySelector('.community-companion-section');
+      if(next){
+       if(!section){section=document.createElement('section');section.className='community-companion-section';const about=detail.querySelector('.community-profile-biography');if(about)about.after(section);}
+       if(section)section.innerHTML='<h3>Global Companion</h3>'+(pet?profileYokaiMarkup(pet):'<p class="hint">No global companion equipped.</p>');
+      }else section?.remove();
+     }
+    }catch(err){companionSelect.value=previous;toast('Could not update companion: '+errorText(err));}
+    finally{if(companionSelect.isConnected)companionSelect.disabled=false;}
+   });
+  }
   el.querySelector('#communityCoverUpload')?.addEventListener('change',async event=>{
    const file=event.target.files?.[0];if(!file)return;
    const input=event.target;input.disabled=true;
@@ -1541,12 +1569,12 @@ async function loadCommunityLocalProfile(){
    if(!nickname)return toast('Enter a community nickname.');
    const saveButton=f.querySelector('[type="submit"]');if(saveButton)saveButton.disabled=true;
    try{
-    const {data:saved,error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,show_global_companion,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'}).select('nickname,bio,avatar_url').single();
+    const {data:saved,error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,show_global_companion,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'}).select('nickname,bio,avatar_url,show_global_companion').single();
     if(error)throw error;
     if(!saved||saved.bio!==bio)throw new Error('Community biography could not be verified after saving.');
-    const {data:verified,error:readError}=await sb.from('community_profiles').select('bio,nickname').eq('community_id',cid).eq('user_id',uid).single();
+    const {data:verified,error:readError}=await sb.from('community_profiles').select('bio,nickname,show_global_companion').eq('community_id',cid).eq('user_id',uid).single();
     if(readError)throw readError;
-    if(verified.bio!==bio)throw new Error('Community biography did not persist. Please try again.');
+    if(verified.bio!==bio||verified.show_global_companion!==show_global_companion)throw new Error('Community profile settings did not persist. Please try again.');
     const visibleBio=document.getElementById('communityProfileBio');
     if(visibleBio)visibleBio.textContent=verified.bio||'No community biography yet.';
     toast('Community profile saved.');
