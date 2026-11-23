@@ -1076,7 +1076,7 @@ async function sendFriendGift(event){
  try{
   const {data,error}=await sb.rpc('send_global_friend_gift',{p_recipient_id:recipient,p_gift_key:giftKey});
   if(error)throw error;
-  await loadGlobalStore();renderGlobalStore();toast('Gift sent to '+friend.username+'! '+data.total_points+' points delivered.');
+  await loadGlobalStore();renderGlobalStore();toast('Gift sent to '+friend.username+'! '+data.total_points+' points available when accepted.');
  }catch(error){toast(errorText(error));if(button)button.disabled=false;}
 }
 function updateGiftPrice(){
@@ -1088,7 +1088,7 @@ function showFriendGiftPopup(gift,sender){
  wiredGiftPopupActive=true;
  document.getElementById('wiredFriendGiftPopup')?.remove();
  const overlay=document.createElement('div');overlay.id='wiredFriendGiftPopup';overlay.className='wired-dialog-overlay';
- overlay.innerHTML='<section class="wired-dialog wired-gift-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredGiftTitle"><div class="wired-gift-big-emoji">'+escapeHTML(gift.gift_emoji)+'</div><h2 id="wiredGiftTitle">You received a gift!</h2><p><strong>'+escapeHTML(sender||'A WIRED friend')+'</strong> sent you '+escapeHTML(gift.gift_name)+' '+escapeHTML(gift.gift_emoji)+'</p><p class="wired-gift-points">+'+Number(gift.total_points)+' points added to your account, including the 10% friendship bonus if accepted.</p><div class="wired-gift-response-actions"><button type="button" class="primary" id="acceptWiredGift">Accept gift</button><button type="button" class="ghost" id="rejectWiredGift">Reject gift</button></div></section>';
+ overlay.innerHTML='<section class="wired-dialog wired-gift-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredGiftTitle"><div class="wired-gift-big-emoji">'+escapeHTML(gift.gift_emoji)+'</div><h2 id="wiredGiftTitle">You received a gift!</h2><p><strong>'+escapeHTML(sender||'A WIRED friend')+'</strong> sent you '+escapeHTML(gift.gift_name)+' '+escapeHTML(gift.gift_emoji)+'</p><p class="wired-gift-points">+'+Number(gift.total_points)+' points will be added to your account if accepted, including the 10% friendship bonus.</p><div class="wired-gift-response-actions"><button type="button" class="primary" id="acceptWiredGift">Accept gift</button><button type="button" class="ghost" id="rejectWiredGift">Reject gift</button></div></section>';
  document.body.appendChild(overlay);
  const respond=async accept=>{
   const acceptButton=overlay.querySelector('#acceptWiredGift'),rejectButton=overlay.querySelector('#rejectWiredGift');
