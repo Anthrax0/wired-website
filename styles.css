@@ -1296,3 +1296,11 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .wired-checkin,
 .wired-community-tabs{display:none!important}
 .wired-community-identity{padding-top:20px;padding-bottom:20px}
+
+/* Independent per-community member identities */
+.community-local-profile{border:1px solid rgba(175,76,244,.55);background:linear-gradient(145deg,#1a0c2c,#0b0714);margin:16px 0;border-radius:16px}
+.community-local-profile .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.community-local-profile form{display:grid;gap:12px}
+.community-local-profile input,.community-local-profile textarea{width:100%;box-sizing:border-box}
+.community-local-profile-detail{border:1px solid #9140c9;background:#12091e;border-radius:16px;margin:12px 0}
+.community-local-avatar{width:100px;height:100px;object-fit:cover;border-radius:18px;border:2px solid #a44ee9}
