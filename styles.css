@@ -1511,3 +1511,7 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
     font-size:10px;line-height:1.2;padding:9px 5px;
   }
 }
+
+/* Apply the equipped Orange Fruit nameplate artwork to other members' global profiles too. */
+.profile-custom-card .profile-person h2.orange-fruit-nameplate{display:inline-flex!important;align-items:center!important;gap:7px;max-width:100%;padding:9px 15px!important;border:2px solid #ffbd4a!important;border-radius:13px 13px 13px 5px!important;background:linear-gradient(135deg,#ffcf54,#ff8a19 48%,#e94b08)!important;color:#662304!important;box-shadow:inset 0 2px 4px rgba(255,255,255,.7),0 3px 12px rgba(239,104,13,.38)!important}
+.profile-custom-card .profile-person h2.orange-fruit-nameplate::before{content:"🍊";display:inline-block;margin-right:4px;font:inherit}
