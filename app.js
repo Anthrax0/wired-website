@@ -1033,7 +1033,7 @@ const WIRED_FRIEND_GIFTS=[
  ['flowers','💐','Flower Bouquet',90],['roses','🌹','Roses',90],['chocolates','🍫','Chocolate Box',90],
  ['teddy','🧸','Teddy Bear',90],['heart','💝','Heart Gift',90]
 ];
-let wiredGiftFriends=[],wiredGiftChannel=null,wiredGiftPopupActive=false;
+let wiredGiftFriends=[],wiredGiftInventory=[],wiredGiftChannel=null,wiredGiftPopupActive=false;
 async function loadGiftFriends(){
  if(!state.user)return;
  const {data:following,error:followingError}=await sb.from('profile_follows').select('following_id').eq('follower_id',state.user.id);
@@ -1044,6 +1044,22 @@ async function loadGiftFriends(){
  if(!ids.length){wiredGiftFriends=[];return;}
  const {data,error}=await sb.from('profiles').select('id,username,avatar_url').in('id',ids).order('username');
  if(error)throw error;wiredGiftFriends=data||[];
+}
+async function loadReturnedGiftInventory(){
+ if(!state.user)return;
+ const {data,error}=await sb.from('global_friend_gifts').select('id,gift_name,gift_emoji,base_points').eq('sender_id',state.user.id).eq('status','rejected').order('created_at',{ascending:false});
+ if(error)throw error;wiredGiftInventory=data||[];
+}
+async function resendReturnedGift(giftId){
+ const recipient=document.getElementById('giftFriendRecipient')?.value;
+ if(!recipient)return toast('Choose a friend to receive this returned gift.');
+ const friend=wiredGiftFriends.find(x=>x.id===recipient);
+ if(!friend)return toast('Choose a mutual global friend.');
+ const confirmed=await wiredDialog('Send this returned gift to '+friend.username+'? No additional points will be charged.',{danger:false});
+ if(!confirmed)return;
+ const {error}=await sb.rpc('resend_global_friend_gift',{p_gift_id:giftId,p_recipient_id:recipient});
+ if(error)return toast(errorText(error));
+ await loadReturnedGiftInventory();renderGlobalStore();toast('Gift sent again to '+friend.username+'.');
 }
 async function sendFriendGift(event){
  event.preventDefault();
@@ -1072,18 +1088,24 @@ function showFriendGiftPopup(gift,sender){
  wiredGiftPopupActive=true;
  document.getElementById('wiredFriendGiftPopup')?.remove();
  const overlay=document.createElement('div');overlay.id='wiredFriendGiftPopup';overlay.className='wired-dialog-overlay';
- overlay.innerHTML='<section class="wired-dialog wired-gift-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredGiftTitle"><div class="wired-gift-big-emoji">'+escapeHTML(gift.gift_emoji)+'</div><h2 id="wiredGiftTitle">You received a gift!</h2><p><strong>'+escapeHTML(sender||'A WIRED friend')+'</strong> sent you '+escapeHTML(gift.gift_name)+' '+escapeHTML(gift.gift_emoji)+'</p><p class="wired-gift-points">+'+Number(gift.total_points)+' points added to your account, including the 10% friendship bonus.</p><button type="button" class="primary" id="acceptWiredGift">Accept gift</button></section>';
+ overlay.innerHTML='<section class="wired-dialog wired-gift-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredGiftTitle"><div class="wired-gift-big-emoji">'+escapeHTML(gift.gift_emoji)+'</div><h2 id="wiredGiftTitle">You received a gift!</h2><p><strong>'+escapeHTML(sender||'A WIRED friend')+'</strong> sent you '+escapeHTML(gift.gift_name)+' '+escapeHTML(gift.gift_emoji)+'</p><p class="wired-gift-points">+'+Number(gift.total_points)+' points added to your account, including the 10% friendship bonus if accepted.</p><div class="wired-gift-response-actions"><button type="button" class="primary" id="acceptWiredGift">Accept gift</button><button type="button" class="ghost" id="rejectWiredGift">Reject gift</button></div></section>';
  document.body.appendChild(overlay);
- overlay.querySelector('#acceptWiredGift').addEventListener('click',async()=>{
-  const {error}=await sb.from('global_friend_gifts').update({seen_at:new Date().toISOString()}).eq('id',gift.id).eq('recipient_id',state.user.id);
-  if(error){toast(errorText(error));return;}
-  overlay.remove();wiredGiftPopupActive=false;loadGlobalStore().then(()=>{if(state.page==='store')renderGlobalStore();}).catch(()=>{});
+ const respond=async accept=>{
+  const acceptButton=overlay.querySelector('#acceptWiredGift'),rejectButton=overlay.querySelector('#rejectWiredGift');
+  acceptButton.disabled=true;rejectButton.disabled=true;
+  const {error}=await sb.rpc('respond_global_friend_gift',{p_gift_id:gift.id,p_accept:accept});
+  if(error){toast(errorText(error));acceptButton.disabled=false;rejectButton.disabled=false;return;}
+  overlay.remove();wiredGiftPopupActive=false;
+  toast(accept?'Gift accepted! Points added to your account.':'Gift rejected. Returned to sender’s gift inventory.');
+  loadGlobalStore().then(()=>{if(state.page==='store')renderGlobalStore();}).catch(()=>{});
   checkIncomingFriendGifts();
- });
+ };
+ overlay.querySelector('#acceptWiredGift').addEventListener('click',()=>respond(true));
+ overlay.querySelector('#rejectWiredGift').addEventListener('click',()=>respond(false));
 }
 async function checkIncomingFriendGifts(){
  if(!state.user||wiredGiftPopupActive)return;
- const {data,error}=await sb.from('global_friend_gifts').select('id,sender_id,gift_name,gift_emoji,total_points').eq('recipient_id',state.user.id).is('seen_at',null).order('created_at',{ascending:true}).limit(1);
+ const {data,error}=await sb.from('global_friend_gifts').select('id,sender_id,gift_name,gift_emoji,total_points').eq('recipient_id',state.user.id) .eq('status','pending').order('created_at',{ascending:true}).limit(1);
  if(error||!data?.length){if(error)console.warn('Gift inbox unavailable',error);return;}
  const gift=data[0],{data:sender}=await sb.from('profiles').select('username').eq('id',gift.sender_id).maybeSingle();
  showFriendGiftPopup(gift,sender?.username);
@@ -1113,15 +1135,16 @@ function renderGlobalStore(){
  const back='<button type="button" class="ghost wired-store-back" data-store-section="home">← All shop categories</button>';
  const inventoryProfile='<section class="store-purchases"><div class="section-head"><h2>✨ My profile purchases</h2><span>Your account inventory</span></div>'+profileInventory+'</section>';
  const inventoryYokai='<section class="store-purchases"><div class="section-head"><div><h2>🐾 Yokai wardrobe</h2><span>Choose a companion to equip each item to.</span></div></div>'+petInventory+'</section>';
- const giftShop='<section class="card wired-gift-shop"><div class="section-head"><h2>🎁 Gifts for Friends</h2></div><p>Choose a gift and send it to a mutual global friend. You pay only the gift price. Your friend receives the gift value plus a 10% friendship bonus in WIRED points.</p><form id="sendFriendGiftForm"><label class="field">Send to a friend<select id="giftFriendRecipient" required><option value="">Choose a global friend</option>'+wiredGiftFriends.map(f=>'<option value="'+escapeHTML(f.id)+'">'+escapeHTML(f.username)+'</option>').join('')+'</select></label>'+(wiredGiftFriends.length?'':'<p class="hint">No mutual global friends found. Follow each other to become friends.</p>')+'<label class="field">Choose a gift<select id="giftTypeSelect" required>'+WIRED_FRIEND_GIFTS.map(g=>'<option value="'+g[0]+'">'+g[1]+' '+g[2]+' · '+g[3]+' points</option>').join('')+'</select></label><div class="wired-gift-grid">'+WIRED_FRIEND_GIFTS.map(g=>'<button type="button" class="wired-gift-tile" data-select-gift="'+g[0]+'"><span>'+g[1]+'</span><strong>'+g[2]+'</strong><small>'+g[3]+' points</small></button>').join('')+'</div><p class="hint" id="friendGiftPrice"></p><button type="submit" class="primary" '+(wiredGiftFriends.length?'':'disabled')+'>Send gift</button></form></section>';
+ const giftShop='<section class="card wired-gift-shop"><div class="section-head"><h2>🎁 Gifts for Friends</h2></div><p>Choose a gift and send it to a mutual global friend. You pay only the gift price. Your friend receives the gift value plus a 10% friendship bonus in WIRED points.</p><form id="sendFriendGiftForm"><label class="field">Send to a friend<select id="giftFriendRecipient" required><option value="">Choose a global friend</option>'+wiredGiftFriends.map(f=>'<option value="'+escapeHTML(f.id)+'">'+escapeHTML(f.username)+'</option>').join('')+'</select></label>'+(wiredGiftFriends.length?'':'<p class="hint">No mutual global friends found. Follow each other to become friends.</p>')+'<label class="field">Choose a gift<select id="giftTypeSelect" required>'+WIRED_FRIEND_GIFTS.map(g=>'<option value="'+g[0]+'">'+g[1]+' '+g[2]+' · '+g[3]+' points</option>').join('')+'</select></label><div class="wired-gift-grid">'+WIRED_FRIEND_GIFTS.map(g=>'<button type="button" class="wired-gift-tile" data-select-gift="'+g[0]+'"><span>'+g[1]+'</span><strong>'+g[2]+'</strong><small>'+g[3]+' points</small></button>').join('')+'</div><p class="hint" id="friendGiftPrice"></p><button type="submit" class="primary" '+(wiredGiftFriends.length?'':'disabled')+'>Send gift</button></form><section class="wired-returned-gifts"><h3>Returned Gift Inventory</h3><p class="hint">Rejected gifts return here. Select a friend above to resend one at no additional cost.</p><div class="wired-gift-grid">'+(wiredGiftInventory.map(g=>'<article class="wired-gift-tile"><span>'+escapeHTML(g.gift_emoji)+'</span><strong>'+escapeHTML(g.gift_name)+'</strong><small>Purchased for '+Number(g.base_points)+' points</small><button type="button" class="ghost" data-resend-gift="'+escapeHTML(g.id)+'">Send again</button></article>').join('')||'<p class="hint">No returned gifts.</p>')+'</div></section></section>';
  const contents=wiredStoreSection==='profile'?back+(profileShop||'<div class="empty">No profile cosmetics available yet.</div>')+inventoryProfile:wiredStoreSection==='yokai'?back+(petShop||'<div class="empty">No yokai products available yet.</div>')+inventoryYokai:wiredStoreSection==='gifts'?back+giftShop:storeHome;
  v.innerHTML='<div class="store-heading"><div class="section-head"><div><span class="pill">APP-WIDE STORE</span><h2>WIRED Global Store</h2><p>Choose a shop category to browse its products.</p></div><button type="button" class="store-wallet store-wallet-history" aria-label="View points transaction history" title="View points earned and spent"><span>Your points</span><b>◉ '+Number(state.globalStoreBalance||0)+'</b></button></div></div>'+contents;
  v.querySelector('#sendFriendGiftForm')?.addEventListener('submit',sendFriendGift);
+ v.querySelectorAll('[data-resend-gift]').forEach(button=>button.addEventListener('click',()=>resendReturnedGift(button.dataset.resendGift)));
  v.querySelector('#giftTypeSelect')?.addEventListener('change',updateGiftPrice);
  v.querySelectorAll('[data-select-gift]').forEach(button=>button.addEventListener('click',()=>{const select=v.querySelector('#giftTypeSelect');if(select){select.value=button.dataset.selectGift;updateGiftPrice();}v.querySelectorAll('[data-select-gift]').forEach(tile=>tile.classList.toggle('selected',tile===button));}));
  if(wiredStoreSection==='gifts')updateGiftPrice();
  v.querySelector('.store-wallet-history')?.addEventListener('click',openPointsHistory);
- v.querySelectorAll('[data-store-section]').forEach(b=>b.addEventListener('click',()=>{wiredStoreSection=b.dataset.storeSection;try{sessionStorage.setItem('wired:storeSection',wiredStoreSection);}catch(e){}if(wiredStoreSection==='gifts')loadGiftFriends().then(()=>{if(state.page==='store'&&wiredStoreSection==='gifts')renderGlobalStore()}).catch(e=>toast(errorText(e)));renderGlobalStore();}));
+ v.querySelectorAll('[data-store-section]').forEach(b=>b.addEventListener('click',()=>{wiredStoreSection=b.dataset.storeSection;try{sessionStorage.setItem('wired:storeSection',wiredStoreSection);}catch(e){}if(wiredStoreSection==='gifts')Promise.all([loadGiftFriends(),loadReturnedGiftInventory()]).then(()=>{if(state.page==='store'&&wiredStoreSection==='gifts')renderGlobalStore()}).catch(e=>toast(errorText(e)));renderGlobalStore();}));
 
 
  v.querySelectorAll('[data-store-buy]').forEach(b=>b.addEventListener('click',()=>purchaseGlobalStoreItem(b.dataset.storeBuy)));
