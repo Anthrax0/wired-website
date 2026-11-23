@@ -1346,3 +1346,8 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .pet-hero-count b{color:#f0ddec;}
 .pet-section>.section-head h2{color:#e7d4e9;text-shadow:0 0 18px rgba(142,72,145,.18);}
 .pet-section>.section-head .hint{color:#b6a0c2;}
+
+/* Sinister moon-gold adoption buttons in the Yokai Sanctuary. */
+.pet-adopt-card .primary{background:linear-gradient(135deg,#55471f 0%,#9b7a30 46%,#6e541e 100%)!important;border:1px solid #b89a55!important;color:#fff2c6!important;text-shadow:0 1px 2px rgba(21,12,0,.7);box-shadow:0 0 18px rgba(157,117,33,.19),inset 0 1px 0 rgba(255,229,155,.22)!important;}
+.pet-adopt-card .primary:hover,.pet-adopt-card .primary:focus-visible{background:linear-gradient(135deg,#6b5423,#b09043 48%,#826321)!important;border-color:#dfbf70!important;box-shadow:0 0 24px rgba(186,146,51,.35)!important;}
+.pet-adopt-card .primary:disabled{opacity:.48;filter:grayscale(.5);}
