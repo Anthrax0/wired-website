@@ -1,3 +1,25 @@
+// Accessible WIRED-themed replacement for native browser confirmation and input popups.
+function wiredDialog(message,{input=false,defaultValue='',danger=true}={}){
+ return new Promise(resolve=>{
+  const overlay=document.createElement('div');overlay.className='wired-dialog-overlay';
+  const dialog=document.createElement('section');dialog.className='wired-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-labelledby','wiredDialogTitle');
+  const title=document.createElement('h2');title.id='wiredDialogTitle';title.textContent=input?'WIRED · Member Management':danger?'Confirm Action':'WIRED';
+  const body=document.createElement('p');body.textContent=message;
+  const actions=document.createElement('div');actions.className='wired-dialog-actions';
+  const cancel=document.createElement('button');cancel.type='button';cancel.className='wired-dialog-cancel';cancel.textContent='Cancel';
+  const accept=document.createElement('button');accept.type='button';accept.className=danger?'wired-dialog-danger':'wired-dialog-accept';accept.textContent=input?'Submit':/recycl/i.test(message)?'Recycle':/release/i.test(message)?'Release':'Confirm';
+  dialog.append(title,body);
+  let field=null;if(input){field=document.createElement('input');field.className='wired-dialog-input';field.value=defaultValue;field.setAttribute('aria-label',message);dialog.append(field);}
+  actions.append(cancel,accept);dialog.append(actions);overlay.append(dialog);document.body.append(overlay);
+  const previous=document.activeElement;
+  const close=value=>{document.removeEventListener('keydown',keyHandler,true);overlay.remove();previous?.focus?.();resolve(value);};
+  const keyHandler=e=>{if(e.key==='Escape'){e.preventDefault();close(input?null:false);}else if(e.key==='Tab'){const focusables=[cancel,...(field?[field]:[]),accept];const index=focusables.indexOf(document.activeElement);if(e.shiftKey&&index===0){e.preventDefault();accept.focus();}else if(!e.shiftKey&&index===focusables.length-1){e.preventDefault();cancel.focus();}}else if(e.key==='Enter'&&input){e.preventDefault();close(field.value);}};
+  document.addEventListener('keydown',keyHandler,true);
+  cancel.addEventListener('click',()=>close(input?null:false));accept.addEventListener('click',()=>close(input?field.value:true));
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close(input?null:false);});
+  (field||cancel).focus();
+ });
+}
 /* WIRED website — connected to the existing Supabase project and wired-api Edge Function. */
 // Fresh main-branch deployment: gothic yokai portrait syntax was corrected.
 const SUPABASE_URL = "https://kovvnvvkopqkgjmcvvdw.supabase.co";
@@ -114,7 +136,7 @@ async function postProfileCommentReply(e,profileId){
  }
 }
 async function deleteProfileComment(commentId,profileId){
- if(!commentId||!confirm("Delete this profile comment?"))return;
+ if(!commentId||!await wiredDialog("Delete this profile comment?"))return;
  try{const {error}=await sb.from("profile_comments").delete().eq("id",commentId);if(error)throw error;const comments=await loadProfileComments(profileId);
  if(state.page==="member-profile"&&state.viewingProfile?.id===profileId){state.viewingProfile.comments=comments;renderMemberProfile();}
  else if(state.page==="profile"&&state.user?.id===profileId){state.profileComments=comments;render();}
@@ -166,7 +188,7 @@ async function renderCommunityProfileComments(panel,cid,profileId){
    }catch(err){toast('Could not post reply: '+errorText(err));button.disabled=false;}
   }));
   slot.querySelectorAll('[data-delete-profile-comment]').forEach(b=>b.addEventListener('click',async()=>{
-   if(!confirm('Delete this community profile comment?'))return;
+   if(!await wiredDialog('Delete this community profile comment?'))return;
    try{
     const {error}=await sb.from('community_profile_comments').delete().eq('id',b.dataset.deleteProfileComment).eq('community_id',cid).eq('profile_id',profileId);
     if(error)throw error;
@@ -586,8 +608,8 @@ async function uploadGalleryImages(event){
  } await loadProfileGallery();toast("Photos added to your gallery!");render();
  }catch(err){toast(errorText(err));}finally{event.target.value="";}
 }
-async function deleteGalleryImage(id){
- const item=(state.profileImages||[]).find(x=>x.id===id);if(!item)return;if(!confirm("Remove this photo from your profile?"))return;
+async async function deleteGalleryImage(id){
+ const item=(state.profileImages||[]).find(x=>x.id===id);if(!item)return;if(!await wiredDialog("Remove this photo from your profile?"))return;
  try{const {error}=await sb.from("profile_images").delete().eq("id",id);if(error)throw error;
  const {error:storageError}=await sb.storage.from("profile-media").remove([item.storage_path]);if(storageError)console.warn(storageError);
  state.profileImages=state.profileImages.filter(x=>x.id!==id);toast("Photo removed.");render();}catch(err){toast(errorText(err));}
@@ -918,7 +940,7 @@ async function recycleStorePurchase(purchaseId){
  if(!purchase)return toast('Purchase not found. Reload the store.');
  const refund=Math.floor(Math.max(0,Number(purchase.price_points)||0)*0.25);
  const name=purchase.global_store_items?.name||'this item';
- if(!window.confirm('Recycle '+name+' for '+refund.toLocaleString()+' points (25% of its original purchase price)? This permanently removes the item.'))return;
+ if(!await wiredDialog('Recycle '+name+' for '+refund.toLocaleString()+' points (25% of its original purchase price)? This permanently removes the item.'))return;
  try{
   const {data,error}=await sb.rpc('recycle_my_store_item',{p_purchase_id:purchaseId});
   if(error)throw error;
@@ -1098,7 +1120,7 @@ async function releasePet(id,button){
   const pet=(state.userPets||[]).find(x=>String(x.id)===String(id));
   const species=pet?.pet_species||{};
   const label=pet?.nickname||species.name||"this yokai";
-  if(!window.confirm("Release "+label+"? This permanently removes the companion from your collection. No WIRED points will be refunded."))return;
+  if(!await wiredDialog("Release "+label+"? This permanently removes the companion from your collection. No WIRED points will be refunded."))return;
   if(button){button.disabled=true;button.textContent="Releasing…";}
   try{
     // Use the authenticated database RPC and require its success response.
@@ -1514,7 +1536,7 @@ function renderCommunity(){
  v.querySelector('#openMyCommunityProfile')?.addEventListener('click',()=>openCommunityMemberProfile(state.user.id));
  v.querySelectorAll('[data-profile-id]').forEach(b=>b.addEventListener('click',()=>openCommunityMemberProfile(b.dataset.profileId)));
  v.querySelectorAll('[data-member-role]').forEach(b=>b.addEventListener('click',()=>setMemberRole(b.dataset.memberRole,b.dataset.nextRole)));
- v.querySelectorAll('[data-member-ban]').forEach(b=>b.addEventListener('click',()=>setMemberBanned(b.dataset.memberBan,b.dataset.banned!=='true')));v.querySelectorAll('[data-member-warning]').forEach(b=>b.addEventListener('click',async()=>{const reason=prompt('Enter the reason for this member warning:');if(reason?.trim())try{await issueMemberWarning(b.dataset.memberWarning,reason.trim())}catch(e){toast(errorText(e))}}));
+ v.querySelectorAll('[data-member-ban]').forEach(b=>b.addEventListener('click',()=>setMemberBanned(b.dataset.memberBan,b.dataset.banned!=='true')));v.querySelectorAll('[data-member-warning]').forEach(b=>b.addEventListener('click',async()=>{const reason=await wiredDialog('Enter the reason for this member warning:',{input:true,danger:false});if(reason?.trim())try{await issueMemberWarning(b.dataset.memberWarning,reason.trim())}catch(e){toast(errorText(e))}}));
  v.querySelectorAll('[data-report-resolve]').forEach(b=>b.addEventListener('click',()=>resolveCommunityReport(b.dataset.reportResolve)));
  v.querySelectorAll('[data-report-remove]').forEach(b=>b.addEventListener('click',()=>removeReportedPost(b.dataset.reportRemove,b.dataset.reportPost)));
  v.querySelectorAll('[data-moderate-remove-post]').forEach(b=>b.addEventListener('click',()=>moderateRemovePost(b.dataset.moderateRemovePost)));
@@ -1556,7 +1578,7 @@ async function logModerationAction(action,targetUserId=null,details=''){const {e
  }catch(e){toast(errorText(e));}
  finally{if(button?.isConnected)button.disabled=false;}
 }
-async function setMemberBanned(userId,banned){try{let banned_until=null;if(banned){const choice=prompt('Ban duration in hours. Enter 0 for a permanent ban.','24');if(choice===null)return;const hours=Number(choice);if(!Number.isFinite(hours)||hours<0||hours>8760){toast('Enter 0 to 8760 hours.');return;}banned_until=hours===0?null:new Date(Date.now()+hours*3600000).toISOString();}const {error}=await sb.from('community_members').update({banned,banned_until}).eq('community_id',state.activeCommunity.id).eq('user_id',userId);if(error)throw error;await logModerationAction(banned?'ban_member':'unban_member',userId,banned?(banned_until?'Temporary ban until '+banned_until:'Permanent ban'):'Ban lifted');toast(banned?'Member banned.':'Member unbanned.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}}
+async function setMemberBanned(userId,banned){try{let banned_until=null;if(banned){const choice=await wiredDialog('Ban duration in hours. Enter 0 for a permanent ban.',{input:true,defaultValue:'24',danger:false});if(choice===null)return;const hours=Number(choice);if(!Number.isFinite(hours)||hours<0||hours>8760){toast('Enter 0 to 8760 hours.');return;}banned_until=hours===0?null:new Date(Date.now()+hours*3600000).toISOString();}const {error}=await sb.from('community_members').update({banned,banned_until}).eq('community_id',state.activeCommunity.id).eq('user_id',userId);if(error)throw error;await logModerationAction(banned?'ban_member':'unban_member',userId,banned?(banned_until?'Temporary ban until '+banned_until:'Permanent ban'):'Ban lifted');toast(banned?'Member banned.':'Member unbanned.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}}
 async function resolveCommunityReport(reportId){
  try{const {error}=await sb.from('reports').update({status:'resolved'}).eq('id',reportId);if(error)throw error;await logModerationAction('resolve_report',null,'Report '+reportId+' resolved');toast('Report resolved.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
 }
@@ -1564,7 +1586,7 @@ async function removeReportedPost(reportId,postId){
  try{const {error:postError}=await sb.from('posts').update({removed:true}).eq('id',postId);if(postError)throw postError;const {error:reportError}=await sb.from('reports').update({status:'resolved'}).eq('id',reportId);if(reportError)throw reportError;await logModerationAction('remove_reported_post',null,'Post '+postId+' removed and report '+reportId+' resolved');toast('Post removed and report resolved.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
 }
 async function moderateRemovePost(postId){
- if(!confirm('Remove this post from the community?'))return;
+ if(!await wiredDialog('Remove this post from the community?'))return;
  try{const {error}=await sb.from('posts').update({removed:true}).eq('id',postId);if(error)throw error;await logModerationAction('remove_post',null,'Post '+postId+' removed');toast('Post removed.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
 }
 async function saveCommunitySettings(e){
@@ -1735,7 +1757,7 @@ async function openCommunityMemberProfile(userId){
   });
   for(const [buttonId,status] of [['declineCommunityRelationship','declined'],['cancelCommunityRelationship','declined'],['endCommunityRelationship','ended']]){
    panel.querySelector('#'+buttonId)?.addEventListener('click',async()=>{
-    if(status==='ended'&&!confirm('End this community relationship?'))return;
+    if(status==='ended'&&!await wiredDialog('End this community relationship?'))return;
     try{
      const {error}=await sb.from('community_relationships').update({status,updated_at:new Date().toISOString(),...(status==='ended'?{ended_by:uid}:{})}).eq('id',relationship.id);
      if(error)throw error;toast(status==='ended'?'Community relationship ended.':'Relationship request closed.');await openCommunityMemberProfile(userId);
@@ -1892,7 +1914,7 @@ async function loadThreads(){
 async function startDM(e){e.preventDefault();try{const d=await api("/threads/dm","POST",{username:$("dmUsername").value.trim()});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
 async function startGroupChat(e){e.preventDefault();try{const usernames=$("groupUsernames").value.split(",").map(x=>x.trim()).filter(Boolean);if(usernames.length<2)throw new Error("Add at least two usernames for a group chat.");if(new Set(usernames.map(x=>x.toLowerCase())).size>998)throw new Error("Group chats support at most 999 occupants, including you.");const d=await api("/threads/group","POST",{usernames});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
 async function openCommunityChat(id){try{const d=await api("/communities/"+encodeURIComponent(id)+"/chat","POST",{});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
-async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)===String(id));const name=thread?.title||"this chat";if(!confirm("Delete "+name+" from your chat list? This only removes it from your inbox; other participants keep their copies."))return;const btn=[...document.querySelectorAll("[data-delete-thread]")].find(b=>b.dataset.deleteThread===String(id));if(btn){btn.disabled=true;btn.textContent="Deleting…";}try{const result=await api("/threads/"+encodeURIComponent(id)+"/delete","POST",{});if(result.ok!==true)throw new Error("The server did not confirm chat deletion.");
+async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)===String(id));const name=thread?.title||"this chat";if(!await wiredDialog("Delete "+name+" from your chat list? This only removes it from your inbox; other participants keep their copies."))return;const btn=[...document.querySelectorAll("[data-delete-thread]")].find(b=>b.dataset.deleteThread===String(id));if(btn){btn.disabled=true;btn.textContent="Deleting…";}try{const result=await api("/threads/"+encodeURIComponent(id)+"/delete","POST",{});if(result.ok!==true)throw new Error("The server did not confirm chat deletion.");
   state.deletedThreadIds??=new Set();state.deletedThreadIds.add(String(id));
   ++inboxRefreshSequence;if(state.activeThread===id){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=null;}state.threads=state.threads.filter(t=>String(t.id)!==String(id));if(state.page==="chats")render();const {data:membership,error:membershipError}=await sb.from("thread_members").select("hidden_at").eq("thread_id",id).eq("user_id",state.user.id).maybeSingle();if(membershipError)throw membershipError;if(!membership?.hidden_at)throw new Error("The server did not persist the chat removal. Please try again.");await loadThreads();if(state.page==="chats")render();toast("Chat removed from your inbox.");}catch(e){state.deletedThreadIds?.delete(String(id));toast(errorText(e));if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="Delete";}}}async function openThread(id){try{if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=id;const d=await api(`/threads/${encodeURIComponent(id)}/messages`);state.messages=d.items||[];renderThread();state.realtimeChannel=sb.channel("wired-thread-"+id).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"thread_id=eq."+id},async payload=>{if(state.activeThread!==id)return;const last=state.messages[state.messages.length-1]?.id||0;if(Number(payload.new.id)>last){try{const fresh=await api(`/threads/${encodeURIComponent(id)}/messages?after=${last}`);state.messages=[...state.messages,...(fresh.items||[])];renderThread()}catch(e){console.warn("Message refresh failed",e)}}}).subscribe()}catch(e){toast(errorText(e))}}
 function renderThread(){const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog">${state.messages.map(m=>`<article class="message-bubble ${m.user_id===state.user?.id||m.sender_id===state.user?.id?"message-own":""}"><div class="meta">${escapeHTML(m.username||"Member")} · ${new Date(m.created_at).toLocaleString()}</div><p>${escapeHTML(m.body)}</p></article>`).join("")||`<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>`}</div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);const log=$("chatLog");if(log)log.scrollTop=log.scrollHeight;$("messageBody")?.focus()}
