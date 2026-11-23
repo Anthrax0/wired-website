@@ -1,5 +1,22 @@
 function communityMemberLevel(points){return Math.min(99,Math.max(1,Math.floor(Math.max(0,Number(points)||0)/100)+1));}
-function communityLevelBadge(member){const points=Math.max(0,Number(member.communityPoints)||0);return '<span class="community-level-badge" title="'+points+' community XP · '+(communityMemberLevel(points)===99?'Maximum level':(100-points%100)+' XP until next level')+'">✦ Lv. '+communityMemberLevel(points)+'</span>';}
+function communityLevelTitle(level){
+ if(level>=99)return {name:'Eternal Sovereign',symbol:'♛',tier:'sovereign'};
+ if(level>=90)return {name:'Void Monarch',symbol:'♛',tier:'monarch'};
+ if(level>=75)return {name:'Shadow Legend',symbol:'✧',tier:'legend'};
+ if(level>=60)return {name:'Night Ascendant',symbol:'✦',tier:'ascendant'};
+ if(level>=45)return {name:'Abyss Warden',symbol:'◆',tier:'warden'};
+ if(level>=30)return {name:'Dark Sentinel',symbol:'◇',tier:'sentinel'};
+ if(level>=20)return {name:'Phantom',symbol:'☾',tier:'phantom'};
+ if(level>=10)return {name:'Nightwalker',symbol:'☽',tier:'nightwalker'};
+ if(level>=5)return {name:'Initiate',symbol:'✧',tier:'initiate'};
+ return {name:'Newblood',symbol:'✦',tier:'newblood'};
+}
+function communityLevelBadge(member){
+ const points=Math.max(0,Number(member.communityPoints)||0);
+ const level=communityMemberLevel(points),rank=communityLevelTitle(level);
+ const progress=level===99?'Maximum level':(100-points%100)+' XP until next level';
+ return '<span class="community-level-badge community-level-'+rank.tier+'" title="'+points+' community XP · '+progress+'"><span aria-hidden="true">'+rank.symbol+'</span> Lv. '+level+' · '+rank.name+'</span>';
+}
 async function loadCommunityMemberLevels(communityId){
  try{const result=await api('/communities/'+encodeURIComponent(communityId)+'/leaderboard');
  const byId=new Map((result.items||[]).map(item=>[String(item.user_id||item.id),Number(item.points)||0]));
@@ -1500,7 +1517,7 @@ function renderCommunity(){
  const c=state.activeCommunity,v=$('view'),joined=!!state.activeCommunityRole,manager=['owner','mod'].includes(state.activeCommunityRole);
  let html='';
 
- if(state.leaderboardOpen){html+='<section class="card community-leaderboard-panel"><div class="section-head"><h2>Community leaderboard</h2><button type="button" class="ghost small" id="closeCommunityLeaderboard">Close</button></div>'+(state.communityLeaderboard.length?state.communityLeaderboard.map((m,i)=>'<div class="moderation-row"><b>#'+(i+1)+' '+escapeHTML(m.username)+'</b><span>'+'Level '+communityMemberLevel(m.points)+' · '+Number(m.points)+' XP · '+Number(m.checkins)+' check-ins</span></div>').join(''):'<p class="hint">No check-ins yet. Be the first on the leaderboard!</p>')+'</section>';}
+ if(state.leaderboardOpen){html+='<section class="card community-leaderboard-panel"><div class="section-head"><h2>Community leaderboard</h2><button type="button" class="ghost small" id="closeCommunityLeaderboard">Close</button></div>'+(state.communityLeaderboard.length?state.communityLeaderboard.map((m,i)=>'<div class="moderation-row"><b>#'+(i+1)+' '+escapeHTML(m.username)+'</b><span>'+communityLevelBadge({communityPoints:m.points})+' · '+Number(m.points)+' XP · '+Number(m.checkins)+' check-ins</span></div>').join(''):'<p class="hint">No check-ins yet. Be the first on the leaderboard!</p>')+'</section>';}
  if(c.rules)html+='<article class="card"><h3>Community rules</h3><p>'+escapeHTML(c.rules)+'</p></article>';
  if(joined&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
  if(joined){html+='<div class="card form-card"><div class="section-head"><h3>Create a post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button class="primary">Publish to community</button></form></div>';}
