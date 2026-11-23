@@ -330,7 +330,7 @@ async function openNotifications(){
  try{await loadGlobalNotifications();renderNotifications();}catch(e){toast(errorText(e));}
 }
 function renderNotifications(){
- const v=$("view"),rows=state.notifications||[];
+ const v=$("view"),rows=(state.notifications||[]).filter(n=>!n.read_at);
  v.innerHTML='<div class="section-head"><div><h2>Notifications</h2><p class="hint">Global activity and updates from your communities.</p></div><button class="ghost" id="markAllNotificationsRead" '+(state.notificationUnread?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
   const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
   const isChat=n.notification_type==="global_chat_request",isCommunity=!!n.isCommunity;
