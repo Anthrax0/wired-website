@@ -1,5 +1,5 @@
-function communityMemberLevel(points){return Math.max(1,Math.floor(Math.max(0,Number(points)||0)/100)+1);}
-function communityLevelBadge(member){const points=Math.max(0,Number(member.communityPoints)||0);return '<span class="community-level-badge" title="'+points+' community XP · '+(100-points%100)+' XP until next level">✦ Lv. '+communityMemberLevel(points)+'</span>';}
+function communityMemberLevel(points){return Math.min(99,Math.max(1,Math.floor(Math.max(0,Number(points)||0)/100)+1));}
+function communityLevelBadge(member){const points=Math.max(0,Number(member.communityPoints)||0);return '<span class="community-level-badge" title="'+points+' community XP · '+(communityMemberLevel(points)===99?'Maximum level':(100-points%100)+' XP until next level')+'">✦ Lv. '+communityMemberLevel(points)+'</span>';}
 async function loadCommunityMemberLevels(communityId){
  try{const result=await api('/communities/'+encodeURIComponent(communityId)+'/leaderboard');
  const byId=new Map((result.items||[]).map(item=>[String(item.user_id||item.id),Number(item.points)||0]));
