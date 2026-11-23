@@ -1475,52 +1475,39 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
  .amino-community-grid .amino-card-content h3{font-size:15px}
 }
 
-/* WIRED Discover mobile card sizing fix: override older conflicting shelf rules. */
-@media (max-width:700px){
-  .discovery-section .discovery-shelf{
-    display:grid;
-    grid-auto-flow:column;
+
+/* Discovery shelves contain communityCards()'s nested grid wrapper.
+   Flatten that wrapper so cards, not the wrapper, become shelf grid items. */
+.discovery-shelf > .amino-community-grid{
+  display:contents;
+}
+.discovery-shelf{
+  grid-auto-flow:column;
+  grid-auto-columns:clamp(170px,22vw,220px);
+  align-items:stretch;
+}
+.discovery-shelf > .amino-community-grid > .amino-community-card{
+  width:100%;
+  min-width:0;
+  height:280px;
+  min-height:280px;
+  max-height:280px;
+  box-sizing:border-box;
+}
+@media(max-width:700px){
+  .discovery-shelf{
     grid-auto-columns:clamp(155px,44vw,190px);
     gap:12px;
-    width:100%;
-    max-width:100%;
-    overflow-x:auto;
-    align-items:stretch;
   }
-  .discovery-section .discovery-shelf .amino-community-card,
-  .discovery-all .amino-community-grid .amino-community-card{
-    width:100%;
-    min-width:0;
+  .discovery-shelf > .amino-community-grid > .amino-community-card{
     height:250px;
     min-height:250px;
     max-height:250px;
-    padding:10px;
-    overflow:hidden;
   }
-  .discovery-section .discovery-shelf .amino-community-icon,
-  .discovery-all .amino-community-grid .amino-community-icon{
-    width:58px;
-    height:58px;
-    flex:0 0 58px;
+  .discovery-shelf .amino-community-icon{width:58px;height:58px;flex:0 0 58px}
+  .discovery-shelf .amino-enter,.discovery-shelf .amino-join{
+    box-sizing:border-box;width:100%;min-width:0;
+    white-space:normal;overflow-wrap:anywhere;
+    font-size:10px;line-height:1.2;padding:9px 5px;
   }
-  .discovery-section .discovery-shelf .amino-card-content,
-  .discovery-all .amino-community-grid .amino-card-content{min-width:0;padding-top:8px}
-  .discovery-section .discovery-shelf .amino-card-content h3,
-  .discovery-all .amino-community-grid .amino-card-content h3{font-size:16px;overflow-wrap:anywhere}
-  .discovery-section .discovery-shelf .amino-enter,
-  .discovery-section .discovery-shelf .amino-join,
-  .discovery-all .amino-community-grid .amino-enter,
-  .discovery-all .amino-community-grid .amino-join{
-    display:block;
-    box-sizing:border-box;
-    width:100%;
-    min-width:0;
-    padding:9px 5px;
-    font-size:10px;
-    line-height:1.2;
-    white-space:normal;
-    overflow-wrap:break-word;
-    text-align:center;
-  }
-  .discovery-all .amino-community-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 }
