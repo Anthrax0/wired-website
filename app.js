@@ -41,18 +41,23 @@ async function loadProfileComments(profileId){
 }
 function profileCommentsMarkup(profileId,comments){
  const rows=comments||[],roots=rows.filter(x=>!x.parent_comment_id),replyCount=rows.filter(x=>x.parent_comment_id).length;
- const byParent=new Map();
- for(const item of rows){const parent=item.parent_comment_id||null;if(!byParent.has(parent))byParent.set(parent,[]);byParent.get(parent).push(item);}
- const renderOne=(x,depth=0,visited=new Set())=>{
-  if(!(visited instanceof Set))visited=new Set();
-  if(depth>25||visited.has(x.id))return '';
-  const seen=new Set(visited);seen.add(x.id);
-  const id=escapeHTML(x.id);
-  const canDelete=state.user&&(state.user.id===x.author_id||state.user.id===profileId);
-  const children=(byParent.get(x.id)||[]).map(child=>renderOne(child,depth+1,seen)).join('');
-  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" id="profile-comment-'+id+'"><div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+(canDelete?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+id+'" aria-label="Delete comment">Delete</button>':'')+'</div><p>'+escapeHTML(x.body)+'</p>'+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" required placeholder="Write a reply…"></textarea><div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>'+(children?'<div class="profile-comment-replies" data-parent-comment="'+id+'">'+children+'</div>':'');
+ const byParent=new Map(),byId=new Map(rows.map(x=>[String(x.id),x]));
+ for(const item of rows){const parent=item.parent_comment_id?String(item.parent_comment_id):null;if(!byParent.has(parent))byParent.set(parent,[]);byParent.get(parent).push(item);}
+ const ordered=[],seen=new Set();
+ function walk(item,depth){
+  const key=String(item.id);if(seen.has(key))return;seen.add(key);
+  ordered.push({item,depth:Math.min(depth,8)});
+  for(const child of byParent.get(key)||[])walk(child,depth+1);
+ }
+ for(const root of roots)walk(root,0);
+ for(const item of rows)if(!seen.has(String(item.id)))walk(item,0);
+ const renderOne=(x,depth)=>{
+  const id=escapeHTML(x.id),canDelete=state.user&&(state.user.id===x.author_id||state.user.id===profileId);
+  const parent=depth&&x.parent_comment_id?byId.get(String(x.parent_comment_id)):null;
+  const replyLabel=depth?'<div class="profile-reply-context">↳ Reply to '+escapeHTML(parent?.author?.username||'comment')+'</div>':'';
+  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" style="'+(depth?'margin-left:'+Math.min(depth*14,56)+'px;border-left:3px solid #a25bdf;':'')+'" id="profile-comment-'+id+'">'+replyLabel+'<div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+(canDelete?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+id+'" aria-label="Delete comment">Delete</button>':'')+'</div><p>'+escapeHTML(x.body)+'</p>'+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" required placeholder="Write a reply…"></textarea><div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>';
  };
- return '<section class="profile-comments" aria-label="Profile comments"><div class="section-head"><h3>Comments</h3><span class="hint">'+roots.length+' '+(roots.length===1?'comment':'comments')+' · '+replyCount+' '+(replyCount===1?'reply':'replies')+'</span></div>'+(state.user?'<form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" required placeholder="Write a comment on this profile…"></textarea></label><div class="profile-comment-footer"><span class="hint">Be respectful. Up to 1,000 characters.</span><button class="primary" type="submit">Post comment</button></div></form>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(roots.length?roots.map(root=>renderOne(root)).join(''):'<p class="empty">No comments yet. Start the conversation.</p>')+'</div></section>';
+ return '<section class="profile-comments" aria-label="Profile comments"><div class="section-head"><h3>Comments</h3><span class="hint">'+roots.length+' '+(roots.length===1?'comment':'comments')+' · '+replyCount+' '+(replyCount===1?'reply':'replies')+'</span></div>'+(state.user?'<form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" required placeholder="Write a comment on this profile…"></textarea></label><div class="profile-comment-footer"><span class="hint">Be respectful. Up to 1,000 characters.</span><button class="primary" type="submit">Post comment</button></div></form>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(ordered.length?ordered.map(({item,depth})=>renderOne(item,depth)).join(''):'<p class="empty">No comments yet. Start the conversation.</p>')+'</div></section>';
 }
 function attachProfileCommentHandlers(profileId){
  $("profileCommentForm")?.addEventListener("submit",e=>postProfileComment(e,profileId));
