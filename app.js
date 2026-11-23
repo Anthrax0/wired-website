@@ -71,7 +71,7 @@ async function postProfileComment(e,profileId){
  }catch(err){toast(errorText(err));if(button){button.disabled=false;button.textContent="Post comment";}}
 }
 async function postProfileCommentReply(e,profileId){
- e.preventDefault();if(!state.user)return;const form=e.currentTarget,body=form.elements.body?.value.trim(),parentId=form.dataset.replyForm;if(!body||!parentId)return;
+ e.preventDefault();if(!state.user)return;const form=e.currentTarget,body=form.querySelector('textarea[name="body"]')?.value.trim(),parentId=form.dataset.replyForm;if(!body||!parentId){toast("Enter a reply before sending.");return;}
  const button=form.querySelector('button[type="submit"]');if(button){button.disabled=true;button.textContent="Sending…";}
  try{const {error}=await sb.from("profile_comments").insert({profile_id:profileId,author_id:state.user.id,body,parent_comment_id:parentId});if(error)throw error;
  const comments=await loadProfileComments(profileId);
