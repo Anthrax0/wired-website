@@ -429,7 +429,7 @@ footer{border-color:#4b2864}
 .store-purchase-icon .cosmetic-preview-theme i{height:4px}
 
 /* Clearly distinguish equipped global-profile cosmetics from community styling. */
-.profile-unified-content .equipped-nameplate{
+.profile-unified-content .equipped-nameplate:not(.orange-fruit-nameplate):not(.black-rose-nameplate):not([class*="equipped-"]){
   display:block!important;width:fit-content;max-width:100%;margin:0 0 10px!important;
   padding:12px 20px!important;border:2px solid #63eaff!important;border-radius:5px!important;
   background:linear-gradient(105deg,#071b32 0%,#174d68 28%,#263b59 58%,#101426 100%)!important;
@@ -437,7 +437,7 @@ footer{border-color:#4b2864}
   color:#f0fcff!important;font-family:ui-monospace,monospace;letter-spacing:.055em;
   text-shadow:0 0 9px rgba(77,224,255,.8)!important;
 }
-.profile-unified-content .equipped-nameplate::before{
+.profile-unified-content .equipped-nameplate:not(.orange-fruit-nameplate):not(.black-rose-nameplate):not([class*="equipped-"])::before{
   content:"CYBERPUNK NAMEPLATE";display:block;margin-bottom:5px;
   color:#72eaff;font-size:9px;line-height:1.2;font-weight:900;letter-spacing:.2em;
 }
@@ -1195,3 +1195,8 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .tabs .tab[data-page="profile"]::before,.tabs .tab[data-page="profile"]::after{content:none!important;display:none!important}
 .tabs .tab[data-page="profile"] .me-tab-symbol{font-family:"Segoe UI Symbol","DejaVu Sans","Noto Sans Symbols 2",sans-serif!important;font-variant:normal!important;font-style:normal!important;font-weight:400!important}
 
+
+/* Cosmetic families must display their own art, never the generic Cyberpunk label. */
+.profile-unified-content h3.orange-fruit-nameplate{display:inline-flex!important;align-items:center!important;width:fit-content!important;max-width:100%!important;margin:0 0 10px!important;padding:9px 15px!important;border:2px solid #ffbd4a!important;border-radius:13px 13px 13px 5px!important;background:linear-gradient(135deg,#ffcf54,#ff8a19 48%,#e94b08)!important;color:#662304!important;font-family:inherit!important;letter-spacing:.04em!important;text-shadow:0 1px 0 rgba(255,255,255,.55)!important;box-shadow:inset 0 2px 4px rgba(255,255,255,.7),0 3px 12px rgba(239,104,13,.38)!important}
+.profile-unified-content h3.orange-fruit-nameplate::before{content:"🍊"!important;display:inline!important;margin:0 7px 0 0!important;color:inherit!important;font:inherit!important;letter-spacing:normal!important}
+.profile-unified-content h3:not(.equipped-nameplate)::before{content:none!important}
