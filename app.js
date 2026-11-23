@@ -540,26 +540,17 @@ async function toggleGlobalStoreCosmetic(id,button){
  const wasUnequip=button?.textContent?.trim()==='Unequip';
  if(button){button.disabled=true;button.textContent='Updating…';}
  try{
-  const item=(state.globalStoreItems||[]).find(x=>String(x.id)===String(id));
-  if(!item)throw new Error('Cosmetic not found. Reload the store.');
-  const key=String(item.sku||'')+' '+String(item.name||'');
-  const slot=/frame/i.test(key)?'frame':/nameplate/i.test(key)?'nameplate':/theme/i.test(key)?'theme':null;
-  if(!slot)throw new Error('This item has no profile cosmetic slot.');
-  const field={frame:'equipped_frame_item_id',nameplate:'equipped_nameplate_item_id',theme:'equipped_theme_item_id'}[slot];
-  if(wasUnequip){
-   // Explicit Unequip must NEVER toggle an already-cleared item back on.
-   const {error}=await sb.rpc('unequip_my_profile_cosmetic_slot',{p_slot:slot});
-   if(error)throw error;
-  }else{
-   const {error}=await sb.rpc('equip_my_profile_cosmetic',{p_item_id:id});
-   if(error)throw error;
-  }
-  await loadProfile();
-  const actual=state.profile?.[field]||null;
-  if(wasUnequip&&actual!==null)throw new Error('The '+slot+' remains equipped for account '+(state.profile?.username||'unknown')+'.');
-  if(!wasUnequip&&String(actual)!==String(id))throw new Error('The '+slot+' was not equipped on the server.');
-  toast('Profile '+slot+(wasUnequip?' unequipped.':' equipped.'));
+  const {data,error}=await sb.rpc('set_my_profile_cosmetic',{p_item_id:id,p_equip:!wasUnequip});
+  if(error)throw error;
+  if(!data||!data.slot||!data.username)throw new Error('Cosmetic update returned no account state.');
+  if(!state.profile)state.profile={};
+  state.profile.equipped_frame_item_id=data.frame||null;
+  state.profile.equipped_nameplate_item_id=data.nameplate||null;
+  state.profile.equipped_theme_item_id=data.theme||null;
+  // Never overwrite the transaction result with an older asynchronous profile read.
   render();
+  toast('Profile '+data.slot+' '+data.action+'.');
+  // Keep the result visible; the next navigation reloads the server state.
  }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent=wasUnequip?'Unequip':'Equip';}}
 }
 async function unequipGlobalStoreItem(id){
