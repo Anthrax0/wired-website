@@ -120,6 +120,7 @@ async function loadGlobalNotifications(){
 function updateNotificationBell(){
  const b=$("notificationsBtn"),count=$("notificationCount");if(!b)return;
  b.hidden=!state.user;
+ const points=$("headerPoints");if(points){points.hidden=!state.user;points.textContent="◉ "+Number(state.globalStoreBalance||0).toLocaleString()+" points";}
  if(count){count.textContent=state.notificationUnread>99?"99+":String(state.notificationUnread);count.hidden=!state.notificationUnread;}
 }
 function subscribeGlobalNotifications(){
@@ -524,6 +525,7 @@ async function loadGlobalStore(){
  const {data:ledger,error:ledgerError}=await sb.from('global_wallet_transactions').select('amount').eq('user_id',state.user.id);
  state.globalStoreBalance=ledgerError?Number(data.balance||0):(ledger||[]).reduce((sum,row)=>sum+Number(row.amount||0),0);
  if(ledgerError)console.warn('Wallet ledger unavailable; using store balance',ledgerError);
+ updateNotificationBell();
 }
 async function equipGlobalStoreItem(id){
  try{
@@ -951,7 +953,7 @@ async function loadFeatureRequests(){
  host.innerHTML=(data||[]).length?data.map(r=>'<article class="bug-report-entry"><strong>'+escapeHTML(r.title)+'</strong><span>'+escapeHTML(r.request_type.replaceAll("_"," "))+' · '+escapeHTML(r.priority)+' priority · '+escapeHTML(r.status)+' · '+escapeHTML(new Date(r.created_at).toLocaleDateString())+'</span></article>').join(''):'<p class="hint">No feature requests submitted yet.</p>';
 }
 function render(){
- const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";updateNotificationBell();
+ const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";const headerLogout=$("headerLogoutBtn");if(headerLogout)headerLogout.hidden=!state.user;updateNotificationBell();
  const hero=document.querySelector("#app > .hero");
  if(hero)hero.hidden=!(state.page==="home"||state.page==="discover");
  const v=$("view");
@@ -1247,6 +1249,7 @@ async function inviteGlobalFollower(userId,button){if(!userId||!button)return;bu
 async function sendMessage(e){e.preventDefault();const body=$("messageBody").value.trim();if(!body)return;try{await api(`/threads/${encodeURIComponent(state.activeThread)}/messages`,"POST",{body});const d=await api(`/threads/${encodeURIComponent(state.activeThread)}/messages`);state.messages=d.items||[];renderThread()}catch(err){toast(errorText(err))}}
 function openAuth(){$("authStatus").textContent="";$("loginForm").hidden=false;$("registerForm").hidden=true;$("authTitle").textContent="Log in";$("authDialog").showModal()}
 $("accountBtn").addEventListener("click",()=>state.user?nav("profile"):openAuth());
+$("headerLogoutBtn")?.addEventListener("click",()=>{if(state.user)logout().catch(e=>toast(e.message||"Could not log out."));});
 $("showRegister").addEventListener("click",()=>{$("loginForm").hidden=true;$("registerForm").hidden=false;$("authTitle").textContent="Create account"});
 $("showLogin").addEventListener("click",()=>{$("registerForm").hidden=true;$("loginForm").hidden=false;$("authTitle").textContent="Log in"});
 $("resendConfirm").addEventListener("click",async()=>{const email=$("loginName").value.trim();if(!email){$("authStatus").textContent="Enter the email address you used to sign up first.";return;}const {error}=await sb.auth.resend({type:"signup",email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});$("authStatus").textContent=error?error.message:"If this account is awaiting confirmation, a fresh verification email has been requested. Check your inbox.";});
