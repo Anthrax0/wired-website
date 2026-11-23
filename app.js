@@ -501,7 +501,11 @@ function renderDiscoveryResults(){
 }
 async function loadGlobalStore(){
  if(!state.user){state.globalStoreItems=[];state.globalStorePurchases=[];state.globalStoreBalance=0;return;}
- const data=await api('/store');state.globalStoreItems=data.items||[];state.globalStorePurchases=data.purchases||[];state.globalStoreEquipped=data.equipped||{};
+ const [data,inventoryResult]=await Promise.all([api('/store'),sb.rpc('my_store_inventory')]);
+ if(inventoryResult.error)throw inventoryResult.error;
+ state.globalStoreItems=data.items||[];
+ state.globalStorePurchases=inventoryResult.data||[];
+ state.globalStoreEquipped=data.equipped||{};
  // The transaction ledger is authoritative; /store can return a stale zero balance.
  const {data:ledger,error:ledgerError}=await sb.from('global_wallet_transactions').select('amount').eq('user_id',state.user.id);
  state.globalStoreBalance=ledgerError?Number(data.balance||0):(ledger||[]).reduce((sum,row)=>sum+Number(row.amount||0),0);
