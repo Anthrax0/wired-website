@@ -1065,3 +1065,17 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  .tabs .tab[data-page="features"],.tabs .tab[data-page="bugs"]{font-size:clamp(7px,1.95vw,11px)!important}
  .tabs .tab .staff-tab-label{letter-spacing:-.04em}
 }
+
+/* Match the five primary navigation labels to the Yokai gothic typography. */
+.tabs .tab:is([data-page="profile"],[data-page="home"],[data-page="discover"],[data-page="store"],[data-page="chats"]){
+ color:#d7b5ff!important;
+ font-family:Georgia,"Times New Roman",serif!important;
+ font-weight:800!important;
+ font-variant:small-caps;
+ letter-spacing:.13em;
+ text-shadow:0 0 5px #7d29c9,0 0 12px rgba(138,38,202,.9),1px 2px 1px #13021f;
+}
+.tabs .tab:is([data-page="profile"],[data-page="home"],[data-page="discover"],[data-page="store"],[data-page="chats"]):is(:hover,.active){
+ color:#f0d5ff!important;
+ text-shadow:0 0 5px #dcb4ff,0 0 13px #9c38ef,0 0 22px #6a0ca8;
+}
