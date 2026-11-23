@@ -1416,3 +1416,11 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
  .discovery-shelf .amino-community-icon,
  .amino-community-grid .amino-community-icon{width:clamp(96px,38%,150px);height:auto}
 }
+
+/* Global member directory actions */
+.global-member-card{display:flex;flex-direction:column;gap:10px;min-width:0}
+.global-member-profile{display:flex;align-items:center;gap:14px;width:100%;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;padding:0}
+.global-member-profile>span:nth-child(2){flex:1;min-width:0}
+.global-member-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.global-member-actions button{min-width:92px}
+.global-member-actions button:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.7)}
