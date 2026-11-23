@@ -565,13 +565,14 @@ function renderMemberProfile(){
  const v=$('view');const cover=p.cover_url?'url("'+escapeHTML(p.cover_url)+'")':'linear-gradient(120deg,#49246b,#171020 60%,#29133b)';
  const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="Profile photo">':'W';
  const fr=p.friendRequest;const isMutualFriend=!!(p.isFollowing&&p.followsMe);const friendLabel=isMutualFriend?'Friends':'Follow each other to become friends';
- v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card '+(p.equipped_theme_item_id?'equipped-profile-theme ':'')+equippedCosmeticClass(p.equipped_theme_item_id,'theme')+' '+(p.equipped_theme_item_id==='d703a32c-2257-4bb6-b18c-9f87d0fdc3a6'?'black-rose-theme':'')+'"><div class="profile-person"><div class="profile-avatar '+(p.equipped_frame_item_id?'equipped-neon-frame':'')+' '+equippedCosmeticClass(p.equipped_frame_item_id,'frame')+' '+(p.equipped_frame_item_id==='1a48d530-1e6b-4bde-9c99-c242bda3990c'?'orange-fruit-frame':'')+'">'+avatar+'</div><div><h2 class="'+(p.equipped_nameplate_item_id?'equipped-nameplate':'')+' '+equippedCosmeticClass(p.equipped_nameplate_item_id,'nameplate')+' '+(p.equipped_nameplate_item_id==='8028d5a4-d964-45e8-8241-fb00c652a42a'?'orange-fruit-nameplate':'')+' '+(p.equipped_theme_item_id?'equipped-violet-theme':'')+'">'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2>'+relationshipSubtitleMarkup(p.relationshipRequest,false)+(isMutualFriend?'<button type="button" class="ghost profile-name-chat" id="profileChatBtn">Chat</button>':'')+'</div></div>'+relationshipMarkup(p)+profileYokaiMarkup(p.companion)+'<section class="profile-about"><h3>About me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><span class="profile-friend-status">'+friendLabel+'</span>' +'<button type="button" class="ghost" id="profileSendGiftBtn">🎁 Send Gift</button></div>'+profileCommentsMarkup(p.id,p.comments)+'</section>';
+ v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card '+(p.equipped_theme_item_id?'equipped-profile-theme ':'')+equippedCosmeticClass(p.equipped_theme_item_id,'theme')+' '+(p.equipped_theme_item_id==='d703a32c-2257-4bb6-b18c-9f87d0fdc3a6'?'black-rose-theme':'')+'"><div class="profile-person"><div class="profile-avatar '+(p.equipped_frame_item_id?'equipped-neon-frame':'')+' '+equippedCosmeticClass(p.equipped_frame_item_id,'frame')+' '+(p.equipped_frame_item_id==='1a48d530-1e6b-4bde-9c99-c242bda3990c'?'orange-fruit-frame':'')+'">'+avatar+'</div><div><h2 class="'+(p.equipped_nameplate_item_id?'equipped-nameplate':'')+' '+equippedCosmeticClass(p.equipped_nameplate_item_id,'nameplate')+' '+(p.equipped_nameplate_item_id==='8028d5a4-d964-45e8-8241-fb00c652a42a'?'orange-fruit-nameplate':'')+' '+(p.equipped_theme_item_id?'equipped-violet-theme':'')+'">'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2>'+relationshipSubtitleMarkup(p.relationshipRequest,false)+(isMutualFriend?'<button type="button" class="ghost profile-name-chat" id="profileChatBtn">Chat</button>':'')+'</div></div>'+relationshipMarkup(p)+profileYokaiMarkup(p.companion)+'<section class="profile-about"><h3>About me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><span class="profile-friend-status">'+friendLabel+'</span>' +'<button type="button" class="ghost" id="profileSendGiftBtn">🎁 Send Gift</button><button type="button" class="ghost" id="profileBlockBtn">Block / Unblock</button></div>'+profileCommentsMarkup(p.id,p.comments)+'</section>';
  attachProfileCommentHandlers(p.id);
  $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('people')});
  $('profileFollowBtn')?.addEventListener('click',()=>toggleFollow(p.id));
 
  $('profileChatBtn')?.addEventListener('click',()=>startDMByUsername(p.username));
  $('profileSendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(p.id,p.username));
+ $('profileBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(p.id));
  $('relationshipRequestBtn')?.addEventListener('click',()=>requestRelationship(p.id));
  $('relationshipAcceptBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'accepted'));
  $('relationshipDeclineBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'declined'));
@@ -1035,6 +1036,17 @@ const WIRED_FRIEND_GIFTS=[
  ['teddy','🧸','Teddy Bear',90],['heart','💝','Heart Gift',90]
 ];
 let wiredGiftFriends=[],wiredGiftInventory=[],wiredGiftChannel=null,wiredGiftPopupActive=false,wiredGiftTarget=null;
+async function toggleWiredBlock(userId){
+ if(!state.user||userId===state.user.id)return;
+ const {data:existing,error:readError}=await sb.from('wired_user_blocks').select('blocked_id').eq('blocker_id',state.user.id).eq('blocked_id',userId).maybeSingle();
+ if(readError)return toast(errorText(readError));
+ const blocking=!existing;
+ if(!await wiredDialog(blocking?'Block this member across WIRED, including all communities and gifts?':'Unblock this member across WIRED?',{danger:blocking}))return;
+ const result=blocking?await sb.from('wired_user_blocks').insert({blocker_id:state.user.id,blocked_id:userId}):await sb.from('wired_user_blocks').delete().eq('blocker_id',state.user.id).eq('blocked_id',userId);
+ if(result.error)return toast(errorText(result.error));
+ toast(blocking?'Member blocked across WIRED.':'Member unblocked.');
+ if(state.page==='member-profile')renderMemberProfile();
+}
 async function openGiftShopForProfile(userId,name,communityId=null){
  if(!state.user||userId===state.user.id)return;
  wiredGiftTarget={id:userId,username:name||'WIRED member',communityId};
@@ -1047,8 +1059,8 @@ async function openGiftShopForProfile(userId,name,communityId=null){
 
 async function loadGiftFriends(){
  if(!state.user)return;
- const {data,error}=await sb.from('profiles').select('id,username,avatar_url').neq('id',state.user.id).order('username');
- if(error)throw error;wiredGiftFriends=data||[];
+ const [{data,error},{data:blocks,error:blockError}]=await Promise.all([sb.from('profiles').select('id,username,avatar_url').neq('id',state.user.id).order('username'),sb.from('wired_user_blocks').select('blocked_id').eq('blocker_id',state.user.id)]);
+ if(error||blockError)throw error||blockError;const excluded=new Set((blocks||[]).map(b=>b.blocked_id));wiredGiftFriends=(data||[]).filter(p=>!excluded.has(p.id));
 }
 async function loadReturnedGiftInventory(){
  if(!state.user)return;
@@ -1060,6 +1072,8 @@ async function resendReturnedGift(giftId){
  if(!recipient)return toast('Choose a WIRED member to receive this gift.');
  const friend=wiredGiftFriends.find(x=>x.id===recipient)||(wiredGiftTarget?.id===recipient?wiredGiftTarget:null);
  if(!friend)return toast('Choose a recipient.');
+ const {data:allowed,error:allowedError}=await sb.rpc('wired_gift_sender_allowed',{p_sender:recipient});
+ if(allowedError||!allowed)return toast('Gifts are unavailable between blocked accounts.');
  const confirmed=await wiredDialog('Send this gift to '+friend.username+'? No additional points will be charged.',{danger:false});
  if(!confirmed)return;
  const {error}=await sb.rpc('resend_global_friend_gift',{p_gift_id:giftId,p_recipient_id:recipient,p_sender_community_id:(wiredGiftTarget?.id===recipient?wiredGiftTarget.communityId:null)});
@@ -1116,7 +1130,10 @@ async function checkIncomingFriendGifts(){
  if(!state.user||wiredGiftPopupActive)return;
  const {data,error}=await sb.from('global_friend_gifts').select('id,sender_id,gift_name,gift_emoji,total_points,sender_profile_scope,sender_community_id').eq('recipient_id',state.user.id) .eq('status','pending').order('created_at',{ascending:true}).limit(1);
  if(error||!data?.length){if(error)console.warn('Gift inbox unavailable',error);return;}
- const gift=data[0];let senderName=null;
+ const gift=data[0];
+ const {data:allowed,error:allowedError}=await sb.rpc('wired_gift_sender_allowed',{p_sender:gift.sender_id});
+ if(allowedError||!allowed){if(allowedError)console.warn('Gift block check failed',allowedError);return;}
+ let senderName=null;
  if(gift.sender_profile_scope==='community'&&gift.sender_community_id){
   const {data:communitySender}=await sb.from('community_profiles').select('nickname').eq('community_id',gift.sender_community_id).eq('user_id',gift.sender_id).maybeSingle();
   senderName=communitySender?.nickname||null;
@@ -1923,7 +1940,7 @@ async function openCommunityMemberProfile(userId){
   const own=userId===uid;
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
   panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><p class="hint">'+escapeHTML(state.activeCommunity?.name||'Community')+' profile</p><h2>'+escapeHTML(name)+'</h2></div></div>'+'<span class="community-local-avatar-wrap">'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'<span class="community-local-avatar community-local-avatar-fallback">W</span>')+communityAvatarLevelBadge({communityPoints:profileCommunityPoints})+'</span>'+'<div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(local?.show_global_companion?'<section class="community-companion-section">'+(companion?profileYokaiMarkup(companion):'<p class="hint">'+escapeHTML(companionMessage)+'</p>')+'</section>':'')+'<section class="community-profile-biography"><h3>About Me</h3><p id="communityProfileBio">'+escapeHTML(local?.bio||'No community biography yet.')+'</p></section>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
-  if(!own)panel.insertAdjacentHTML('beforeend','<button type="button" class="ghost" id="communitySendGiftBtn">🎁 Send Gift</button>');
+  if(!own)panel.insertAdjacentHTML('beforeend','<button type="button" class="ghost" id="communitySendGiftBtn">🎁 Send Gift</button><button type="button" class="ghost" id="communityBlockBtn">Block / Unblock</button>');
   panel.insertAdjacentHTML('beforeend','<div id="communityProfileComments"><p class="hint">Loading comments…</p></div>');
   const host=document.getElementById('view');
   if(!host)throw new Error('Community page is not available.');
@@ -1931,6 +1948,7 @@ async function openCommunityMemberProfile(userId){
   renderCommunityProfileComments(panel,cid,userId);
   if(own)await loadCommunityLocalProfile();
   panel.querySelector('#communitySendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(userId,name,cid));
+  panel.querySelector('#communityBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(userId));
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>{try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}renderCommunity();});
   panel.querySelectorAll('[data-community-social]').forEach(button=>button.addEventListener('click',async()=>{
    const group=button.dataset.communitySocial,ids=socialGroups[group]||[];
