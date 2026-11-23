@@ -774,6 +774,13 @@ function yokaiPortraitUrl(name,slug,evolved){
   const keys=[slug,name].filter(Boolean).map(value=>String(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,""));
   const base="./assets/yokai/";
   const gifs={
+    "betobetosan":"betobeto-san.GIF",
+    "dodomeki":"dodomeki.GIF",
+    "kejoro":"kejōrō.GIF",
+    "kejorō":"kejōrō.GIF",
+    "keukegen":"keukegen.GIF",
+    "nuppeppo":"nuppeppō.GIF",
+    "yanari":"yanari.GIF",
     "sasquatch":"Sasquatch.GIF",
     "amabie":"amabie.GIF",
     "bakeneko":"bakeneko.GIF",
@@ -805,7 +812,7 @@ function yokaiPortraitUrl(name,slug,evolved){
   const aliases={mythicalyeti:"yeti",yokaiyeti:"yeti",snowyeti:"yeti",mythicalsasquatch:"sasquatch"};
   for(const key of keys){
     const match=gifs[key]||gifs[aliases[key]];
-    if(match) return base+encodeURIComponent(match)+"?v=101";
+    if(match) return base+encodeURIComponent(match)+"?v=102";
   }
   return "";
 }
