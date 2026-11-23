@@ -1537,3 +1537,15 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .wired-dialog button:focus-visible,.wired-dialog-input:focus-visible{outline:2px solid #d69aff;outline-offset:3px}
 
 .community-level-badge{display:inline-flex;align-items:center;margin:2px 6px;padding:2px 8px;border:1px solid #9955d7;border-radius:999px;background:linear-gradient(120deg,#2a123e,#12091f);box-shadow:0 0 9px #7d28c044;color:#e9bdff;font-size:.72rem;font-weight:800;white-space:nowrap}
+
+.community-level-badge{gap:4px;vertical-align:middle;letter-spacing:.01em}
+.community-level-newblood{border-color:#66587a;color:#c9bfd9}
+.community-level-initiate{border-color:#686cba;color:#c6ccff}
+.community-level-nightwalker{border-color:#467ba8;color:#a8dbff}
+.community-level-phantom{border-color:#3f9e9a;color:#a6f1eb}
+.community-level-sentinel{border-color:#7950bd;color:#d9b5ff}
+.community-level-warden{border-color:#a04ec2;color:#f1baff}
+.community-level-ascendant{border-color:#bc427d;color:#ffc0e0}
+.community-level-legend{border-color:#bd6b38;color:#ffd0a0}
+.community-level-monarch{border-color:#d7a34a;color:#ffe09c;box-shadow:0 0 12px #c9915070}
+.community-level-sovereign{border-color:#f2ce79;color:#fff2bc;background:linear-gradient(120deg,#3c244c,#191124);box-shadow:0 0 14px #d6a45599}
