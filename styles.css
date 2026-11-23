@@ -1424,3 +1424,53 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .global-member-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 .global-member-actions button{min-width:92px}
 .global-member-actions button:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.7)}
+
+/* Compact Amino-inspired community tiles: multiple portrait cards per row. */
+.discovery-all .amino-community-grid,
+.amino-community-grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fill,minmax(170px,220px));
+ justify-content:start;
+ gap:14px;
+}
+.discovery-shelf{
+ grid-auto-columns:220px;
+ gap:14px;
+}
+.discovery-shelf .amino-community-card,
+.amino-community-grid .amino-community-card{
+ box-sizing:border-box;
+ width:100%;
+ min-width:0;
+ height:340px;
+ min-height:0;
+ max-height:340px;
+ padding:10px;
+ border-radius:16px;
+}
+.discovery-shelf .amino-community-icon,
+.amino-community-grid .amino-community-icon{
+ width:76px;
+ height:76px;
+ aspect-ratio:1;
+ border-width:3px;
+ border-radius:24%;
+ font-size:30px;
+}
+.discovery-shelf .amino-card-content,
+.amino-community-grid .amino-card-content{padding-top:28px}
+.discovery-shelf .amino-card-content h3,
+.amino-community-grid .amino-card-content h3{font-size:17px}
+.discovery-shelf .amino-enter,.discovery-shelf .amino-join,
+.amino-community-grid .amino-enter,.amino-community-grid .amino-join{font-size:11px;padding:10px 8px}
+@media(max-width:700px){
+ .discovery-all .amino-community-grid,
+ .amino-community-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .discovery-shelf{grid-auto-columns:min(44vw,220px);gap:10px}
+ .discovery-shelf .amino-community-card,
+ .amino-community-grid .amino-community-card{height:clamp(245px,68vw,340px);min-height:0;max-height:none;padding:9px}
+ .discovery-shelf .amino-community-icon,
+ .amino-community-grid .amino-community-icon{width:clamp(56px,18vw,76px);height:clamp(56px,18vw,76px)}
+ .discovery-shelf .amino-card-content h3,
+ .amino-community-grid .amino-card-content h3{font-size:15px}
+}
