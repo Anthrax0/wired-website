@@ -1522,3 +1522,16 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .store-purchase-row .yokai-wardrobe-actions button{width:100%;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.35;text-align:center;margin:0}
 .store-purchase-row:has(.yokai-wardrobe-actions)>div:not(.yokai-wardrobe-actions){min-width:0}
 @media(max-width:620px){.store-purchase-row:has(.yokai-wardrobe-actions){grid-template-columns:70px minmax(0,1fr);gap:12px}.store-purchase-row:has(.yokai-wardrobe-actions)>.store-purchase-icon{width:70px;height:70px;flex-basis:70px}.store-purchase-row .yokai-wardrobe-actions{grid-column:2;grid-row:2;width:100%}}
+
+/* WIRED cyber-gothic confirmation and moderation dialogs */
+.wired-dialog-overlay{position:fixed;inset:0;z-index:2147483647;background:rgba(3,1,9,.84);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:22px}
+.wired-dialog{width:min(100%,440px);max-height:85vh;overflow:auto;box-sizing:border-box;padding:28px 24px 22px;border:1px solid #a54ae5;border-radius:22px;background:linear-gradient(145deg,#21102f 0%,#10091d 65%,#090511 100%);box-shadow:0 0 0 1px rgba(183,90,245,.18),0 0 42px rgba(126,36,197,.3),0 24px 90px #000;color:#f5eaff}
+.wired-dialog h2{margin:0 0 18px;color:#e3b0ff;font-size:1.35rem;letter-spacing:.06em}
+.wired-dialog p{margin:0 0 24px;line-height:1.65;white-space:pre-wrap;color:#e3d3ed;font-size:1rem}
+.wired-dialog-actions{display:flex;gap:12px;justify-content:flex-end}
+.wired-dialog-actions button{min-height:46px;flex:1;border-radius:12px;font:inherit;font-weight:700;cursor:pointer}
+.wired-dialog-cancel{border:1px solid #9741c9;background:#26123a;color:#e9c7ff}
+.wired-dialog-danger{border:1px solid #b83c68;background:linear-gradient(135deg,#65132f,#380a23);color:#ffe2ea}
+.wired-dialog-accept{border:1px solid #b65af5;background:linear-gradient(135deg,#7030a6,#39145f);color:#fff}
+.wired-dialog-input{display:block;width:100%;box-sizing:border-box;margin:0 0 22px;padding:13px;border:1px solid #a54ae5;border-radius:10px;background:#0b0713;color:#fff;font:inherit}
+.wired-dialog button:focus-visible,.wired-dialog-input:focus-visible{outline:2px solid #d69aff;outline-offset:3px}
