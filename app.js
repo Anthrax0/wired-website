@@ -975,6 +975,8 @@ async function loadPetParadise(){
   state.petSpecies=data.species||[];
   state.userPets=data.owned||[];
   state.petEquipment=data.equipment||[];
+  const {data:careRecharges,error:careRechargeError}=await sb.rpc("my_yokai_care_recharges");
+  if(!careRechargeError)state.yokaiCareRecharges=Object.fromEntries((careRecharges||[]).map(x=>[String(x.pet_id)+":"+x.action_type,x.ready_at]));
   const {data:recharges,error:rechargeError}=await sb.rpc("my_yokai_skill_recharges");
   if(!rechargeError)state.yokaiSkillRecharges=Object.fromEntries((recharges||[]).map(x=>[String(x.pet_id),x.ready_at]));
   const {data:evolvedRecharges,error:evolvedRechargeError}=await sb.rpc("my_evolved_yokai_skill_recharges");
@@ -1042,7 +1044,7 @@ async function careForPet(id,action,button){
     const caredPet=(state.userPets||[]).find(p=>String(p.id)===String(id));
     if(caredPet)yokaiSpeech.set(String(id),yokaiReaction(caredPet,action));
     render();
-    const reward=action==="feed"?5:action==="play"?8:4;
+    const reward=5;
     toast((action==="feed"?"Yum! Your pet enjoyed its snack.":action==="play"?"Training complete!":"Your pet is feeling refreshed.")+" +"+reward+" WIRED points! ✨");
   }catch(e){toast(errorText(e));if(button)button.disabled=false;}
 }
@@ -1183,6 +1185,15 @@ function yokaiRechargeLabel(readyAt){
 }
 setInterval(()=>{
  if(state.page!=="pets")return;
+ document.querySelectorAll("[data-pet-care]").forEach(button=>{
+  const action=button.dataset.action,id=button.dataset.petCare;
+  const key=String(id)+":"+action;
+  const until=state.yokaiCareRecharges?.[key];
+  const remaining=until?yokaiRechargeLabel(until):null;
+  const label=action==="feed"?"🍓 Feed":action==="play"?"⚔️ Train":"🌙 Rest";
+  if(remaining){button.disabled=true;button.textContent=label+" · "+remaining;}
+  else if(until){delete state.yokaiCareRecharges[key];button.disabled=false;button.textContent=label;}
+ });
  document.querySelectorAll("[data-yokai-eternal-skill]").forEach(button=>{
   const id=button.dataset.yokaiEternalSkill;
   const until=state.eternalYokaiSkillRecharges?.[id];
