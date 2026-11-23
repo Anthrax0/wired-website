@@ -1397,3 +1397,22 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .discovery-hub-icon{font-size:36px;color:#c39aff}
 .discovery-back{margin:12px 0 20px;padding:10px 16px;border:1px solid #8355bb;border-radius:10px;background:#211332;color:#f5eaff;cursor:pointer}
 @media(max-width:420px){.discovery-hub{gap:10px}.discovery-hub-panel{padding:18px 9px;min-height:185px}.discovery-hub-panel span:last-child{font-size:11px}}
+
+/* Larger Amino-style community icons: prominent square badges at top left. */
+.discovery-shelf .amino-community-icon,
+.amino-community-grid .amino-community-icon{
+ width:clamp(90px,38%,160px);
+ height:auto;
+ aspect-ratio:1/1;
+ flex:0 0 auto;
+ border:4px solid #100a22;
+ border-radius:26%;
+ box-shadow:0 5px 0 rgba(12,7,26,.7),0 8px 20px rgba(0,0,0,.65);
+ font-size:clamp(30px,6vw,62px);
+}
+.discovery-shelf .amino-community-icon img,
+.amino-community-grid .amino-community-icon img{display:block;width:100%;height:100%;object-fit:cover}
+@media(max-width:700px){
+ .discovery-shelf .amino-community-icon,
+ .amino-community-grid .amino-community-icon{width:clamp(96px,38%,150px);height:auto}
+}
