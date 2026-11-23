@@ -720,7 +720,8 @@ async function releasePet(id,button){
     const {data,error}=await sb.rpc("release_pet",{p_pet_id:id});
     if(error)throw error;
     if(data!==true)throw new Error("The release was not confirmed by the server.");
-    await loadPetParadise();
+    await Promise.all([loadPetParadise(),loadProfile()]);
+    if(state.profile?.companion?.id===id)state.profile.companion=null;
     if((state.userPets||[]).some(x=>String(x.id)===String(id))){
       throw new Error("The yokai still appears in your collection. Please refresh and try again.");
     }
