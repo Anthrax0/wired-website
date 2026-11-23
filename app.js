@@ -85,14 +85,33 @@ async function postProfileComment(e,profileId){
  }catch(err){toast(errorText(err));if(button){button.disabled=false;button.textContent="Post comment";}}
 }
 async function postProfileCommentReply(e,profileId){
- e.preventDefault();if(!state.user)return;const form=e.currentTarget,body=form.querySelector('textarea[name="body"]')?.value.trim(),parentId=form.dataset.replyForm;if(!body||!parentId){toast("Enter a reply before sending.");return;}
- const button=form.querySelector('button[type="submit"]');if(button){button.disabled=true;button.textContent="Sending…";}
- try{const {error}=await sb.from("profile_comments").insert({profile_id:profileId,author_id:state.user.id,body,parent_comment_id:parentId});if(error)throw error;
- const comments=await loadProfileComments(profileId);
- if(state.page==="member-profile"&&state.viewingProfile?.id===profileId){state.viewingProfile.comments=comments;renderMemberProfile();}
- else if(state.page==="profile"&&state.user.id===profileId){state.profileComments=comments;render();}
- toast("Reply posted.");
- }catch(err){toast(errorText(err));if(button){button.disabled=false;button.textContent="Send reply";}}
+ e.preventDefault();
+ if(!state.user){toast("Log in to reply.");return;}
+ const form=e.currentTarget;
+ const body=form.querySelector('textarea[name="body"]')?.value.trim();
+ const parentId=form.getAttribute("data-reply-form");
+ if(!body||!parentId){toast("Enter a reply before sending.");return;}
+ const button=form.querySelector('button[type="submit"]');
+ if(button?.disabled)return;
+ if(button){button.disabled=true;button.textContent="Sending…";}
+ try{
+  // Resolve the immediate parent, including when it is itself a reply.
+  const {data:parent,error:parentError}=await sb.from("profile_comments").select("id,profile_id").eq("id",parentId).eq("profile_id",profileId).single();
+  if(parentError)throw parentError;
+  if(!parent)throw new Error("The comment you are replying to no longer exists.");
+  const {data:posted,error}=await sb.from("profile_comments").insert({profile_id:profileId,author_id:state.user.id,body,parent_comment_id:parent.id}).select("id,parent_comment_id").single();
+  if(error)throw error;
+  if(String(posted.parent_comment_id)!==String(parent.id))throw new Error("Reply parent could not be verified.");
+  const comments=await loadProfileComments(profileId);
+  if(state.page==="member-profile"&&state.viewingProfile?.id===profileId){state.viewingProfile.comments=comments;renderMemberProfile();}
+  else if(state.page==="profile"&&state.user.id===profileId){state.profileComments=comments;render();}
+  toast("Reply posted.");
+  requestAnimationFrame(()=>document.getElementById("profile-comment-"+posted.id)?.scrollIntoView({behavior:"smooth",block:"nearest"}));
+ }catch(err){
+  console.error("Profile nested reply failed",err);
+  toast("Reply failed: "+errorText(err));
+  if(button){button.disabled=false;button.textContent="Send reply";}
+ }
 }
 async function deleteProfileComment(commentId,profileId){
  if(!commentId||!confirm("Delete this profile comment?"))return;
