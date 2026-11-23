@@ -1194,3 +1194,6 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 /* Me uses only the explicit ✌︎ character; no emoji or legacy pseudo-icons. */
 .tabs .tab[data-page="profile"]::before,.tabs .tab[data-page="profile"]::after{content:none!important;display:none!important}
 .tabs .tab[data-page="profile"] .me-tab-symbol{font-family:"Segoe UI Symbol","DejaVu Sans","Noto Sans Symbols 2",sans-serif!important;font-variant:normal!important;font-style:normal!important;font-weight:400!important}
+
+/* Transparent neon peace hand image in Me navigation tab. */
+.tabs .tab[data-page="profile"] img.me-tab-icon{display:block!important;width:32px!important;height:32px!important;max-width:80%!important;object-fit:contain!important;margin:0 auto 5px!important;filter:drop-shadow(0 0 4px #b34aff)!important}
