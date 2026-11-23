@@ -1362,3 +1362,24 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .yokai-choice-symbol{font-size:34px;line-height:1;color:#c4a16c;text-shadow:0 0 18px rgba(188,137,72,.4);}
 .yokai-sanctuary-back{margin:12px 0 8px;}
 @media(max-width:420px){.yokai-sanctuary-choices{gap:10px}.yokai-sanctuary-choice{min-height:205px;padding:18px 9px}.yokai-sanctuary-choice strong{font-size:19px}.yokai-sanctuary-choice>span:not(.yokai-choice-symbol){font-size:12px}}
+
+/* Clickable balance and accessible point transaction ledger. */
+button.header-points{appearance:none;background:none;border:0;padding:4px 6px;cursor:pointer;font:inherit;font-size:12px;font-weight:800;color:#dfbaff;line-height:1.4;border-radius:8px;}
+button.header-points:hover,button.header-points:focus-visible{color:#fff1c7;background:rgba(167,107,209,.13);outline:1px solid #9a62c5;}
+.wired-points-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,3,12,.86);backdrop-filter:blur(8px);}
+.wired-points-dialog{width:min(100%,650px);max-height:min(88dvh,850px);overflow:auto;border:1px solid #7e4a96;border-radius:22px;padding:clamp(18px,4vw,28px);background:linear-gradient(145deg,#201027,#0b0914 80%);box-shadow:0 18px 80px #000b,0 0 32px rgba(105,46,142,.18);color:#f0e5f5;}
+.wired-points-dialog-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.wired-points-dialog-head h2{margin:6px 0 12px;}
+.wired-points-current{color:#cbb5d7;}
+.wired-points-current strong{color:#f0dcff;}
+.wired-points-totals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 24px;}
+.wired-points-totals>div{display:flex;flex-direction:column;gap:7px;padding:16px;border:1px solid #51375f;border-radius:15px;background:#180f21;}
+.wired-points-totals span{color:#bca6c9;font-size:13px;}
+.wired-points-totals strong{font-size:clamp(20px,4vw,28px);}
+.points-earned{color:#a9d5b4!important;}
+.points-spent{color:#d9a4aa!important;}
+.wired-points-transactions{display:flex;flex-direction:column;gap:8px;}
+.wired-points-transaction{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 14px;border:1px solid #3e2a4d;border-radius:12px;background:#130e1b;}
+.wired-points-transaction>div{display:flex;flex-direction:column;gap:5px;min-width:0;overflow-wrap:anywhere;}
+.wired-points-transaction small{color:#aa97b8;}
+.wired-points-transaction>b{white-space:nowrap;}
