@@ -1399,8 +1399,8 @@ async function openCommunityMemberProfile(userId){
   ]);
   if(error||ge||fe||re)throw error||ge||fe||re;
   const name=local?.nickname||global?.username||'Community member';
-  const following=(follows||[]).some(f=>f.follower_id===uid);
-  const followsMe=(follows||[]).some(f=>f.follower_id===userId);
+  const following=(follows||[]).some(f=>f.follower_id===uid&&f.following_id===userId);
+  const followsMe=(follows||[]).some(f=>f.follower_id===userId&&f.following_id===uid);
   const friends=following&&followsMe;
   const relationship=relationships?.[0];
   const {data:activeRows,error:activeError}=await sb.from('community_relationships').select('id,requester_id,recipient_id,status').eq('community_id',cid).eq('status','accepted').or('requester_id.eq.'+uid+',recipient_id.eq.'+uid).limit(1);
