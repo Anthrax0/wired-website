@@ -1601,3 +1601,10 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 @media(max-width:480px){.global-chat-hub{gap:10px}.global-chat-hub-panel{padding:16px 9px;min-height:160px}.global-chat-hub-panel strong{font-size:.97rem}}
 
 .wired-gift-preview{display:flex;flex-direction:column;align-items:center;gap:10px;margin:20px auto;padding:26px;border:1px dashed #9256bd;border-radius:16px;background:linear-gradient(135deg,#281433,#130d1c);text-align:center}.wired-gift-preview>span{font-size:2.5rem}.wired-gift-preview strong{font-size:1.1rem}.wired-gift-preview small{color:#bba6ce}
+
+.wired-gift-shop form{display:flex;flex-direction:column;gap:14px}
+.wired-gift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin:8px 0}
+.wired-gift-tile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 8px;border:1px solid #75428f;border-radius:13px;background:linear-gradient(145deg,#261530,#110d19);color:#f5eaff;cursor:pointer}
+.wired-gift-tile:hover,.wired-gift-tile.selected{border-color:#d39bff;box-shadow:0 0 12px #9b43c855}
+.wired-gift-tile span{font-size:2rem}.wired-gift-tile strong{font-size:.87rem}.wired-gift-tile small{color:#d0a8ed}
+.wired-gift-dialog{text-align:center;max-width:390px}.wired-gift-big-emoji{font-size:4rem;margin:6px auto 15px}.wired-gift-points{color:#e0b4ff;font-weight:700}
