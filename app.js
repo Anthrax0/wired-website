@@ -331,6 +331,7 @@ function subscribeGlobalNotifications(){
   }).subscribe();
 }
 async function openNotifications(){
+ state.notificationUnread=0;updateNotificationBell();
  state.page="notifications";try{sessionStorage.setItem("wired:lastPage","notifications");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
  try{await loadGlobalNotifications();renderNotifications();}catch(e){toast(errorText(e));}
 }
@@ -358,7 +359,7 @@ async function markAllNotificationsRead(){
  const {error}=await sb.from("global_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",state.user.id).is("read_at",null);
  if(error){toast(errorText(error));return;}
  const {error:communityError}=await sb.from("community_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",state.user.id).is("read_at",null);
- if(communityError){toast(errorText(communityError));return;}await loadGlobalNotifications();renderNotifications();
+ if(communityError){toast(errorText(communityError));return;}state.notifications=state.notifications.map(n=>({...n,read_at:n.read_at||new Date().toISOString()}));state.notificationUnread=0;updateNotificationBell();await loadGlobalNotifications();renderNotifications();
 }
 async function openNotification(id,actorId,type,commentId,communityId){
  const row=state.notifications.find(n=>n.id===id);
