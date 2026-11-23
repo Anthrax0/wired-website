@@ -1261,3 +1261,31 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
     padding:16px;
   }
 }
+
+
+/* WIRED community interior: consistent purple/black cyberpunk identity. */
+.wired-amino-header{
+ background:radial-gradient(ellipse at 82% 12%,rgba(125,35,197,.25),transparent 55%),linear-gradient(145deg,#12071f 0%,#080511 62%,#180a28 100%);
+ border:1px solid rgba(178,80,245,.38);
+ border-radius:18px 18px 0 0;
+ box-shadow:inset 0 0 36px rgba(119,33,180,.12);
+ color:#f8f0ff;
+}
+.wired-community-avatar{border:2px solid #8d39d1;box-shadow:0 0 20px rgba(165,56,239,.35);background:#1a0b2a}
+.wired-community-title h1{color:#f9edff;text-shadow:0 0 15px rgba(162,65,232,.3)}
+.wired-coin{background:linear-gradient(135deg,#7023b0,#a22cf0);border:1px solid #c26aff;box-shadow:0 0 15px rgba(151,40,231,.28);color:#fff}
+.wired-coin b{background:rgba(35,6,62,.35)}
+.wired-leaderboard{background:linear-gradient(135deg,#8422d4,#b02ff4);border:1px solid #c56afc;border-radius:10px;color:#fff;box-shadow:0 0 14px rgba(166,48,230,.25)}
+.wired-checkin h2{color:#f5e8ff}
+.wired-checkin-track:before{background:#56316e}
+.wired-checkin-track span{background:#634879;border-color:#160920}
+.wired-checkin-track span:first-child{background:#f4e8ff;outline-color:#9234dc}
+.wired-checkin-track span.earned{background:#ac49f5;border-color:#ac49f5}
+.wired-checkin-button{background:linear-gradient(135deg,#8a22dd,#b12cf4);border:1px solid #c66bff;border-radius:13px;box-shadow:0 4px #59168f,0 0 20px rgba(159,45,236,.28);color:#fff}
+.wired-checkin-button:hover:not(:disabled){filter:brightness(1.12)}
+.wired-community-tabs{border-bottom-color:rgba(184,91,244,.38)}
+.wired-community-tabs button{color:#b9a0ce}
+.wired-community-tabs button.active{color:#f9e9ff;text-shadow:0 0 10px rgba(177,69,248,.4)}
+.wired-community-tabs button.active:after{background:linear-gradient(90deg,#8325db,#c34bff);box-shadow:0 0 12px rgba(185,74,249,.65)}
+.wired-back,.wired-bell,.wired-store{color:#f3dcff}
+.wired-guidelines{background:#170c25;border-color:#71339e}
