@@ -213,6 +213,46 @@ function showRelationshipEndedPopup(row){
   document.getElementById("relationshipEndOverlay")?.remove();
  });
 }
+async function showCommunityRelationshipEndedPopup(row){
+ if(!state.user||row?.status!=='ended'||!row.ended_by||row.ended_by===state.user.id||![row.requester_id,row.recipient_id].includes(state.user.id))return;
+ const key='wired-community-relationship-end-ack:'+state.user.id+':'+row.id;
+ try{if(localStorage.getItem(key))return;}catch(e){}
+ if(state.relationshipEndPopup?.id===row.id)return;
+ const {data:community,error}=await sb.from('communities').select('name').eq('id',row.community_id).maybeSingle();
+ if(error){console.warn('Community relationship popup lookup failed',error);return;}
+ const communityName=community?.name||'Unknown community';
+ state.relationshipEndPopup={id:row.id,key};
+ const messages=["You've been dumped. 💔","Your subscription to this relationship has expired.","BREAKING NEWS: You've been dumped. Please remain calm."];
+ const message=messages[Math.floor(Math.random()*messages.length)];
+ document.getElementById('relationshipEndOverlay')?.remove();
+ document.body.insertAdjacentHTML('beforeend','<div class="relationship-end-overlay" id="relationshipEndOverlay"><section class="relationship-end-dialog" role="alertdialog" aria-modal="true" aria-labelledby="relationshipEndTitle" aria-describedby="relationshipEndMessage"><div class="relationship-end-icon" aria-hidden="true">💔</div><p class="relationship-end-kicker">WIRED COMMUNITY RELATIONSHIP UPDATE</p><h2 id="relationshipEndTitle">Relationship ended</h2><p class="hint">Community: '+escapeHTML(communityName)+'</p><p id="relationshipEndMessage">'+escapeHTML(message)+'</p><button type="button" class="primary" id="relationshipEndAccept">Accept</button></section></div>');
+ document.getElementById('relationshipEndAccept')?.addEventListener('click',()=>{
+  try{localStorage.setItem(key,new Date().toISOString());}catch(e){}
+  state.relationshipEndPopup=null;document.getElementById('relationshipEndOverlay')?.remove();
+ });
+}
+async function checkCommunityRelationshipEnds(){
+ if(!state.user)return;
+ const uid=state.user.id;
+ const {data,error}=await sb.from('community_relationships').select('id,community_id,requester_id,recipient_id,status,ended_by,updated_at').eq('status','ended').or('requester_id.eq.'+uid+',recipient_id.eq.'+uid).order('updated_at',{ascending:false}).limit(15);
+ if(error){console.warn('Community breakup lookup failed',error);return;}
+ for(const row of data||[]){
+  if(row.ended_by===uid)continue;
+  const key='wired-community-relationship-end-ack:'+uid+':'+row.id;
+  try{if(localStorage.getItem(key))continue;}catch(e){}
+  await showCommunityRelationshipEndedPopup(row);break;
+ }
+}
+function subscribeCommunityRelationshipEnds(){
+ if(state.communityRelationshipEndChannel){sb.removeChannel(state.communityRelationshipEndChannel);state.communityRelationshipEndChannel=null;}
+ if(!state.user)return;
+ state.communityRelationshipEndChannel=sb.channel('community-relationship-ends-'+state.user.id)
+  .on('postgres_changes',{event:'UPDATE',schema:'public',table:'community_relationships'},payload=>{
+   const row=payload.new;
+   if(row?.status==='ended')showCommunityRelationshipEndedPopup(row).catch(e=>console.warn(e));
+  }).subscribe();
+ checkCommunityRelationshipEnds().catch(e=>console.warn(e));
+}
 function subscribeRelationshipEnds(){
  if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}
  if(!state.user)return;
@@ -486,7 +526,7 @@ async function refreshWiredStaffAccess(){
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
   state.user=session?.user||null;
-  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();subscribeRelationshipEnds();await loadRelationshipData().catch(e=>console.warn("Relationship data unavailable",e));}
+  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();subscribeRelationshipEnds();subscribeCommunityRelationshipEnds();await loadRelationshipData().catch(e=>console.warn("Relationship data unavailable",e));}
   else {if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}state.relationshipEndPopup=null;document.getElementById("relationshipEndOverlay")?.remove();state.profile=null;state.communities=[];}
   await refreshWiredStaffAccess();
   render();
@@ -1512,7 +1552,7 @@ async function savePassword(e){
 }
 async function logout(){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}if(state.notificationChannel){await sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}await sb.auth.signOut();state.user=null;state.profile=null;state.communities=[];state.threads=[];toast("Logged out.");nav("home")}
 sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setTimeout(()=>refreshUser().catch(e=>console.warn(e)),0)});
-async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();subscribeRelationshipEnds();await loadRelationshipData().catch(()=>{});}
+async function init(){const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(()=>{});await loadGlobalNotifications().catch(()=>{});subscribeGlobalNotifications();subscribeRelationshipEnds();subscribeCommunityRelationshipEnds();await loadRelationshipData().catch(()=>{});}
  await refreshWiredStaffAccess();
  let savedPage="home",savedCommunity=null;
  try{savedPage=sessionStorage.getItem("wired:lastPage")||"home";savedCommunity=sessionStorage.getItem("wired:lastCommunity");}catch(e){}
