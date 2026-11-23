@@ -1119,6 +1119,7 @@ function renderPostCard(p){
 function renderCommunity(){
  const c=state.activeCommunity,v=$('view'),joined=!!state.activeCommunityRole,manager=['owner','mod'].includes(state.activeCommunityRole);
  const heroImage=c.cover_url||c.icon_url||''; let html='<section class="wired-amino-header"><div class="wired-amino-top"><button class="wired-back" id="backDiscover" aria-label="Back">‹</button><div class="wired-amino-actions"><span class="wired-coin" id="communityPoints">◉ &nbsp;'+Number(state.communityCheckinState.points||0)+' pts</span></div></div><div class="wired-community-identity"><div class="wired-community-avatar">'+(heroImage?'<img src="'+escapeHTML(heroImage)+'" alt="">':'W')+'</div><div class="wired-community-title"><h1>'+escapeHTML(c.name)+'</h1><div><b>'+Number(c.member_count||state.moderationMembers.length||0)+'</b> Members <button type="button" class="wired-leaderboard" id="communityLeaderboardBtn">Leaderboards</button></div></div></div><div class="wired-checkin"><h2>Check in daily to earn points</h2><div class="wired-checkin-track">'+Array.from({length:7},(_,i)=>'<span class="'+(i<Math.min(7,Number(state.communityCheckinState.streak||0))?'earned':'')+'"></span>').join('')+'</div><p class="hint" id="checkinStatus">'+(state.communityCheckinState.checked_in_today?'Checked in today · '+Number(state.communityCheckinState.streak||0)+' day streak':'Earn 10 points for today’s check-in')+'</p><button type="button" class="wired-checkin-button" id="communityCheckinBtn" '+(!joined||state.communityCheckinState.checked_in_today?'disabled':'')+'>'+(state.communityCheckinState.checked_in_today?'Checked In':'Check In')+'</button></div><nav class="wired-community-tabs" aria-label="Community sections"><button class="${(state.communityTab||"featured")==="featured"?"active":""}" data-community-tab="featured">Featured</button><button class="${state.communityTab==="guidelines"?"active":""}" data-community-tab="guidelines">Guidelines</button><button class="${state.communityTab==="latest"?"active":""}" data-community-tab="latest">Latest Feed</button><button class="${state.communityTab==="wiki"?"active":""}" data-community-tab="wiki">Wiki</button><button class="${state.communityTab==="chat"?"active":""}" data-community-tab="chat">Public Chat</button></nav></section><div class="wired-community-description">'+escapeHTML(c.description||'')+'</div>';
+ if(joined){html+='<section class="card community-local-profile"><div class="section-head"><h3>Community Profile</h3><span class="pill">Only for this community</span></div><div id="communityLocalProfile">Loading community profile…</div></section>';}
  if(state.leaderboardOpen){html+='<section class="card community-leaderboard-panel"><div class="section-head"><h2>Community leaderboard</h2><button type="button" class="ghost small" id="closeCommunityLeaderboard">Close</button></div>'+(state.communityLeaderboard.length?state.communityLeaderboard.map((m,i)=>'<div class="moderation-row"><b>#'+(i+1)+' '+escapeHTML(m.username)+'</b><span>'+Number(m.points)+' points · '+Number(m.checkins)+' check-ins</span></div>').join(''):'<p class="hint">No check-ins yet. Be the first on the leaderboard!</p>')+'</section>';}
  if(c.rules)html+='<article class="card"><h3>Community rules</h3><p>'+escapeHTML(c.rules)+'</p></article>';
  if(joined&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
@@ -1157,9 +1158,10 @@ function renderCommunity(){
  $('backDiscover').addEventListener('click',()=>nav('discover'));$('openCommunityManager')?.addEventListener('click',()=>{state.managerOpen=true;renderCommunity()});$('closeCommunityManager')?.addEventListener('click',()=>{state.managerOpen=false;renderCommunity()});$('managerSettingsForm')?.addEventListener('submit',saveCommunitySettings);$('joinFromCommunity')?.addEventListener('click',()=>joinCommunity(c.id));$('communityChatBtn')?.addEventListener('click',()=>openCommunityChat(c.id));$('postForm')?.addEventListener('submit',createPost);
  $('postType')?.addEventListener('change',updatePostComposer);$('pollOptions')?.addEventListener('input',()=>{});$('addQuizQuestion')?.addEventListener('click',addQuizQuestion);$('quizQuestionBuilder')?.addEventListener('input',e=>{if(e.target.matches('[data-quiz-options]'))updateQuizQuestionOptions(e.target.closest('[data-quiz-question]'));});$('quizQuestionBuilder')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-quiz-question]');if(!b)return;const host=$('quizQuestionBuilder');b.closest('[data-quiz-question]')?.remove();Array.from(host.querySelectorAll('[data-quiz-question]')).forEach((card,i)=>{const heading=card.querySelector('.quiz-question-editor-head b');if(heading)heading.textContent='Question '+(i+1);});});$('postImage')?.addEventListener('change',e=>{const host=$('postImagePreview');if(!host)return;const files=Array.from(e.target.files||[]);host.innerHTML=files.slice(0,5).map(f=>'<span>'+escapeHTML(f.name)+'</span>').join(' · ');});updatePostComposer();
  v.querySelectorAll('[data-vote-post]').forEach(b=>b.addEventListener('click',()=>voteOnPost(b.dataset.votePost,Number(b.dataset.voteOption))));v.querySelectorAll('[data-quiz-submit]').forEach(form=>form.addEventListener('submit',e=>submitQuiz(e,form.dataset.quizSubmit)));v.querySelectorAll('[data-quiz-retake]').forEach(b=>b.addEventListener('click',()=>{delete state.quizResults[b.dataset.quizRetake];renderCommunity();}));
+ loadCommunityLocalProfile();
  v.querySelectorAll('[data-react-post]').forEach(b=>b.addEventListener('click',()=>togglePostReaction(b.dataset.reactPost,b.dataset.reaction)));
  v.querySelectorAll('[data-comment-form]').forEach(form=>form.addEventListener('submit',e=>submitPostComment(e,form.dataset.commentForm)));
- v.querySelectorAll('[data-profile-id]').forEach(b=>b.addEventListener('click',()=>openMemberProfile(b.dataset.profileId)));
+ v.querySelectorAll('[data-profile-id]').forEach(b=>b.addEventListener('click',()=>openCommunityMemberProfile(b.dataset.profileId)));
  v.querySelectorAll('[data-member-role]').forEach(b=>b.addEventListener('click',()=>setMemberRole(b.dataset.memberRole,b.dataset.nextRole)));
  v.querySelectorAll('[data-member-ban]').forEach(b=>b.addEventListener('click',()=>setMemberBanned(b.dataset.memberBan,b.dataset.banned!=='true')));v.querySelectorAll('[data-member-warning]').forEach(b=>b.addEventListener('click',async()=>{const reason=prompt('Enter the reason for this member warning:');if(reason?.trim())try{await issueMemberWarning(b.dataset.memberWarning,reason.trim())}catch(e){toast(errorText(e))}}));
  v.querySelectorAll('[data-report-resolve]').forEach(b=>b.addEventListener('click',()=>resolveCommunityReport(b.dataset.reportResolve)));
@@ -1268,6 +1270,38 @@ async function submitQuiz(e,id){
  catch(err){if(button){button.disabled=false;button.textContent='Submit quiz';}toast(errorText(err));}
 }
 
+async function openCommunityMemberProfile(userId){
+ const cid=state.activeCommunity?.id;if(!cid)return;
+ try{
+  const [{data:local,error},{data:global,error:ge}]=await Promise.all([
+   sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
+   sb.from('profiles').select('username').eq('id',userId).maybeSingle()
+  ]);
+  if(error)throw error;if(ge)throw ge;
+  const name=local?.nickname||global?.username||'Community member';
+  const panel=document.createElement('section');panel.className='card community-local-profile-detail';
+  panel.innerHTML='<button type="button" class="ghost small" id="closeLocalProfile">Close</button><h2>'+escapeHTML(name)+'</h2>'+(local?.avatar_url?'<img class="community-local-avatar" src="'+escapeHTML(local.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><p class="hint">Community-only identity · Global profile is separate</p>';
+  document.querySelector('.community-local-profile-detail')?.remove();
+  document.querySelector('.community-local-profile')?.after(panel);
+  panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>panel.remove());
+ }catch(e){toast(errorText(e));}
+}
+async function loadCommunityLocalProfile(){
+ const cid=state.activeCommunity?.id,uid=state.user?.id,el=document.getElementById('communityLocalProfile');
+ if(!cid||!uid||!el)return;
+ try{
+  const {data,error}=await sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',uid).maybeSingle();
+  if(error)throw error;
+  const globalName=state.profile?.username||'Member';
+  el.innerHTML='<form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(data?.nickname||globalName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(data?.avatar_url||'')+'"></label><button type="submit" class="primary small">Save Community Profile</button></form>';
+  el.querySelector('form')?.addEventListener('submit',async e=>{
+   e.preventDefault();const f=e.currentTarget;const nickname=f.elements.nickname.value.trim(),bio=f.elements.bio.value.trim(),avatar_url=f.elements.avatar_url.value.trim()||null;
+   if(!nickname)return toast('Enter a community nickname.');
+   const {error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'});
+   if(error)return toast(errorText(error));toast('Community profile saved.');
+  });
+ }catch(e){el.textContent='Community profile unavailable: '+errorText(e);}
+}
 async function togglePostReaction(id,reaction){
  const button=Array.from(document.querySelectorAll('[data-react-post]')).find(el=>el.dataset.reactPost===id&&el.dataset.reaction===reaction);
  if(button?.disabled)return;
