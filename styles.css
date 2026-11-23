@@ -1329,3 +1329,8 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .community-local-profile-detail > .profile-person .hint{margin:0 0 8px;}
 .community-local-profile-detail > .profile-person h2{margin:0;}
 .community-local-profile-detail > .community-local-avatar{display:block;margin:0 auto 24px;}
+
+/* Distinguish companion release from feeding, training and resting. */
+.pet-release-action{background:linear-gradient(135deg,#1565d8,#2188f5)!important;border:1px solid #61b4ff!important;color:#fff!important;box-shadow:0 0 14px rgba(32,125,255,.25)!important;font-weight:700;}
+.pet-release-action:hover,.pet-release-action:focus-visible{background:linear-gradient(135deg,#1d76ee,#359bff)!important;border-color:#a2d9ff!important;box-shadow:0 0 20px rgba(44,139,255,.4)!important;}
+.pet-release-action:disabled{opacity:.55;box-shadow:none!important;}
