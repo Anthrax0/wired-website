@@ -685,28 +685,34 @@ async function refreshGlobalMemberConnections(){
 }
 async function toggleDirectoryFollow(userId){
  if(!state.user||String(userId)===String(state.user.id))return;
+ const uid=state.user.id;
  const button=[...document.querySelectorAll("[data-directory-follow]")].find(x=>x.dataset.directoryFollow===userId);
  if(button)button.disabled=true;
  try{
-  // Read the current relationship from the database, never from a cached button label.
-  const uid=state.user.id;
-  const {data:current,error:readError}=await sb.from("profile_follows").select("follower_id,following_id").eq("follower_id",uid).eq("following_id",userId);
+  const {data:current,error:readError}=await sb.from("profile_follows").select("follower_id").eq("follower_id",uid).eq("following_id",userId);
   if(readError)throw readError;
-  const following=(current||[]).length>0;
-  if(following){
+  const wasFollowing=(current||[]).length>0;
+  if(wasFollowing){
    const {error}=await sb.from("profile_follows").delete().eq("follower_id",uid).eq("following_id",userId);
    if(error)throw error;
+   state.globalMemberFollowing?.delete(String(userId));
+   // Unfollowing breaks mutual friendship immediately in the interface.
+   state.globalMemberFriends?.delete(String(userId));
   }else{
    const {error}=await sb.from("profile_follows").insert({follower_id:uid,following_id:userId});
    if(error)throw error;
+   state.globalMemberFollowing??=new Set();
+   state.globalMemberFollowing.add(String(userId));
   }
-  await refreshGlobalMemberConnections();
-  const verified=state.globalMemberFollowing.has(String(userId));
-  if(verified===following)throw new Error("The follow change was not saved. Please try again.");
   renderGlobalMemberDirectory();
+  // Reconcile with the authoritative database, but don't falsely claim failure
+  // when a successful delete has already been persisted.
+  try{await refreshGlobalMemberConnections();if(state.page==="global-members")renderGlobalMemberDirectory();}
+  catch(e){console.warn("Follow status refresh pending",e);}
  }catch(e){
-  toast(errorText(e));
-  try{await refreshGlobalMemberConnections();renderGlobalMemberDirectory();}catch(_){if(button)button.disabled=false;}
+  toast("Could not change follow status: "+errorText(e));
+  try{await refreshGlobalMemberConnections();renderGlobalMemberDirectory();}
+  catch(_){if(button)button.disabled=false;}
  }
 }
 function renderGlobalMemberDirectory(){
