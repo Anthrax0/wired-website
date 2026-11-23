@@ -376,7 +376,7 @@ async function startDMByUsername(username){try{
  const {data:target,error:targetError}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
  if(targetError)throw targetError;
  if(!target?.id)throw new Error('Profile not found.');
- const {data:friend,error:friendError}=await sb.from('profile_friend_requests').select('id').eq('status','accepted').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+target.id+'),and(sender_id.eq.'+target.id+',recipient_id.eq.'+state.user.id+')').limit(1);
+ const {data:friend,error:friendError}=await sb.from('friend_requests').select('id').eq('status','accepted').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+target.id+'),and(sender_id.eq.'+target.id+',recipient_id.eq.'+state.user.id+')').limit(1);
  if(friendError)throw friendError;
  if(!friend?.length)throw new Error('Only friends can invite each other to chat.');
  const d=await api('/threads/dm','POST',{username});await loadThreads();await openThread(d.id);}catch(e){toast(errorText(e));}}
