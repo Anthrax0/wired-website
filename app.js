@@ -608,7 +608,7 @@ async function uploadGalleryImages(event){
  } await loadProfileGallery();toast("Photos added to your gallery!");render();
  }catch(err){toast(errorText(err));}finally{event.target.value="";}
 }
-async async function deleteGalleryImage(id){
+async function deleteGalleryImage(id){
  const item=(state.profileImages||[]).find(x=>x.id===id);if(!item)return;if(!await wiredDialog("Remove this photo from your profile?"))return;
  try{const {error}=await sb.from("profile_images").delete().eq("id",id);if(error)throw error;
  const {error:storageError}=await sb.storage.from("profile-media").remove([item.storage_path]);if(storageError)console.warn(storageError);
