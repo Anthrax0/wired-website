@@ -1549,3 +1549,21 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .community-level-legend{border-color:#bd6b38;color:#ffd0a0}
 .community-level-monarch{border-color:#d7a34a;color:#ffe09c;box-shadow:0 0 12px #c9915070}
 .community-level-sovereign{border-color:#f2ce79;color:#fff2bc;background:linear-gradient(120deg,#3c244c,#191124);box-shadow:0 0 14px #d6a45599}
+
+/* Community rank crests: attached to the left edge of each avatar. */
+.community-avatar-wrap,.community-local-avatar-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible}
+.community-avatar-wrap .member-avatar{display:block}
+.community-avatar-level{--crest:#8d829e;position:absolute;left:-13px;top:50%;transform:translateY(-50%);z-index:2;min-width:24px;height:29px;padding:2px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:2px solid var(--crest);color:#fff;background:linear-gradient(145deg,#24162e,#0b0912);box-shadow:0 1px 9px #000b,0 0 7px var(--crest);font-size:10px;font-weight:900;line-height:1;border-radius:7px 7px 10px 10px;pointer-events:none}
+.community-avatar-level-symbol{font-size:11px;line-height:1}.community-avatar-level-number{font-size:10px;line-height:1.15;font-variant-numeric:tabular-nums}
+.community-avatar-level-newblood{--crest:#8d829e;border-radius:50%}
+.community-avatar-level-initiate{--crest:#8998dc;border-radius:7px}
+.community-avatar-level-nightwalker{--crest:#5d9fce;border-radius:4px 12px 4px 12px}
+.community-avatar-level-phantom{--crest:#58c7bc;border-radius:50% 50% 6px 6px}
+.community-avatar-level-sentinel{--crest:#9871d6;clip-path:polygon(50% 0,100% 22%,100% 78%,50% 100%,0 78%,0 22%);border-radius:0}
+.community-avatar-level-warden{--crest:#c17ae3;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);border-radius:0;width:31px;height:33px}
+.community-avatar-level-ascendant{--crest:#df699b;border-radius:10px 10px 3px 3px;background:linear-gradient(145deg,#62224a,#160b20)}
+.community-avatar-level-legend{--crest:#e7a66d;clip-path:polygon(50% 0,61% 25%,90% 12%,77% 40%,100% 50%,77% 60%,90% 88%,61% 75%,50% 100%,39% 75%,10% 88%,23% 60%,0 50%,23% 40%,10% 12%,39% 25%);border-radius:0;width:34px;height:34px}
+.community-avatar-level-monarch{--crest:#e6c36f;border-radius:4px 4px 10px 10px;background:linear-gradient(145deg,#6b4c20,#160f19);height:34px}
+.community-avatar-level-sovereign{--crest:#ffe5a0;border-radius:10px 10px 4px 4px;background:linear-gradient(135deg,#8d6c30,#27163d,#8d6c30);box-shadow:0 0 12px #f3c56d,0 0 5px #fff6;min-width:30px;height:36px}
+.community-local-avatar-wrap{margin-left:16px}.community-local-avatar-wrap .community-avatar-level{left:-15px;min-width:34px;height:42px;font-size:13px}.community-local-avatar-wrap .community-avatar-level-symbol{font-size:16px}.community-local-avatar-wrap .community-avatar-level-number{font-size:13px}
+.community-local-avatar-fallback{display:inline-flex;align-items:center;justify-content:center;background:#24132e;color:#fff;border-radius:50%;width:80px;height:80px}
