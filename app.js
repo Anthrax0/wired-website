@@ -1157,12 +1157,13 @@ function updateGiftPrice(){
  target.textContent='Purchase for '+gift[3]+' points. Send later from your inventory. Your friend receives '+(gift[3]+Math.ceil(gift[3]*.1))+' points when accepted, including the 10% gift bonus.';
 }
 function showFriendGiftPopup(gift,sender){
+ if(wiredGiftPopupActive||wiredHandledGiftIds.has(gift.id))return;
  wiredGiftPopupActive=true;
  document.getElementById('wiredFriendGiftPopup')?.remove();
  const overlay=document.createElement('div');overlay.id='wiredFriendGiftPopup';overlay.className='wired-dialog-overlay';
  overlay.innerHTML='<section class="wired-dialog wired-gift-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredGiftTitle"><div class="wired-gift-big-emoji">'+escapeHTML(gift.gift_emoji)+'</div><h2 id="wiredGiftTitle">You received a gift!</h2><p><strong>'+escapeHTML(sender||'A WIRED friend')+'</strong> sent you '+escapeHTML(gift.gift_name)+' '+escapeHTML(gift.gift_emoji)+'</p><p class="wired-gift-points">+'+Number(gift.total_points)+' points will be added to your account if accepted, including the 10% gift bonus.</p><div class="wired-gift-response-actions"><button type="button" class="primary" id="acceptWiredGift">Accept gift</button><button type="button" class="ghost" id="rejectWiredGift">Reject gift</button></div></section>';
  document.body.appendChild(overlay);
- const closeGiftPopup=()=>{overlay.remove();wiredGiftPopupActive=false;};
+ const closeGiftPopup=()=>{wiredHandledGiftIds.add(gift.id);overlay.remove();if(!document.getElementById('wiredFriendGiftPopup'))wiredGiftPopupActive=false;};
  const respond=async accept=>{
   const acceptButton=overlay.querySelector('#acceptWiredGift'),rejectButton=overlay.querySelector('#rejectWiredGift');
   acceptButton.disabled=true;rejectButton.disabled=true;
@@ -1191,11 +1192,17 @@ function showFriendGiftPopup(gift,sender){
  overlay.querySelector('#acceptWiredGift').addEventListener('click',()=>respond(true));
  overlay.querySelector('#rejectWiredGift').addEventListener('click',()=>respond(false));
 }
+let wiredGiftCheckRunning=false;
+const wiredHandledGiftIds=new Set();
 async function checkIncomingFriendGifts(){
- if(!state.user||wiredGiftPopupActive)return;
+ if(!state.user||wiredGiftPopupActive||wiredGiftCheckRunning)return;
+ wiredGiftCheckRunning=true;
+ const recipient=state.user.id;
+ try{
  const {data,error}=await sb.from('global_friend_gifts').select('id,sender_id,gift_name,gift_emoji,total_points,sender_profile_scope,sender_community_id').eq('recipient_id',state.user.id) .eq('status','pending').order('created_at',{ascending:true}).limit(1);
  if(error||!data?.length){if(error)console.warn('Gift inbox unavailable',error);return;}
  const gift=data[0];
+ if(wiredHandledGiftIds.has(gift.id))return;
  const {data:allowed,error:allowedError}=await sb.rpc('wired_gift_sender_allowed',{p_sender:gift.sender_id});
  if(allowedError||!allowed){if(allowedError)console.warn('Gift block check failed',allowedError);return;}
  let senderName=null;
@@ -1204,7 +1211,10 @@ async function checkIncomingFriendGifts(){
   senderName=communitySender?.nickname||null;
  }
  if(!senderName){const {data:sender}=await sb.from('profiles').select('username').eq('id',gift.sender_id).maybeSingle();senderName=sender?.username;}
+ const {data:current,error:verifyError}=await sb.from('global_friend_gifts').select('status').eq('id',gift.id).eq('recipient_id',recipient).maybeSingle();
+ if(verifyError||current?.status!=='pending'||state.user?.id!==recipient||wiredGiftPopupActive||wiredHandledGiftIds.has(gift.id))return;
  showFriendGiftPopup(gift,senderName);
+ }finally{wiredGiftCheckRunning=false;}
 }
 function subscribeFriendGifts(){
  if(wiredGiftChannel){sb.removeChannel(wiredGiftChannel);wiredGiftChannel=null;}
