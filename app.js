@@ -506,8 +506,11 @@ async function startDMByUsername(username){try{
  if(!target?.id)throw new Error('Profile not found.');
  const {data:follows,error:friendError}=await sb.from('profile_follows').select('follower_id,following_id').or('and(follower_id.eq.'+state.user.id+',following_id.eq.'+target.id+'),and(follower_id.eq.'+target.id+',following_id.eq.'+state.user.id+')');
  if(friendError)throw friendError;
- if(follows?.length!==2)throw new Error('Only mutual global followers can chat.');
- const d=await api('/threads/dm','POST',{username});await loadThreads();await openThread(d.id);}catch(e){toast(errorText(e));}}
+ const {data:friendships,error:friendshipError}=await sb.from('friend_requests').select('id').eq('status','accepted').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+target.id+'),and(sender_id.eq.'+target.id+',recipient_id.eq.'+state.user.id+')').limit(1);
+ if(friendshipError)throw friendshipError;
+ if(follows?.length!==2&&!friendships?.length)throw new Error('Only confirmed friends or mutual global followers can chat.');
+ const d=await api('/threads/dm','POST',{username});
+ state.page='chats';await loadThreads();await openThread(d.id);}catch(e){toast(errorText(e));}}
 async function searchGlobalPeople(query,scope="people"){
  const key=scope==="discover"?"discoverPeopleSearchRequest":"peopleSearchRequest";
  const token=(state[key]||0)+1;state[key]=token;
