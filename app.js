@@ -1320,7 +1320,10 @@ async function openCommunityMemberProfile(userId){
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
   panel.innerHTML='<button type="button" class="ghost small" id="closeLocalProfile">Close</button><h2>'+escapeHTML(name)+'</h2>'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><p class="hint">Community-only identity · Global profile is separate</p>';
   document.querySelector('.community-local-profile-detail')?.remove();
-  document.querySelector('.community-local-profile')?.after(panel);
+  const host=document.querySelector('.community-main')||document.getElementById('view');
+  if(!host)throw new Error('Community page is not available.');
+  host.prepend(panel);
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>panel.remove());
  }catch(e){toast(errorText(e));}
 }
