@@ -1387,3 +1387,13 @@ button.header-points:hover,button.header-points:focus-visible{color:#fff1c7;back
 /* Global Store wallet opens the same transaction ledger as the header balance. */
 button.store-wallet-history{appearance:none;font:inherit;text-align:left;cursor:pointer;color:inherit;transition:border-color .18s,box-shadow .18s,transform .18s;}
 button.store-wallet-history:hover,button.store-wallet-history:focus-visible{border-color:#d19af3;box-shadow:0 0 18px rgba(167,68,219,.3);transform:translateY(-1px);outline-offset:3px;}
+
+/* Global Discovery: two distinct clickable destination panels */
+.discovery-hub{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:22px 0}
+.discovery-hub-panel{appearance:none;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;min-width:0;min-height:210px;padding:24px 14px;border:1px solid rgba(171,101,255,.48);border-radius:18px;background:linear-gradient(145deg,rgba(46,20,75,.95),rgba(12,8,25,.97));color:#f5edff;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:transform .18s,border-color .18s,box-shadow .18s}
+.discovery-hub-panel:hover,.discovery-hub-panel:focus-visible{transform:translateY(-3px);border-color:#c69aff;box-shadow:0 0 22px rgba(144,71,241,.24);outline:none}
+.discovery-hub-panel strong{font-size:clamp(16px,2.8vw,24px);letter-spacing:.03em}
+.discovery-hub-panel span:last-child{font-size:13px;line-height:1.45;color:#cbbbdc}
+.discovery-hub-icon{font-size:36px;color:#c39aff}
+.discovery-back{margin:12px 0 20px;padding:10px 16px;border:1px solid #8355bb;border-radius:10px;background:#211332;color:#f5eaff;cursor:pointer}
+@media(max-width:420px){.discovery-hub{gap:10px}.discovery-hub-panel{padding:18px 9px;min-height:185px}.discovery-hub-panel span:last-child{font-size:11px}}
