@@ -126,14 +126,21 @@ async function loadGlobalNotifications(){
  if(!state.user){state.notifications=[];state.notificationUnread=0;updateNotificationBell();return;}
  const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,thread_id,request_status,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
  if(error)throw error;
- const rows=data||[],actorIds=[...new Set(rows.map(x=>x.actor_id))],commentIds=[...new Set(rows.map(x=>x.profile_comment_id).filter(Boolean))];
+ const {data:communityRows,error:communityError}=await sb.from('community_notifications').select('id,community_id,recipient_id,actor_id,post_id,notification_type,created_at,read_at').eq('recipient_id',state.user.id).order('created_at',{ascending:false}).limit(100);
+ if(communityError)throw communityError;
+ const combined=[...(data||[]),...(communityRows||[]).map(n=>({...n,isCommunity:true}))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,150);
+ const communityIds=[...new Set(combined.filter(n=>n.isCommunity).map(n=>n.community_id))];
+ const {data:communityNames,error:communityNameError}=communityIds.length?await sb.from('communities').select('id,name').in('id',communityIds):{data:[],error:null};
+ if(communityNameError)throw communityNameError;
+ const communityMap=new Map((communityNames||[]).map(c=>[c.id,c.name]));
+ const rows=combined,actorIds=[...new Set(rows.map(x=>x.actor_id))],commentIds=[...new Set(rows.map(x=>x.profile_comment_id).filter(Boolean))];
  const [actors,comments]=await Promise.all([
   actorIds.length?sb.from("profiles").select("id,username,avatar_url").in("id",actorIds):{data:[],error:null},
   commentIds.length?sb.from("profile_comments").select("id,body").in("id",commentIds):{data:[],error:null}
  ]);
  if(actors.error)throw actors.error;if(comments.error)throw comments.error;
  const actorMap=new Map((actors.data||[]).map(x=>[x.id,x])),commentMap=new Map((comments.data||[]).map(x=>[x.id,x]));
- state.notifications=rows.map(n=>({...n,actor:actorMap.get(n.actor_id)||{username:"WIRED member"},comment:commentMap.get(n.profile_comment_id)}));
+ state.notifications=rows.map(n=>({...n,actor:actorMap.get(n.actor_id)||{username:"WIRED member"},comment:commentMap.get(n.profile_comment_id),communityName:communityMap.get(n.community_id)||"Community"}));
  state.notificationUnread=rows.filter(n=>!n.read_at).length;updateNotificationBell();
 }
 function updateNotificationBell(){
@@ -156,14 +163,14 @@ async function openNotifications(){
 }
 function renderNotifications(){
  const v=$("view"),rows=state.notifications||[];
- v.innerHTML='<div class="section-head"><div><h2>Global notifications</h2><p class="hint">Profile comments and new followers from across WIRED.</p></div><button class="ghost" id="markAllNotificationsRead" '+(state.notificationUnread?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
+ v.innerHTML='<div class="section-head"><div><h2>Notifications</h2><p class="hint">Global activity and updates from your communities.</p></div><button class="ghost" id="markAllNotificationsRead" '+(state.notificationUnread?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
   const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
-  const isChat=n.notification_type==="global_chat_request";
-  const detail=isComment&&n.comment?.body?'<p class="notification-excerpt">'+escapeHTML(n.comment.body)+'</p>':'';
-  return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isChat?'invited you to a global chat':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isChat?'CHAT REQUEST':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
- }).join(''):'<div class="empty">You\'re all caught up. New profile comments and followers will appear here.</div>')+'</div>';
+  const isChat=n.notification_type==="global_chat_request",isCommunity=!!n.isCommunity;
+  const detail=isCommunity?'<p class="notification-excerpt">From '+escapeHTML(n.communityName)+'</p>':isComment&&n.comment?.body?'<p class="notification-excerpt">'+escapeHTML(n.comment.body)+'</p>':'';
+  return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'" data-notification-community="'+escapeHTML(n.community_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isCommunity?'posted in '+escapeHTML(n.communityName):isChat?'invited you to a global chat':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isCommunity?'COMMUNITY':isChat?'CHAT REQUEST':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
+ }).join(''):'<div class="empty">You\'re all caught up. Global and community notifications will appear here.</div>')+'</div>';
  v.querySelector("#markAllNotificationsRead")?.addEventListener("click",markAllNotificationsRead);
- v.querySelectorAll(".notification-open[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment)));
+ v.querySelectorAll(".notification-open[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment,b.dataset.notificationCommunity)));
  v.querySelectorAll("[data-chat-request]").forEach(b=>b.addEventListener("click",()=>respondToGlobalChatRequest(b.dataset.chatRequest,b.dataset.thread,b.dataset.status,b)));
 }
 async function respondToGlobalChatRequest(notificationId,threadId,status,button){
@@ -176,11 +183,14 @@ async function respondToGlobalChatRequest(notificationId,threadId,status,button)
 async function markAllNotificationsRead(){
  if(!state.user)return;
  const {error}=await sb.from("global_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",state.user.id).is("read_at",null);
- if(error){toast(errorText(error));return;}await loadGlobalNotifications();renderNotifications();
+ if(error){toast(errorText(error));return;}
+ const {error:communityError}=await sb.from("community_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",state.user.id).is("read_at",null);
+ if(communityError){toast(errorText(communityError));return;}await loadGlobalNotifications();renderNotifications();
 }
-async function openNotification(id,actorId,type,commentId){
+async function openNotification(id,actorId,type,commentId,communityId){
  const row=state.notifications.find(n=>n.id===id);
- if(row&&!row.read_at){const {error}=await sb.from("global_notifications").update({read_at:new Date().toISOString()}).eq("id",id);if(error){toast(errorText(error));return;}await loadGlobalNotifications();}
+ if(row&&!row.read_at){const {error}=await sb.from(row.isCommunity?"community_notifications":"global_notifications").update({read_at:new Date().toISOString()}).eq("id",id);if(error){toast(errorText(error));return;}await loadGlobalNotifications();}
+ if(communityId){await openCommunity(communityId);return;}
  if(type==="profile_comment"&&commentId){
   state.page="profile";await Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).catch(()=>{});render();
   setTimeout(()=>document.getElementById("profile-comment-"+commentId)?.scrollIntoView({behavior:"smooth",block:"center"}),120);
