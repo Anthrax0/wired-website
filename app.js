@@ -280,7 +280,7 @@ async function loadProfileSocial(){
  if(friendsResult.error)throw friendsResult.error;
  const followingIds=(followingResult.data||[]).map(x=>x.following_id);
  const followerIds=(followersResult.data||[]).map(x=>x.follower_id);
- const friendIds=(friendsResult.data||[]).map(x=>x.sender_id===state.user.id?x.recipient_id:x.sender_id);
+ const friendIds=followingIds.filter(id=>followerIds.includes(id));
  const ids=[...new Set([...followingIds,...followerIds,...friendIds])];
  const {data:profiles,error}=ids.length?await sb.from("profiles").select("id,username,avatar_url").in("id",ids):{data:[],error:null};
  if(error)throw error;
@@ -321,16 +321,17 @@ async function openMemberProfile(userId){
   if(!data)throw new Error('This profile is unavailable.');
   if(companionResult.error)throw companionResult.error;
   data.companion=companionResult.data||null;
-  const [{data:comments,error:commentError},{data:follow},{data:friend},{data:relationship},{data:currentRelationship}] = await Promise.all([
+  const [{data:comments,error:commentError},{data:follow},{data:friend},{data:relationship},{data:currentRelationship},{data:reverseFollow}] = await Promise.all([
    sb.from('profile_comments') .select('id,profile_id,author_id,body,created_at,parent_comment_id').eq('profile_id',userId).order('created_at',{ascending:false}).limit(100),
    sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle(),
    sb.from('friend_requests').select('id,sender_id,recipient_id,status').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(sender_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').order('created_at',{ascending:false}).limit(1).maybeSingle(),
    sb.from('relationship_requests').select('id,requester_id,recipient_id,status').or('and(requester_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').in('status',['pending','accepted']).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-   sb.from('relationship_requests').select('id,requester_id,recipient_id,status').or('and(requester_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').eq('status','accepted').limit(1).maybeSingle()
+   sb.from('relationship_requests').select('id,requester_id,recipient_id,status').or('and(requester_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').eq('status','accepted').limit(1).maybeSingle(),
+   sb.from('profile_follows').select('follower_id').eq('follower_id',userId).eq('following_id',state.user.id).maybeSingle()
   ]);
   if(commentError)throw commentError;
   const commentIds=[...new Set((comments||[]).map(x=>x.author_id))];const {data:commentAuthors,error:authorsError}=commentIds.length?await sb.from('profiles').select('id,username,avatar_url').in('id',commentIds):{data:[],error:null};if(authorsError)throw authorsError;const authorMap=new Map((commentAuthors||[]).map(x=>[x.id,x]));
-  state.viewingProfile={...data,comments:(comments||[]).map(x=>({...x,author:authorMap.get(x.author_id)||{username:'WIRED member'}})),isFollowing:!!follow,friendRequest:friend||null,relationshipRequest:relationship||null,currentRelationship:currentRelationship||null};state.page='member-profile';renderMemberProfile();
+  state.viewingProfile={...data,comments:(comments||[]).map(x=>({...x,author:authorMap.get(x.author_id)||{username:'WIRED member'}})),isFollowing:!!follow,followsMe:!!reverseFollow,friendRequest:friend||null,relationshipRequest:relationship||null,currentRelationship:currentRelationship||null};state.page='member-profile';renderMemberProfile();
  }catch(e){toast(errorText(e));}
 }
 function profileYokaiMarkup(companion){
@@ -345,12 +346,12 @@ function renderMemberProfile(){
  const p=state.viewingProfile;if(!p)return;
  const v=$('view');const cover=p.cover_url?'url("'+escapeHTML(p.cover_url)+'")':'linear-gradient(120deg,#49246b,#171020 60%,#29133b)';
  const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="Profile photo">':'W';
- const fr=p.friendRequest;const friendLabel=fr?.status==='accepted'?'Friends':fr?.status==='pending'?(fr.sender_id===state.user?.id?'Request sent':'Respond to request'):'Add friend';
- v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card '+(p.equipped_theme_item_id?'equipped-profile-theme ':'')+equippedCosmeticClass(p.equipped_theme_item_id,'theme')+' '+(p.equipped_theme_item_id==='d703a32c-2257-4bb6-b18c-9f87d0fdc3a6'?'black-rose-theme':'')+'"><div class="profile-person"><div class="profile-avatar '+(p.equipped_frame_item_id?'equipped-neon-frame':'')+' '+equippedCosmeticClass(p.equipped_frame_item_id,'frame')+' '+(p.equipped_frame_item_id==='1a48d530-1e6b-4bde-9c99-c242bda3990c'?'orange-fruit-frame':'')+'">'+avatar+'</div><div><h2 class="'+(p.equipped_nameplate_item_id?'equipped-nameplate':'')+' '+equippedCosmeticClass(p.equipped_nameplate_item_id,'nameplate')+' '+(p.equipped_nameplate_item_id==='8028d5a4-d964-45e8-8241-fb00c652a42a'?'orange-fruit-nameplate':'')+' '+(p.equipped_theme_item_id?'equipped-violet-theme':'')+'">'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2>'+relationshipSubtitleMarkup(p.relationshipRequest,false)+(fr?.status==='accepted'?'<button type="button" class="ghost profile-name-chat" id="profileChatBtn">Chat</button>':'')+'</div></div>'+relationshipMarkup(p)+profileYokaiMarkup(p.companion)+'<section class="profile-about"><h3>About me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><button class="ghost" id="profileFriendBtn">'+friendLabel+'</button>' +'</div>'+profileCommentsMarkup(p.id,p.comments)+'</section>';
+ const fr=p.friendRequest;const isMutualFriend=!!(p.isFollowing&&p.followsMe);const friendLabel=isMutualFriend?'Friends':'Follow each other to become friends';
+ v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card '+(p.equipped_theme_item_id?'equipped-profile-theme ':'')+equippedCosmeticClass(p.equipped_theme_item_id,'theme')+' '+(p.equipped_theme_item_id==='d703a32c-2257-4bb6-b18c-9f87d0fdc3a6'?'black-rose-theme':'')+'"><div class="profile-person"><div class="profile-avatar '+(p.equipped_frame_item_id?'equipped-neon-frame':'')+' '+equippedCosmeticClass(p.equipped_frame_item_id,'frame')+' '+(p.equipped_frame_item_id==='1a48d530-1e6b-4bde-9c99-c242bda3990c'?'orange-fruit-frame':'')+'">'+avatar+'</div><div><h2 class="'+(p.equipped_nameplate_item_id?'equipped-nameplate':'')+' '+equippedCosmeticClass(p.equipped_nameplate_item_id,'nameplate')+' '+(p.equipped_nameplate_item_id==='8028d5a4-d964-45e8-8241-fb00c652a42a'?'orange-fruit-nameplate':'')+' '+(p.equipped_theme_item_id?'equipped-violet-theme':'')+'">'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2>'+relationshipSubtitleMarkup(p.relationshipRequest,false)+(isMutualFriend?'<button type="button" class="ghost profile-name-chat" id="profileChatBtn">Chat</button>':'')+'</div></div>'+relationshipMarkup(p)+profileYokaiMarkup(p.companion)+'<section class="profile-about"><h3>About me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><button class="ghost" id="profileFriendBtn">'+friendLabel+'</button>' +'</div>'+profileCommentsMarkup(p.id,p.comments)+'</section>';
  attachProfileCommentHandlers(p.id);
  $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('people')});
  $('profileFollowBtn')?.addEventListener('click',()=>toggleFollow(p.id));
- $('profileFriendBtn')?.addEventListener('click',()=>handleProfileFriend(p));
+
  $('profileChatBtn')?.addEventListener('click',()=>startDMByUsername(p.username));
  $('relationshipRequestBtn')?.addEventListener('click',()=>requestRelationship(p.id));
  $('relationshipAcceptBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'accepted'));
@@ -361,7 +362,7 @@ function renderMemberProfile(){
 async function toggleFollow(userId){
  try{const {data:existing,error}=await sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle();if(error)throw error;
  if(existing){const {error:e}=await sb.from('profile_follows').delete().eq('follower_id',state.user.id).eq('following_id',userId);if(e)throw e;}else{const {error:e}=await sb.from('profile_follows').insert({follower_id:state.user.id,following_id:userId});if(e)throw e;}
- if(state.viewingProfile?.id===userId){state.viewingProfile.isFollowing=!existing;renderMemberProfile();}else{toast(existing?'Unfollowed profile.':'Following profile.');await loadPeople();}
+ if(state.viewingProfile?.id===userId){state.viewingProfile.isFollowing=!existing;renderMemberProfile();await loadProfileSocial();}else{toast(existing?'Unfollowed profile.':'Following profile.');await loadPeople();}
  }catch(e){toast(errorText(e));}
 }
 async function handleProfileFriend(p){
@@ -376,9 +377,9 @@ async function startDMByUsername(username){try{
  const {data:target,error:targetError}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
  if(targetError)throw targetError;
  if(!target?.id)throw new Error('Profile not found.');
- const {data:friend,error:friendError}=await sb.from('friend_requests').select('id').eq('status','accepted').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+target.id+'),and(sender_id.eq.'+target.id+',recipient_id.eq.'+state.user.id+')').limit(1);
+ const {data:follows,error:friendError}=await sb.from('profile_follows').select('follower_id,following_id').or('and(follower_id.eq.'+state.user.id+',following_id.eq.'+target.id+'),and(follower_id.eq.'+target.id+',following_id.eq.'+state.user.id+')');
  if(friendError)throw friendError;
- if(!friend?.length)throw new Error('Only friends can invite each other to chat.');
+ if(follows?.length!==2)throw new Error('Only mutual global followers can chat.');
  const d=await api('/threads/dm','POST',{username});await loadThreads();await openThread(d.id);}catch(e){toast(errorText(e));}}
 async function searchGlobalPeople(query,scope="people"){
  const key=scope==="discover"?"discoverPeopleSearchRequest":"peopleSearchRequest";
