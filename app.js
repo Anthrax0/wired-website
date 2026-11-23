@@ -2,7 +2,7 @@ function communityMemberLevel(points){return Math.min(99,Math.max(1,Math.floor(M
 const COMMUNITY_RANKS=[
  {min:1,name:'Beginner',symbol:'●',tier:'newblood'},
  {min:5,name:'Novice',symbol:'●',tier:'initiate'},
- {min:10,name:'Member',symbol:'◆',tier:'nightwalker'},
+ {min:10,name:'Decaffeinated',symbol:'◆',tier:'nightwalker'},
  {min:20,name:'Regular',symbol:'◆',tier:'phantom'},
  {min:30,name:'Contributor',symbol:'★',tier:'sentinel'},
  {min:45,name:'Experienced',symbol:'★',tier:'warden'},
