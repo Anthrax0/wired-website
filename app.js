@@ -280,12 +280,13 @@ async function openMemberProfile(userId){
   state.profileReturnPage=state.page;
   const [profileResult,companionResult]=await Promise.all([
    sb.from('profiles').select('id,username,bio,avatar_url,cover_url,id_verified,equipped_frame_item_id,equipped_nameplate_item_id,equipped_theme_item_id').eq('id',userId).maybeSingle(),
-   api('/profiles/'+encodeURIComponent(userId)).catch(e=>{console.warn('Member companion unavailable',e);return {companion:null};})
+   sb.rpc('profile_bonded_companion',{p_profile_id:userId})
   ]);
   const {data,error}=profileResult;
   if(error)throw error;
   if(!data)throw new Error('This profile is unavailable.');
-  data.companion=companionResult.companion||null;
+  if(companionResult.error)throw companionResult.error;
+  data.companion=companionResult.data||null;
   const [{data:comments,error:commentError},{data:follow},{data:friend},{data:relationship},{data:currentRelationship}] = await Promise.all([
    sb.from('profile_comments') .select('id,profile_id,author_id,body,created_at,parent_comment_id').eq('profile_id',userId).order('created_at',{ascending:false}).limit(100),
    sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle(),
