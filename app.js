@@ -528,20 +528,30 @@ async function equipGlobalStoreItem(id){
  }catch(e){toast(errorText(e));}
 }
 async function toggleGlobalStoreCosmetic(id,button){
+ const wasUnequip=button?.textContent?.trim()==='Unequip';
  if(button){button.disabled=true;button.textContent='Updating…';}
  try{
-  const {data,error}=await sb.rpc('toggle_my_profile_cosmetic',{p_item_id:id});
-  if(error)throw error;
-  if(!data||!['equipped','unequipped'].includes(data.action))throw new Error('Unexpected cosmetic update response.');
+  const item=(state.globalStoreItems||[]).find(x=>String(x.id)===String(id));
+  if(!item)throw new Error('Cosmetic not found. Reload the store.');
+  const key=String(item.sku||'')+' '+String(item.name||'');
+  const slot=/frame/i.test(key)?'frame':/nameplate/i.test(key)?'nameplate':/theme/i.test(key)?'theme':null;
+  if(!slot)throw new Error('This item has no profile cosmetic slot.');
+  const field={frame:'equipped_frame_item_id',nameplate:'equipped_nameplate_item_id',theme:'equipped_theme_item_id'}[slot];
+  if(wasUnequip){
+   // Explicit Unequip must NEVER toggle an already-cleared item back on.
+   const {error}=await sb.rpc('unequip_my_profile_cosmetic_slot',{p_slot:slot});
+   if(error)throw error;
+  }else{
+   const {error}=await sb.rpc('equip_my_profile_cosmetic',{p_item_id:id});
+   if(error)throw error;
+  }
   await loadProfile();
-  const field={frame:'equipped_frame_item_id',nameplate:'equipped_nameplate_item_id',theme:'equipped_theme_item_id'}[data.slot];
-  if(!field)throw new Error('Unknown cosmetic slot.');
   const actual=state.profile?.[field]||null;
-  if(data.action==='unequipped'&&actual!==null)throw new Error('Server still shows this cosmetic equipped.');
-  if(data.action==='equipped'&&String(actual)!==String(id))throw new Error('Server did not confirm the equipped cosmetic.');
-  toast('Profile '+data.slot+' '+data.action+'.');
+  if(wasUnequip&&actual!==null)throw new Error('The '+slot+' remains equipped on the server.');
+  if(!wasUnequip&&String(actual)!==String(id))throw new Error('The '+slot+' was not equipped on the server.');
+  toast('Profile '+slot+(wasUnequip?' unequipped.':' equipped.'));
   render();
- }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent='Retry';}}
+ }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent=wasUnequip?'Unequip':'Equip';}}
 }
 async function unequipGlobalStoreItem(id){
  try{
