@@ -1216,3 +1216,8 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  color:#d7b5ff!important;
  text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
 }
+
+/* Render the user's exact ✌︎ character as real tab content, not a generated pseudo-icon. */
+.tabs .tab[data-page="profile"]::before{content:none!important;display:none!important}
+.tabs .tab[data-page="profile"]{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important}
+.tabs .tab[data-page="profile"] .me-tab-symbol{display:block!important;font-family:"Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif!important;font-variant:normal!important;font-size:clamp(21px,3.8vw,30px)!important;font-weight:400!important;line-height:1.1!important;margin-bottom:7px!important;color:#d7b5ff!important;text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important}
