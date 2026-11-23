@@ -1529,11 +1529,27 @@ async function loadCommunityLocalProfile(){
    if(freshError)throw freshError;
    if(!preview.isConnected)return;
    preview.querySelector('.community-preview-bio').textContent=fresh.bio||'No community biography yet.';
+   // The member profile is rendered before this editor finishes loading. Sync its
+   // visible content from this fresh database read, not the earlier snapshot.
+   const detail=el.closest('.community-local-profile-detail');
+   const mainBio=detail?.querySelector('#communityProfileBio');
+   if(mainBio)mainBio.textContent=fresh.bio||'No community biography yet.';
+   const selector=el.querySelector('select[name="show_global_companion"]');
+   if(selector&&!selector.disabled){selector.value=fresh.show_global_companion?'true':'false';selector.dataset.savedValue=selector.value;}
    const slot=preview.querySelector('.community-preview-companion');
-   if(!fresh.show_global_companion){slot.replaceChildren();return;}
+   if(!fresh.show_global_companion){
+    slot.replaceChildren();
+    detail?.querySelector('.community-companion-section')?.remove();
+    return;
+   }
    const {data:pet,error:petError}=await sb.rpc('my_bonded_companion');
    if(!slot.isConnected)return;
    slot.innerHTML='<h4>Global Companion</h4>'+(pet&&!petError?profileYokaiMarkup(pet):'<p class="hint">'+escapeHTML(petError?errorText(petError):'No global companion equipped.')+'</p>');
+   if(detail){
+    let section=detail.querySelector('.community-companion-section');
+    if(!section){section=document.createElement('section');section.className='community-companion-section';detail.querySelector('.community-profile-biography')?.after(section);}
+    section.innerHTML='<h3>Global Companion</h3>'+(pet&&!petError?profileYokaiMarkup(pet):'<p class="hint">'+escapeHTML(petError?errorText(petError):'No global companion equipped.')+'</p>');
+   }
   }
   refreshCommunityPreview().catch(err=>{const slot=preview.querySelector('.community-preview-companion');if(slot)slot.textContent='Preview unavailable: '+errorText(err);});
   // Safari can restore stale form values on refresh, overriding the server-selected option.
