@@ -1535,3 +1535,5 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .wired-dialog-accept{border:1px solid #b65af5;background:linear-gradient(135deg,#7030a6,#39145f);color:#fff}
 .wired-dialog-input{display:block;width:100%;box-sizing:border-box;margin:0 0 22px;padding:13px;border:1px solid #a54ae5;border-radius:10px;background:#0b0713;color:#fff;font:inherit}
 .wired-dialog button:focus-visible,.wired-dialog-input:focus-visible{outline:2px solid #d69aff;outline-offset:3px}
+
+.community-level-badge{display:inline-flex;align-items:center;margin:2px 6px;padding:2px 8px;border:1px solid #9955d7;border-radius:999px;background:linear-gradient(120deg,#2a123e,#12091f);box-shadow:0 0 9px #7d28c044;color:#e9bdff;font-size:.72rem;font-weight:800;white-space:nowrap}
