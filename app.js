@@ -738,7 +738,7 @@ async function refreshWiredStaffAccess(){
 async function refreshUser(){
   const {data:{session}}=await sb.auth.getSession();
   state.user=session?.user||null;
-  if(state.user){await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();subscribeFriendGifts();subscribeRelationshipEnds();subscribeCommunityRelationshipEnds();await loadRelationshipData().catch(e=>console.warn("Relationship data unavailable",e));}
+  if(state.user){await loadGlobalStore().catch(e=>console.warn('Wallet refresh unavailable',e));await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();subscribeFriendGifts();subscribeRelationshipEnds();subscribeCommunityRelationshipEnds();await loadRelationshipData().catch(e=>console.warn("Relationship data unavailable",e));}
   else {if(wiredGiftChannel){sb.removeChannel(wiredGiftChannel);wiredGiftChannel=null;}document.getElementById('wiredFriendGiftPopup')?.remove();wiredGiftPopupActive=false;if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}state.relationshipEndPopup=null;document.getElementById("relationshipEndOverlay")?.remove();state.profile=null;state.communities=[];}
   await refreshWiredStaffAccess();
   render();
