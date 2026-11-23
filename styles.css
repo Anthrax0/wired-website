@@ -1331,6 +1331,6 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .community-local-profile-detail > .community-local-avatar{display:block;margin:0 auto 24px;}
 
 /* Distinguish companion release from feeding, training and resting. */
-.pet-release-action{background:linear-gradient(135deg,#1565d8,#2188f5)!important;border:1px solid #61b4ff!important;color:#fff!important;box-shadow:0 0 14px rgba(32,125,255,.25)!important;font-weight:700;}
-.pet-release-action:hover,.pet-release-action:focus-visible{background:linear-gradient(135deg,#1d76ee,#359bff)!important;border-color:#a2d9ff!important;box-shadow:0 0 20px rgba(44,139,255,.4)!important;}
+.pet-release-action{background:linear-gradient(135deg,#070f29,#132c59 58%,#0b1c3e)!important;border:1px solid #385b9c!important;color:#c6d9ff!important;box-shadow:0 0 16px rgba(15,45,115,.35),inset 0 1px 0 rgba(125,160,255,.12)!important;font-weight:700;}
+.pet-release-action:hover,.pet-release-action:focus-visible{background:linear-gradient(135deg,#0c1838,#1b3c70 58%,#112750)!important;border-color:#6a89c8!important;box-shadow:0 0 20px rgba(27,63,150,.45)!important;}
 .pet-release-action:disabled{opacity:.55;box-shadow:none!important;}
