@@ -23,16 +23,11 @@ async function loadProfile(){
   if(!state.user){state.profile=null;return;}
   const [profileResult,companionResult]=await Promise.all([
     sb.from("profiles").select("username,id_verified,bio,avatar_url,cover_url,equipped_frame_item_id,equipped_nameplate_item_id,equipped_theme_item_id").eq("id",state.user.id).maybeSingle(),
-    api("/profile/me?fresh="+Date.now()).catch(e=>{console.warn("Profile companion unavailable",e);return {companion:null};})
+    sb.rpc("my_bonded_companion")
   ]);
-  if(profileResult.error) throw profileResult.error;
-  const owned=await api("/pets?fresh="+Date.now()).then(d=>d.owned||[]).catch(e=>{console.warn("Could not verify owned companions",e);return null;});
-  const requested=companionResult.companion||null;
-  const verified=owned?.find(p=>String(p.id)===String(requested?.id));
-  const species=verified?.pet_species||{};
-  const companion=verified?{id:verified.id,nickname:verified.nickname,level:verified.level,pet_key:species.slug||requested?.pet_key,display_name:species.name||requested?.display_name,rarity:species.rarity||requested?.rarity}:null;
-  state.profile={...profileResult.data,companion};
-  if(owned)state.userPets=owned;
+  if(profileResult.error)throw profileResult.error;
+  if(companionResult.error)throw companionResult.error;
+  state.profile={...profileResult.data,companion:companionResult.data||null};
   if(!state.globalStoreItems.length)await loadGlobalStore().catch(e=>console.warn('Cosmetic catalog unavailable',e));
   state.profileComments=await loadProfileComments(state.user.id).catch(e=>{console.warn("Profile comments unavailable",e);return [];});
 }
