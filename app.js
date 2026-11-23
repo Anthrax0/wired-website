@@ -1117,6 +1117,17 @@ async function openCommunity(id){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
   if(state.activeCommunityRole){const d=await api('/communities/'+encodeURIComponent(id)+'/posts');state.posts=d.items||[];if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];await loadModerationData(id);}else{const {data:members,error:membersError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',id).order('joined_at',{ascending:true});if(membersError)throw membersError;state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}else{state.posts=[];state.moderationMembers=[];state.moderationReports=[];state.moderationActions=[];state.moderationWarnings=[];if(state.activeCommunityRole&&state.user){const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}
+  if(state.activeCommunityRole&&state.moderationMembers.length){
+   try{
+    const {data:locals,error:localError}=await sb.from('community_profiles').select('user_id,nickname,avatar_url').eq('community_id',id);
+    if(localError)throw localError;
+    const byId=new Map((locals||[]).map(p=>[p.user_id,p]));
+    state.moderationMembers=state.moderationMembers.map(m=>{
+     const local=byId.get(m.user_id);
+     return {...m,username:local?.nickname||m.username,avatar_url:local?.avatar_url||m.avatar_url};
+    });
+   }catch(profileError){console.warn('Community identities unavailable',profileError);}
+  }
   renderCommunity();
  }catch(e){toast(errorText(e));}
 }
