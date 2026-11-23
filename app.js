@@ -1519,39 +1519,25 @@ async function loadCommunityLocalProfile(){
   const currentName=data?.nickname||defaultNickname;
   const currentAvatar=data?.avatar_url||globalAvatar;
   el.innerHTML='<div class="community-cover-editor"><label class="field">Community profile banner<input id="communityCoverUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="hint">Upload a banner for this community profile only (up to 10 MB).</p></div><form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(currentName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(currentAvatar||'')+'"></label><label class="field">Yokai companion<select name="show_global_companion" autocomplete="off"><option value="false"'+(!data?.show_global_companion?' selected':'')+'>No companion</option><option value="true"'+(data?.show_global_companion?' selected':'')+'>Show my global companion</option></select></label><p class="hint">Companions can only be changed on your global profile. This community setting only controls visibility.</p><button type="submit" class="primary small">Save Community Profile</button></form>';
-  // Render a server-backed read-only preview in the editor as well as the member profile.
-  const preview=document.createElement('section');
-  preview.className='community-profile-live-preview';
-  preview.innerHTML='<h3>Community Profile Preview</h3><section class="community-profile-biography"><h4>About Me</h4><p class="community-preview-bio">'+escapeHTML(data?.bio||'No community biography yet.')+'</p></section><div class="community-preview-companion"></div>';
-  el.prepend(preview);
-  async function refreshCommunityPreview(){
+  // Keep the visible community profile synchronized with fresh server data.
+  async function refreshCommunityProfileDisplay(){
    const {data:fresh,error:freshError}=await sb.from('community_profiles').select('bio,show_global_companion').eq('community_id',cid).eq('user_id',uid).single();
    if(freshError)throw freshError;
-   if(!preview.isConnected)return;
-   preview.querySelector('.community-preview-bio').textContent=fresh.bio||'No community biography yet.';
-   // The member profile is rendered before this editor finishes loading. Sync its
-   // visible content from this fresh database read, not the earlier snapshot.
+   if(!el.isConnected)return;
    const detail=el.closest('.community-local-profile-detail');
    const mainBio=detail?.querySelector('#communityProfileBio');
    if(mainBio)mainBio.textContent=fresh.bio||'No community biography yet.';
    const selector=el.querySelector('select[name="show_global_companion"]');
    if(selector&&!selector.disabled){selector.value=fresh.show_global_companion?'true':'false';selector.dataset.savedValue=selector.value;}
-   const slot=preview.querySelector('.community-preview-companion');
-   if(!fresh.show_global_companion){
-    slot.replaceChildren();
-    detail?.querySelector('.community-companion-section')?.remove();
-    return;
-   }
+   if(!detail)return;
+   if(!fresh.show_global_companion){detail.querySelector('.community-companion-section')?.remove();return;}
    const {data:pet,error:petError}=await sb.rpc('my_bonded_companion');
-   if(!slot.isConnected)return;
-   slot.innerHTML='<h4>Global Companion</h4>'+(pet&&!petError?profileYokaiMarkup(pet):'<p class="hint">'+escapeHTML(petError?errorText(petError):'No global companion equipped.')+'</p>');
-   if(detail){
-    let section=detail.querySelector('.community-companion-section');
-    if(!section){section=document.createElement('section');section.className='community-companion-section';detail.querySelector('.community-profile-biography')?.after(section);}
-    section.innerHTML='<h3>Global Companion</h3>'+(pet&&!petError?profileYokaiMarkup(pet):'<p class="hint">'+escapeHTML(petError?errorText(petError):'No global companion equipped.')+'</p>');
-   }
+   if(!detail.isConnected)return;
+   let section=detail.querySelector('.community-companion-section');
+   if(!section){section=document.createElement('section');section.className='community-companion-section';detail.querySelector('.community-profile-biography')?.after(section);}
+   section.innerHTML='<h3>Global Companion</h3>'+(pet&&!petError?profileYokaiMarkup(pet):'<p class="hint">'+escapeHTML(petError?errorText(petError):'No global companion equipped.')+'</p>');
   }
-  refreshCommunityPreview().catch(err=>{const slot=preview.querySelector('.community-preview-companion');if(slot)slot.textContent='Preview unavailable: '+errorText(err);});
+  refreshCommunityProfileDisplay().catch(err=>console.warn('Community profile refresh failed:',err));
   // Safari can restore stale form values on refresh, overriding the server-selected option.
   const companionSelect=el.querySelector('select[name="show_global_companion"]');
   if(companionSelect){
@@ -1565,7 +1551,7 @@ async function loadCommunityLocalProfile(){
      if(updateError)throw updateError;
      if(updated?.show_global_companion!==next)throw new Error('Companion setting was not saved.');
      companionSelect.dataset.savedValue=next?'true':'false';
-     await refreshCommunityPreview();
+     await refreshCommunityProfileDisplay();
      toast(next?'Global companion enabled for this community.':'Community companion hidden.');
      const {data:pet,error:petError}=next?await sb.rpc('my_bonded_companion'):{data:null,error:null};
      if(petError)console.warn('Community companion preview:',petError);
@@ -1609,7 +1595,7 @@ async function loadCommunityLocalProfile(){
     const visibleBio=document.getElementById('communityProfileBio');
     if(visibleBio)visibleBio.textContent=saved.bio||'No community biography yet.';
     toast('Community profile saved.');
-    try{await refreshCommunityPreview();}catch(refreshError){console.warn('Community preview refresh failed:',refreshError);}
+    try{await refreshCommunityProfileDisplay();}catch(refreshError){console.warn('Community preview refresh failed:',refreshError);}
     try{await openCommunityMemberProfile(uid);}catch(refreshError){console.warn('Community profile refresh failed:',refreshError);}
    }catch(err){toast('Could not save community profile: '+errorText(err));}
    finally{if(saveButton?.isConnected)saveButton.disabled=false;}
