@@ -854,8 +854,8 @@ function renderPetParadise(){
     $("petLoginBtn")?.addEventListener("click",openAuth);return;
   }
   const pets=state.userPets||[],first=state.freeFirstCommonAvailable===true;
-  const rarityLevels=["common","rare","epic","legendary","mythical"];
-  const rarityLabel=r=>({common:"Common",rare:"Rare",epic:"Epic",legendary:"Legendary",mythical:"Mythical"}[String(r||"").toLowerCase()]||r);
+  const rarityLevels=["common","uncommon","rare","epic","legendary","mythical"];
+  const rarityLabel=r=>({common:"Common",uncommon:"Uncommon",rare:"Rare",epic:"Epic",legendary:"Legendary",mythical:"Mythical"}[String(r||"").toLowerCase()]||r);
   const rarityGroup=(items,renderCard,gridClass)=>rarityLevels.map(rarity=>{const group=items.filter(item=>String((item.pet_species||item).rarity||"common").toLowerCase()===rarity);return group.length?'<section class="yokai-rarity-group"><h3 class="yokai-rarity-heading">'+rarityLabel(rarity)+' <span>('+group.length+')</span></h3><div class="'+gridClass+'">'+group.map(renderCard).join("")+'</div></section>':"";}).join("");
   const petCards=rarityGroup(pets,p=>{
     const species=p.pet_species||{},xp=Number(p.xp)||0,level=Number(p.level)||1,progress=xp%100,evolved=level>=Number(species.evolution_level||5);
