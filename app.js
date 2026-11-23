@@ -1047,7 +1047,7 @@ async function loadGiftFriends(){
 }
 async function loadReturnedGiftInventory(){
  if(!state.user)return;
- const {data,error}=await sb.from('global_friend_gifts').select('id,gift_name,gift_emoji,base_points').eq('sender_id',state.user.id).eq('status','rejected').order('created_at',{ascending:false});
+ const {data,error}=await sb.from('global_friend_gifts').select('id,gift_name,gift_emoji,base_points').eq('sender_id',state.user.id) .in('status',['rejected','inventory']).order('created_at',{ascending:false});
  if(error)throw error;wiredGiftInventory=data||[];
 }
 async function resendReturnedGift(giftId){
@@ -1061,28 +1061,26 @@ async function resendReturnedGift(giftId){
  if(error)return toast(errorText(error));
  await loadReturnedGiftInventory();renderGlobalStore();toast('Gift sent again to '+friend.username+'.');
 }
-async function sendFriendGift(event){
+async function purchaseFriendGift(event){
  event.preventDefault();
- const recipient=document.getElementById('giftFriendRecipient')?.value;
  const giftKey=document.getElementById('giftTypeSelect')?.value;
- const friend=wiredGiftFriends.find(x=>x.id===recipient);
  const gift=WIRED_FRIEND_GIFTS.find(x=>x[0]===giftKey);
- if(!friend||!gift)return toast('Select a friend and a gift.');
- const bonus=Math.ceil(gift[3]*.1),total=gift[3]+bonus;
- if(gift[3]>state.globalStoreBalance)return toast('Not enough points for this gift.');
- const confirmed=await wiredDialog('Send '+gift[1]+' '+gift[2]+' to '+friend.username+'? You will spend '+gift[3]+' points. Your friend receives '+total+' points, including a '+bonus+' point friendship bonus.',{danger:false});
+ if(!gift)return toast('Choose a gift.');
+ if(gift[3]>state.globalStoreBalance)return toast('Not enough points.');
+ const confirmed=await wiredDialog('Purchase '+gift[1]+' '+gift[2]+' for '+gift[3]+' points? It will be added to your gift inventory, ready to send later.',{danger:false});
  if(!confirmed)return;
- const button=document.querySelector('#sendFriendGiftForm button[type="submit"]');if(button)button.disabled=true;
+ const button=document.querySelector('#purchaseFriendGiftForm button[type="submit"]');if(button)button.disabled=true;
  try{
-  const {data,error}=await sb.rpc('send_global_friend_gift',{p_recipient_id:recipient,p_gift_key:giftKey});
+  const {error}=await sb.rpc('purchase_global_friend_gift',{p_gift_key:giftKey});
   if(error)throw error;
-  await loadGlobalStore();renderGlobalStore();toast('Gift sent to '+friend.username+'! '+data.total_points+' points available when accepted.');
+  await Promise.all([loadGlobalStore(),loadReturnedGiftInventory()]);
+  renderGlobalStore();toast(gift[2]+' added to your gift inventory.');
  }catch(error){toast(errorText(error));if(button)button.disabled=false;}
 }
 function updateGiftPrice(){
  const gift=WIRED_FRIEND_GIFTS.find(x=>x[0]===document.getElementById('giftTypeSelect')?.value);
  const target=document.getElementById('friendGiftPrice');if(!target||!gift)return;
- const bonus=Math.ceil(gift[3]*.1);target.textContent='You pay '+gift[3]+' points. Your friend receives '+(gift[3]+bonus)+' points, including a 10% friendship bonus (+'+bonus+').';
+ target.textContent='Purchase for '+gift[3]+' points. Send later from your inventory. Your friend receives '+(gift[3]+Math.ceil(gift[3]*.1))+' points when accepted, including the 10% friendship bonus.';
 }
 function showFriendGiftPopup(gift,sender){
  wiredGiftPopupActive=true;
@@ -1135,10 +1133,10 @@ function renderGlobalStore(){
  const back='<button type="button" class="ghost wired-store-back" data-store-section="home">← All shop categories</button>';
  const inventoryProfile='<section class="store-purchases"><div class="section-head"><h2>✨ My profile purchases</h2><span>Your account inventory</span></div>'+profileInventory+'</section>';
  const inventoryYokai='<section class="store-purchases"><div class="section-head"><div><h2>🐾 Yokai wardrobe</h2><span>Choose a companion to equip each item to.</span></div></div>'+petInventory+'</section>';
- const giftShop='<section class="card wired-gift-shop"><div class="section-head"><h2>🎁 Gifts for Friends</h2></div><p>Choose a gift and send it to a mutual global friend. You pay only the gift price. Your friend receives the gift value plus a 10% friendship bonus in WIRED points.</p><form id="sendFriendGiftForm"><label class="field">Send to a friend<select id="giftFriendRecipient" required><option value="">Choose a global friend</option>'+wiredGiftFriends.map(f=>'<option value="'+escapeHTML(f.id)+'">'+escapeHTML(f.username)+'</option>').join('')+'</select></label>'+(wiredGiftFriends.length?'':'<p class="hint">No mutual global friends found. Follow each other to become friends.</p>')+'<label class="field">Choose a gift<select id="giftTypeSelect" required>'+WIRED_FRIEND_GIFTS.map(g=>'<option value="'+g[0]+'">'+g[1]+' '+g[2]+' · '+g[3]+' points</option>').join('')+'</select></label><div class="wired-gift-grid">'+WIRED_FRIEND_GIFTS.map(g=>'<button type="button" class="wired-gift-tile" data-select-gift="'+g[0]+'"><span>'+g[1]+'</span><strong>'+g[2]+'</strong><small>'+g[3]+' points</small></button>').join('')+'</div><p class="hint" id="friendGiftPrice"></p><button type="submit" class="primary" '+(wiredGiftFriends.length?'':'disabled')+'>Send gift</button></form><section class="wired-returned-gifts"><h3>Returned Gift Inventory</h3><p class="hint">Rejected gifts return here. Select a friend above to resend one at no additional cost.</p><div class="wired-gift-grid">'+(wiredGiftInventory.map(g=>'<article class="wired-gift-tile"><span>'+escapeHTML(g.gift_emoji)+'</span><strong>'+escapeHTML(g.gift_name)+'</strong><small>Purchased for '+Number(g.base_points)+' points</small><button type="button" class="ghost" data-resend-gift="'+escapeHTML(g.id)+'">Send again</button></article>').join('')||'<p class="hint">No returned gifts.</p>')+'</div></section></section>';
+ const giftShop='<section class="card wired-gift-shop"><div class="section-head"><h2>🎁 Gifts for Friends</h2></div><p>Purchase gifts first and save them in your gift inventory. Choose a friend only when you are ready to send. Your friend receives the gift value plus a 10% friendship bonus when they accept.</p><form id="purchaseFriendGiftForm"><label class="field">Choose a gift<select id="giftTypeSelect" required>'+WIRED_FRIEND_GIFTS.map(g=>'<option value="'+g[0]+'">'+g[1]+' '+g[2]+' · '+g[3]+' points</option>').join('')+'</select></label><div class="wired-gift-grid">'+WIRED_FRIEND_GIFTS.map(g=>'<button type="button" class="wired-gift-tile" data-select-gift="'+g[0]+'"><span>'+g[1]+'</span><strong>'+g[2]+'</strong><small>'+g[3]+' points</small></button>').join('')+'</div><p class="hint" id="friendGiftPrice"></p><button type="submit" class="primary">Purchase gift</button></form><section class="wired-returned-gifts"><h3>🎁 My Gift Inventory</h3><p class="hint">Purchased and rejected gifts are stored here. Sending a gift costs no additional points.</p><label class="field">Send inventory gift to<select id="giftFriendRecipient"><option value="">Choose a global friend</option>'+wiredGiftFriends.map(f=>'<option value="'+escapeHTML(f.id)+'">'+escapeHTML(f.username)+'</option>').join('')+'</select></label><div class="wired-gift-grid">'+(wiredGiftInventory.map(g=>'<article class="wired-gift-tile"><span>'+escapeHTML(g.gift_emoji)+'</span><strong>'+escapeHTML(g.gift_name)+'</strong><small>Purchased for '+Number(g.base_points)+' points</small><button type="button" class="ghost" data-resend-gift="'+escapeHTML(g.id)+'">Send gift</button></article>').join('')||'<p class="hint">Your gift inventory is empty.</p>')+'</div></section></section>';
  const contents=wiredStoreSection==='profile'?back+(profileShop||'<div class="empty">No profile cosmetics available yet.</div>')+inventoryProfile:wiredStoreSection==='yokai'?back+(petShop||'<div class="empty">No yokai products available yet.</div>')+inventoryYokai:wiredStoreSection==='gifts'?back+giftShop:storeHome;
  v.innerHTML='<div class="store-heading"><div class="section-head"><div><span class="pill">APP-WIDE STORE</span><h2>WIRED Global Store</h2><p>Choose a shop category to browse its products.</p></div><button type="button" class="store-wallet store-wallet-history" aria-label="View points transaction history" title="View points earned and spent"><span>Your points</span><b>◉ '+Number(state.globalStoreBalance||0)+'</b></button></div></div>'+contents;
- v.querySelector('#sendFriendGiftForm')?.addEventListener('submit',sendFriendGift);
+ v.querySelector('#purchaseFriendGiftForm')?.addEventListener('submit',purchaseFriendGift);
  v.querySelectorAll('[data-resend-gift]').forEach(button=>button.addEventListener('click',()=>resendReturnedGift(button.dataset.resendGift)));
  v.querySelector('#giftTypeSelect')?.addEventListener('change',updateGiftPrice);
  v.querySelectorAll('[data-select-gift]').forEach(button=>button.addEventListener('click',()=>{const select=v.querySelector('#giftTypeSelect');if(select){select.value=button.dataset.selectGift;updateGiftPrice();}v.querySelectorAll('[data-select-gift]').forEach(tile=>tile.classList.toggle('selected',tile===button));}));
