@@ -512,8 +512,15 @@ async function loadGlobalStore(){
  if(ledgerError)console.warn('Wallet ledger unavailable; using store balance',ledgerError);
 }
 async function equipGlobalStoreItem(id){
- try{await api('/store/equip','POST',{item_id:id});await loadProfile();await loadGlobalStore();toast('Cosmetic equipped on your global profile.');render();}
- catch(e){toast(errorText(e));}
+ try{
+  const {data:slot,error}=await sb.rpc('equip_my_profile_cosmetic',{p_item_id:id});
+  if(error)throw error;
+  await Promise.all([loadProfile(),loadGlobalStore()]);
+  const field={frame:'equipped_frame_item_id',nameplate:'equipped_nameplate_item_id',theme:'equipped_theme_item_id'}[slot];
+  if(!field||String(state.profile?.[field])!==String(id))throw new Error('Cosmetic selection could not be verified. Please reload.');
+  toast('New '+slot+' equipped. Previous '+slot+' replaced.');
+  render();
+ }catch(e){toast(errorText(e));}
 }
 async function purchaseGlobalStoreItem(id){
  try{
