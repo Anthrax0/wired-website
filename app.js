@@ -1432,8 +1432,9 @@ async function openCommunityMemberProfile(userId){
   const {data:activeRows,error:activeError}=await sb.from('community_relationships').select('id,requester_id,recipient_id,status').eq('community_id',cid).eq('status','accepted').or('requester_id.eq.'+uid+',recipient_id.eq.'+uid).limit(1);
   if(activeError)throw activeError;
   const myActive=activeRows?.[0],myPartner=myActive?(myActive.requester_id===uid?myActive.recipient_id:myActive.requester_id):null;
-  const {data:socialRows,error:socialError}=await sb.from('community_profile_follows').select('follower_id,following_id').eq('community_id',cid).or('follower_id.eq.'+userId+',following_id.eq.'+userId);
-  if(socialError)throw socialError;
+  // Use the same community follow records for button state and social counts.
+  // A separate filtered request can disagree with the already loaded follow state.
+  const socialRows=follows||[];
   const followerIds=new Set((socialRows||[]).filter(f=>f.following_id===userId).map(f=>f.follower_id));
   const followingIds=new Set((socialRows||[]).filter(f=>f.follower_id===userId).map(f=>f.following_id));
   const socialGroups={followers:[...followerIds],following:[...followingIds],friends:[...followerIds].filter(id=>followingIds.has(id))};
