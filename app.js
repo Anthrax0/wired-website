@@ -1218,7 +1218,31 @@ async function loadModerationData(communityId){
  if(reportError)throw reportError;
  state.moderationReports=reports||[];
 }
-async function logModerationAction(action,targetUserId=null,details=''){const {error}=await sb.from('moderation_actions').insert({community_id:state.activeCommunity.id,actor_id:state.user.id,target_user_id:targetUserId,action,details});if(error)throw error;}async function issueMemberWarning(userId,reason){const {error}=await sb.from('moderation_warnings').insert({community_id:state.activeCommunity.id,user_id:userId,moderator_id:state.user.id,reason});if(error)throw error;await logModerationAction('issue_warning',userId,reason);toast('Warning issued.');await openCommunity(state.activeCommunity.id);}async function setMemberRole(userId,role){try{const {error}=await sb.from('community_members').update({role}).eq('community_id',state.activeCommunity.id).eq('user_id',userId);if(error)throw error;await logModerationAction(role==='mod'?'promote_moderator':'remove_moderator',userId,'Role changed to '+role);toast(role==='mod'?'Moderator added.':'Moderator role removed.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}}
+async function logModerationAction(action,targetUserId=null,details=''){const {error}=await sb.from('moderation_actions').insert({community_id:state.activeCommunity.id,actor_id:state.user.id,target_user_id:targetUserId,action,details});if(error)throw error;}async function issueMemberWarning(userId,reason){const {error}=await sb.from('moderation_warnings').insert({community_id:state.activeCommunity.id,user_id:userId,moderator_id:state.user.id,reason});if(error)throw error;await logModerationAction('issue_warning',userId,reason);toast('Warning issued.');await openCommunity(state.activeCommunity.id);}async function setMemberRole(userId,role){
+ const cid=state.activeCommunity?.id;
+ const button=Array.from(document.querySelectorAll('[data-member-role]')).find(b=>b.dataset.memberRole===userId);
+ if(button)button.disabled=true;
+ try{
+  const {data,error}=await sb.from('community_members').update({role}).eq('community_id',cid).eq('user_id',userId).select('user_id,role').maybeSingle();
+  if(error)throw error;
+  if(!data||data.role!==role)throw new Error('Moderator change was not saved. Check your community permissions.');
+  const member=state.moderationMembers.find(m=>m.user_id===userId);
+  if(member)member.role=data.role;
+  document.querySelectorAll('[data-member-role]').forEach(b=>{
+   if(b.dataset.memberRole!==userId)return;
+   b.dataset.nextRole=role==='mod'?'member':'mod';
+   b.textContent=role==='mod'?'Remove moderator':'Make moderator';
+  });
+  document.querySelectorAll('.member-sidebar-item').forEach(b=>{
+   if(b.dataset.profileId!==userId)return;
+   const label=b.querySelector('small');if(label)label.textContent=role==='mod'?'Moderator':'Member';
+  });
+  try{await logModerationAction(role==='mod'?'promote_moderator':'remove_moderator',userId,'Role changed to '+role);}catch(logError){console.warn('Moderator change saved; audit log failed',logError);}
+  toast(role==='mod'?'Moderator added.':'Moderator role removed.');
+  await openCommunity(cid);
+ }catch(e){toast(errorText(e));}
+ finally{if(button?.isConnected)button.disabled=false;}
+}
 async function setMemberBanned(userId,banned){try{let banned_until=null;if(banned){const choice=prompt('Ban duration in hours. Enter 0 for a permanent ban.','24');if(choice===null)return;const hours=Number(choice);if(!Number.isFinite(hours)||hours<0||hours>8760){toast('Enter 0 to 8760 hours.');return;}banned_until=hours===0?null:new Date(Date.now()+hours*3600000).toISOString();}const {error}=await sb.from('community_members').update({banned,banned_until}).eq('community_id',state.activeCommunity.id).eq('user_id',userId);if(error)throw error;await logModerationAction(banned?'ban_member':'unban_member',userId,banned?(banned_until?'Temporary ban until '+banned_until:'Permanent ban'):'Ban lifted');toast(banned?'Member banned.':'Member unbanned.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}}
 async function resolveCommunityReport(reportId){
  try{const {error}=await sb.from('reports').update({status:'resolved'}).eq('id',reportId);if(error)throw error;await logModerationAction('resolve_report',null,'Report '+reportId+' resolved');toast('Report resolved.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
