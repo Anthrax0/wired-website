@@ -1418,7 +1418,7 @@ async function openCommunityMemberProfile(userId){
  try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',cid);sessionStorage.setItem('wired:lastCommunityProfile',userId);}catch(e){}
  try{
   const [{data:local,error},{data:global,error:ge},{data:follows,error:fe},{data:relationships,error:re}]=await Promise.all([
-   sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
+   sb.from('community_profiles').select('nickname,bio,avatar_url,cover_url').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
    sb.from('profiles').select('username,avatar_url').eq('id',userId).maybeSingle(),
    sb.from('community_profile_follows').select('follower_id,following_id').eq('community_id',cid),
    sb.from('community_relationships').select('id,requester_id,recipient_id,status,ended_by').eq('community_id',cid).in('status',['pending','accepted']).or('and(requester_id.eq.'+uid+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+uid+')').limit(1)
@@ -1441,7 +1441,7 @@ async function openCommunityMemberProfile(userId){
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
   const own=userId===uid;
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
-  panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"></div><div class="profile-person"><div><h2>'+escapeHTML(name)+'</h2><p class="hint">'+escapeHTML(state.activeCommunity?.name||'Community')+' profile</p></div></div>'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
+  panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><h2>'+escapeHTML(name)+'</h2><p class="hint">'+escapeHTML(state.activeCommunity?.name||'Community')+' profile</p></div></div>'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
   const host=document.getElementById('view');
   if(!host)throw new Error('Community page is not available.');
   host.replaceChildren(panel);
@@ -1492,7 +1492,7 @@ async function loadCommunityLocalProfile(){
  const cid=state.activeCommunity?.id,uid=state.user?.id,el=document.getElementById('communityLocalProfile');
  if(!cid||!uid||!el)return;
  try{
-  const {data,error}=await sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',uid).maybeSingle();
+  const {data,error}=await sb.from('community_profiles').select('nickname,bio,avatar_url,cover_url').eq('community_id',cid).eq('user_id',uid).maybeSingle();
   if(error)throw error;
   const {data:globalProfile,error:globalError}=await sb.from('profiles').select('username,avatar_url').eq('id',uid).maybeSingle();
   if(globalError)throw globalError;
@@ -1507,7 +1507,24 @@ async function loadCommunityLocalProfile(){
   }
   const currentName=data?.nickname||defaultNickname;
   const currentAvatar=data?.avatar_url||globalAvatar;
-  el.innerHTML='<form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(currentName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(currentAvatar||'')+'"></label><button type="submit" class="primary small">Save Community Profile</button></form>';
+  el.innerHTML='<div class="community-cover-editor"><label class="field">Community profile banner<input id="communityCoverUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="hint">Upload a banner for this community profile only (up to 10 MB).</p></div><form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(currentName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(currentAvatar||'')+'"></label><button type="submit" class="primary small">Save Community Profile</button></form>';
+  el.querySelector('#communityCoverUpload')?.addEventListener('change',async event=>{
+   const file=event.target.files?.[0];if(!file)return;
+   const input=event.target;input.disabled=true;
+   try{
+    checkProfileImage(file);
+    const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[file.type];
+    const path=uid+'/communities/'+cid+'/cover-'+crypto.randomUUID()+'.'+ext;
+    const {error:uploadError}=await sb.storage.from('profile-media').upload(path,file,{contentType:file.type,cacheControl:'3600',upsert:false});
+    if(uploadError)throw uploadError;
+    const cover_url=sb.storage.from('profile-media').getPublicUrl(path).data.publicUrl;
+    const {error:saveError}=await sb.from('community_profiles').update({cover_url,updated_at:new Date().toISOString()}).eq('community_id',cid).eq('user_id',uid);
+    if(saveError)throw saveError;
+    toast('Community profile banner saved.');
+    await openCommunityMemberProfile(uid);
+   }catch(err){toast('Could not upload community banner: '+errorText(err));}
+   finally{input.disabled=false;input.value='';}
+  });
   el.querySelector('form')?.addEventListener('submit',async e=>{
    e.preventDefault();const f=e.currentTarget;const nickname=f.elements.nickname.value.trim(),bio=f.elements.bio.value.trim(),avatar_url=f.elements.avatar_url.value.trim()||null;
    if(!nickname)return toast('Enter a community nickname.');
