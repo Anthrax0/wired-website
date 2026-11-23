@@ -1071,10 +1071,16 @@ async function purchaseFriendGift(event){
  if(!confirmed)return;
  const button=document.querySelector('#purchaseFriendGiftForm button[type="submit"]');if(button)button.disabled=true;
  try{
-  const {error}=await sb.rpc('purchase_global_friend_gift',{p_gift_key:giftKey});
+  const {data,error}=await sb.rpc('purchase_global_friend_gift',{p_gift_key:giftKey});
   if(error)throw error;
+  if(!data?.gift_id)throw new Error('Purchase could not be confirmed. Please check your points history.');
   await Promise.all([loadGlobalStore(),loadReturnedGiftInventory()]);
-  renderGlobalStore();toast(gift[2]+' added to your gift inventory.');
+  if(!wiredGiftInventory.some(item=>item.id===data.gift_id)){
+   const {data:verified,error:verifyError}=await sb.from('global_friend_gifts').select('id,gift_name,gift_emoji,base_points').eq('id',data.gift_id).eq('sender_id',state.user.id).eq('status','inventory').maybeSingle();
+   if(verifyError||!verified)throw new Error('Gift purchased, but inventory has not refreshed. Reload this page before purchasing again.');
+   wiredGiftInventory.unshift(verified);
+  }
+  renderGlobalStore();toast(gift[2]+' saved to My Gift Inventory.');
  }catch(error){toast(errorText(error));if(button)button.disabled=false;}
 }
 function updateGiftPrice(){
