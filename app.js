@@ -897,8 +897,7 @@ function yokaiAccessoryOverlay(items,pet){
  const skus=new Set((items||[]).map(x=>String(x.global_store_items?.sku||x.sku||'')));
  const piece=(sku,art,style)=>skus.has(sku)?'<span title="'+escapeHTML(sku.replace(/pet-/g,'').replace(/-/g,' '))+'" style="position:absolute;'+style+';font-size:clamp(20px,5vw,34px);line-height:1;filter:drop-shadow(0 2px 6px #000);pointer-events:none">'+art+'</span>':'';
  const species=String(pet?.pet_species?.slug||pet?.pet_key||pet?.species?.slug||'').toLowerCase();
- const eclipse=skus.has('pet-rainbow-halo')?
- '<svg class="yokai-eclipse-halo" viewBox="0 0 120 120" aria-label="Eclipse Halo" style="position:absolute;z-index:4;top:-7%;left:50%;transform:translateX(-50%);width:35%;height:37%;overflow:visible;pointer-events:none;filter:drop-shadow(0 0 11px #aa6dff)"><defs><radialGradient id="wiredEclipseCorona"><stop offset="0.59" stop-color="#08050f"/><stop offset=".73" stop-color="#10091d"/><stop offset=".82" stop-color="#f3d5ff"/><stop offset=".89" stop-color="#9c48e9" stop-opacity=".9"/><stop offset="1" stop-color="#7b2cbe" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="60" r="58" fill="url(#wiredEclipseCorona)"/><circle cx="60" cy="60" r="34" fill="#08050e" stroke="#e3b8ff" stroke-width="2.5"/><path d="M31 39 A36 36 0 0 1 88 36" fill="none" stroke="#fff0ff" stroke-width="3" stroke-linecap="round"/><path d="M24 73 A38 38 0 0 0 96 70" fill="none" stroke="#8d3bc6" stroke-width="2" opacity=".8"/></svg>':'';
+ const eclipse=''; // Eclipse Halo visual effect disabled at user's request.
  return '<span class="yokai-accessory-layer" style="position:absolute;inset:0;pointer-events:none;z-index:3">'+
  eclipse+
  piece('pet-ear-crown','🔔','top:3%;left:50%;transform:translateX(-50%)')+
