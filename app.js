@@ -1343,22 +1343,48 @@ async function submitQuiz(e,id){
 }
 
 async function openCommunityMemberProfile(userId){
- const cid=state.activeCommunity?.id;if(!cid)return;
+ const cid=state.activeCommunity?.id,uid=state.user?.id;if(!cid||!uid)return;
  try{
-  const [{data:local,error},{data:global,error:ge}]=await Promise.all([
+  const [{data:local,error},{data:global,error:ge},{data:follows,error:fe},{data:relationships,error:re}]=await Promise.all([
    sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
-   sb.from('profiles').select('username,avatar_url').eq('id',userId).maybeSingle()
+   sb.from('profiles').select('username,avatar_url').eq('id',userId).maybeSingle(),
+   sb.from('community_profile_follows').select('follower_id,following_id').eq('community_id',cid).or('and(follower_id.eq.'+uid+',following_id.eq.'+userId+'),and(follower_id.eq.'+userId+',following_id.eq.'+uid+')'),
+   sb.from('community_relationships').select('id,requester_id,recipient_id,status').eq('community_id',cid).in('status',['pending','accepted']).or('and(requester_id.eq.'+uid+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+uid+')').limit(1)
   ]);
-  if(error)throw error;if(ge)throw ge;
+  if(error||ge||fe||re)throw error||ge||fe||re;
   const name=local?.nickname||global?.username||'Community member';
+  const following=(follows||[]).some(f=>f.follower_id===uid);
+  const followsMe=(follows||[]).some(f=>f.follower_id===userId);
+  const friends=following&&followsMe;
+  const relationship=relationships?.[0];
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
-  panel.innerHTML='<button type="button" class="ghost small" id="closeLocalProfile">Close</button><h2>'+escapeHTML(name)+'</h2>'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><p class="hint">Community-only identity · Global profile is separate</p>';
+  const own=userId===uid;
+  const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':friends?'Request relationship':'Become mutual community friends to request a relationship';
+  panel.innerHTML='<button type="button" class="ghost small" id="closeLocalProfile">Close</button><h2>'+escapeHTML(name)+'</h2>'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><p class="hint">Community-only identity · Global profile is separate</p>'+(own?'':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button>':'')+'</div>');
   document.querySelector('.community-local-profile-detail')?.remove();
   const host=document.querySelector('.community-main')||document.getElementById('view');
   if(!host)throw new Error('Community page is not available.');
-  host.prepend(panel);
-  panel.scrollIntoView({behavior:'smooth',block:'start'});
+  host.prepend(panel);panel.scrollIntoView({behavior:'smooth',block:'start'});
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>panel.remove());
+  panel.querySelector('#communityFollowBtn')?.addEventListener('click',async()=>{
+   try{
+    const query=sb.from('community_profile_follows');
+    const {error}=following?await query.delete().eq('community_id',cid).eq('follower_id',uid).eq('following_id',userId):await query.insert({community_id:cid,follower_id:uid,following_id:userId});
+    if(error)throw error;await openCommunityMemberProfile(userId);
+   }catch(e){toast(errorText(e));}
+  });
+  panel.querySelector('#communityRelationshipBtn')?.addEventListener('click',async()=>{
+   try{
+    const {error}=await sb.from('community_relationships').insert({community_id:cid,requester_id:uid,recipient_id:userId,status:'pending'});
+    if(error)throw error;toast('Community relationship request sent.');await openCommunityMemberProfile(userId);
+   }catch(e){toast(errorText(e));}
+  });
+  panel.querySelector('#acceptCommunityRelationship')?.addEventListener('click',async()=>{
+   try{
+    const {error}=await sb.from('community_relationships').update({status:'accepted',updated_at:new Date().toISOString()}).eq('id',relationship.id);
+    if(error)throw error;toast('Community relationship accepted.');await openCommunityMemberProfile(userId);
+   }catch(e){toast(errorText(e));}
+  });
  }catch(e){toast(errorText(e));}
 }
 async function loadCommunityLocalProfile(){
