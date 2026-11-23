@@ -28,6 +28,15 @@ async function loadProfile(){
   if(profileResult.error)throw profileResult.error;
   if(companionResult.error)throw companionResult.error;
   state.profile={...profileResult.data,companion:companionResult.data||null};
+  // Read cosmetic slots directly through an authenticated server-side function.
+  // This avoids stale or inconsistent profile SELECT results in the store UI.
+  const {data:cosmetics,error:cosmeticError}=await sb.rpc('my_profile_cosmetic_state');
+  if(cosmeticError)throw cosmeticError;
+  if(cosmetics){
+   state.profile.equipped_frame_item_id=cosmetics.frame||null;
+   state.profile.equipped_nameplate_item_id=cosmetics.nameplate||null;
+   state.profile.equipped_theme_item_id=cosmetics.theme||null;
+  }
   if(!state.globalStoreItems.length)await loadGlobalStore().catch(e=>console.warn('Cosmetic catalog unavailable',e));
   state.profileComments=await loadProfileComments(state.user.id).catch(e=>{console.warn("Profile comments unavailable",e);return [];});
 }
@@ -547,7 +556,7 @@ async function toggleGlobalStoreCosmetic(id,button){
   }
   await loadProfile();
   const actual=state.profile?.[field]||null;
-  if(wasUnequip&&actual!==null)throw new Error('The '+slot+' remains equipped on the server.');
+  if(wasUnequip&&actual!==null)throw new Error('The '+slot+' remains equipped for account '+(state.profile?.username||'unknown')+'.');
   if(!wasUnequip&&String(actual)!==String(id))throw new Error('The '+slot+' was not equipped on the server.');
   toast('Profile '+slot+(wasUnequip?' unequipped.':' equipped.'));
   render();
