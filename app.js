@@ -42,6 +42,7 @@ function profileCommentsMarkup(profileId,comments){
  const byParent=new Map();
  for(const item of rows){const parent=item.parent_comment_id||null;if(!byParent.has(parent))byParent.set(parent,[]);byParent.get(parent).push(item);}
  const renderOne=(x,depth=0,visited=new Set())=>{
+  if(!(visited instanceof Set))visited=new Set();
   if(depth>25||visited.has(x.id))return '';
   const seen=new Set(visited);seen.add(x.id);
   const id=escapeHTML(x.id);
