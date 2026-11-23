@@ -656,6 +656,8 @@ async function loadPetParadise(){
   state.petSpecies=data.species||[];
   state.userPets=data.owned||[];
   state.petEquipment=data.equipment||[];
+  const {data:recharges,error:rechargeError}=await sb.rpc("my_yokai_skill_recharges");
+  if(!rechargeError)state.yokaiSkillRecharges=Object.fromEntries((recharges||[]).map(x=>[String(x.pet_id),x.ready_at]));
   const {data:pastAdoptions,error:adoptionHistoryError}=await sb.from("global_wallet_transactions").select("id").eq("user_id",state.user.id).eq("transaction_type","purchase").like("source_id","pet:%").limit(1);
   state.freeFirstCommonAvailable=!state.userPets.length&&!adoptionHistoryError&&!(pastAdoptions||[]).length;
 }
@@ -728,7 +730,11 @@ async function invokeYokaiSkill(id,button){
   const skill=data?.skill||pet?.pet_species?.ability_name||"Yokai skill";
   yokaiSpeech.set(String(id),"✦ "+skill+" unleashed! "+(data?.critical?"A rare omen magnifies its power. ":"")+"+"+Number(data?.xp||0)+" XP · +"+Number(data?.points||0)+" points"+(data?.energy?" · +"+data.energy+" energy":"")+(data?.happiness?" · +"+data.happiness+" happiness":"")+(data?.fullness?" · +"+data.fullness+" fullness":""));
   await Promise.all([loadPetParadise(),loadGlobalStore()]);render();toast(skill+" activated! +"+Number(data?.points||0)+" points. Skill recharges in 1 hour.");
- }catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent="✦ Invoke Skill";}}
+ }catch(e){
+  await loadPetParadise().catch(()=>{});
+  render();
+  if(!Object.keys(state.yokaiSkillRecharges||{}).some(k=>k===String(id)))toast(errorText(e));
+ }
 }
 async function releasePet(id,button){
   const pet=(state.userPets||[]).find(x=>String(x.id)===String(id));
@@ -807,6 +813,21 @@ function petStat(label,value,icon){
   const n=Math.max(0,Math.min(100,Number(value)||0));
   return '<div class="pet-stat"><div><span>'+icon+' '+label+'</span><b>'+n+'%</b></div><div class="pet-stat-track"><i style="width:'+n+'%"></i></div></div>';
 }
+function yokaiRechargeLabel(readyAt){
+ const remaining=Math.max(0,Math.ceil((Date.parse(readyAt)-Date.now())/1000));
+ if(!remaining)return null;
+ return String(Math.floor(remaining/3600)).padStart(2,"0")+":"+String(Math.floor(remaining%3600/60)).padStart(2,"0")+":"+String(remaining%60).padStart(2,"0");
+}
+setInterval(()=>{
+ if(state.page!=="pets")return;
+ document.querySelectorAll("[data-yokai-skill]").forEach(button=>{
+  const id=button.dataset.yokaiSkill;
+  const until=state.yokaiSkillRecharges?.[id];
+  const remaining=until?yokaiRechargeLabel(until):null;
+  if(remaining){button.disabled=true;button.textContent="✦ Recharging "+remaining;}
+  else if(until){delete state.yokaiSkillRecharges[id];button.disabled=false;button.textContent="✦ Invoke Skill";}
+ });
+},1000);
 function renderPetParadise(){
   const v=$("view");
   if(!state.user){
