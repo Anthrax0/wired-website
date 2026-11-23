@@ -1528,8 +1528,15 @@ async function loadCommunityLocalProfile(){
   el.querySelector('form')?.addEventListener('submit',async e=>{
    e.preventDefault();const f=e.currentTarget;const nickname=f.elements.nickname.value.trim(),bio=f.elements.bio.value.trim(),avatar_url=f.elements.avatar_url.value.trim()||null;
    if(!nickname)return toast('Enter a community nickname.');
-   const {error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'});
-   if(error)return toast(errorText(error));toast('Community profile saved.');
+   const saveButton=f.querySelector('[type="submit"]');if(saveButton)saveButton.disabled=true;
+   try{
+    const {data:saved,error}=await sb.from('community_profiles').upsert({community_id:cid,user_id:uid,nickname,bio,avatar_url,updated_at:new Date().toISOString()},{onConflict:'community_id,user_id'}).select('nickname,bio,avatar_url').single();
+    if(error)throw error;
+    if(!saved||saved.bio!==bio)throw new Error('Community biography could not be verified after saving.');
+    toast('Community profile saved.');
+    await openCommunityMemberProfile(uid);
+   }catch(err){toast('Could not save community profile: '+errorText(err));}
+   finally{if(saveButton?.isConnected)saveButton.disabled=false;}
   });
  }catch(e){el.textContent='Community profile unavailable: '+errorText(e);}
 }
