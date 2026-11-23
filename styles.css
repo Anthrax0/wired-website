@@ -1190,3 +1190,16 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
  color:#d7b5ff!important;
  text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
 }
+
+/* Exact requested coffee-cup text symbol above Chats. */
+.tabs .tab[data-page="chats"]::before{
+ content:"☕︎"!important;
+ display:block!important;
+ font-family:"Segoe UI Symbol","Apple Symbols",sans-serif!important;
+ font-size:clamp(21px,3.8vw,30px)!important;
+ line-height:1.1!important;
+ margin-bottom:7px!important;
+ font-weight:400!important;
+ color:#d7b5ff!important;
+ text-shadow:0 0 7px #b550f9,0 0 17px #6c139f!important;
+}
