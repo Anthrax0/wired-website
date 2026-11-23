@@ -1302,12 +1302,12 @@ async function openCommunityMemberProfile(userId){
  try{
   const [{data:local,error},{data:global,error:ge}]=await Promise.all([
    sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
-   sb.from('profiles').select('username').eq('id',userId).maybeSingle()
+   sb.from('profiles').select('username,avatar_url').eq('id',userId).maybeSingle()
   ]);
   if(error)throw error;if(ge)throw ge;
   const name=local?.nickname||global?.username||'Community member';
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
-  panel.innerHTML='<button type="button" class="ghost small" id="closeLocalProfile">Close</button><h2>'+escapeHTML(name)+'</h2>'+(local?.avatar_url?'<img class="community-local-avatar" src="'+escapeHTML(local.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><p class="hint">Community-only identity · Global profile is separate</p>';
+  panel.innerHTML='<button type="button" class="ghost small" id="closeLocalProfile">Close</button><h2>'+escapeHTML(name)+'</h2>'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'')+'<p>'+escapeHTML(local?.bio||'No community biography yet.')+'</p><p class="hint">Community-only identity · Global profile is separate</p>';
   document.querySelector('.community-local-profile-detail')?.remove();
   document.querySelector('.community-local-profile')?.after(panel);
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>panel.remove());
@@ -1319,8 +1319,20 @@ async function loadCommunityLocalProfile(){
  try{
   const {data,error}=await sb.from('community_profiles').select('nickname,bio,avatar_url').eq('community_id',cid).eq('user_id',uid).maybeSingle();
   if(error)throw error;
-  const globalName=state.profile?.username||'Member';
-  el.innerHTML='<form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(data?.nickname||globalName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(data?.avatar_url||'')+'"></label><button type="submit" class="primary small">Save Community Profile</button></form>';
+  const {data:globalProfile,error:globalError}=await sb.from('profiles').select('username,avatar_url').eq('id',uid).maybeSingle();
+  if(globalError)throw globalError;
+  const globalName=globalProfile?.username||state.profile?.username||'Member';
+  const globalAvatar=globalProfile?.avatar_url||state.profile?.avatar_url||'';
+  const defaultNickname=(globalName||'Member').slice(0,40);
+  if(!data){
+   const {error:createError}=await sb.from('community_profiles').upsert({
+    community_id:cid,user_id:uid,nickname:defaultNickname,avatar_url:globalAvatar||null,bio:''
+   },{onConflict:'community_id,user_id',ignoreDuplicates:true});
+   if(createError)throw createError;
+  }
+  const currentName=data?.nickname||defaultNickname;
+  const currentAvatar=data?.avatar_url||globalAvatar;
+  el.innerHTML='<form id="communityLocalProfileForm"><label class="field">Community nickname<input name="nickname" maxlength="40" required value="'+escapeHTML(currentName)+'"></label><label class="field">Community biography<textarea name="bio" maxlength="2000" rows="3">'+escapeHTML(data?.bio||'')+'</textarea></label><label class="field">Community avatar URL<input name="avatar_url" type="url" placeholder="https://…" value="'+escapeHTML(currentAvatar||'')+'"></label><button type="submit" class="primary small">Save Community Profile</button></form>';
   el.querySelector('form')?.addEventListener('submit',async e=>{
    e.preventDefault();const f=e.currentTarget;const nickname=f.elements.nickname.value.trim(),bio=f.elements.bio.value.trim(),avatar_url=f.elements.avatar_url.value.trim()||null;
    if(!nickname)return toast('Enter a community nickname.');
