@@ -1383,3 +1383,7 @@ button.header-points:hover,button.header-points:focus-visible{color:#fff1c7;back
 .wired-points-transaction>div{display:flex;flex-direction:column;gap:5px;min-width:0;overflow-wrap:anywhere;}
 .wired-points-transaction small{color:#aa97b8;}
 .wired-points-transaction>b{white-space:nowrap;}
+
+/* Global Store wallet opens the same transaction ledger as the header balance. */
+button.store-wallet-history{appearance:none;font:inherit;text-align:left;cursor:pointer;color:inherit;transition:border-color .18s,box-shadow .18s,transform .18s;}
+button.store-wallet-history:hover,button.store-wallet-history:focus-visible{border-color:#d19af3;box-shadow:0 0 18px rgba(167,68,219,.3);transform:translateY(-1px);outline-offset:3px;}
