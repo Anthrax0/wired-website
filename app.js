@@ -467,7 +467,7 @@ function profileYokaiMarkup(companion){
  const name=companion.nickname||species;
  const portrait=yokaiPortraitUrl(species,companion.pet_key,false);
  const speciesClass=String(companion.pet_key||species).toLowerCase().replace(/[^a-z0-9-]/g,"");
- return '<section class="profile-yokai-card yokai-motion yokai-'+escapeHTML(speciesClass)+'"><div class="profile-yokai-art"><img class="yokai-portrait-image" src="'+portrait+'" alt="'+escapeHTML(species)+' companion"></div><div class="profile-yokai-info"><span class="profile-yokai-kicker">✦ BONDED COMPANION</span><h3>'+escapeHTML(name)+'</h3><p>'+escapeHTML(species)+' · Level '+Number(companion.level||1)+'</p><span class="profile-yokai-rarity">'+escapeHTML(companion.rarity||"Common")+'</span></div></section>';
+ return '<section class="profile-yokai-card yokai-motion yokai-'+escapeHTML(speciesClass)+'"><div class="profile-yokai-art"><img class="yokai-portrait-image" src="'+portrait+'" alt="'+escapeHTML(species)+' companion">'+yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>String(x.pet_id)===String(companion.id)),companion)+'</div><div class="profile-yokai-info"><span class="profile-yokai-kicker">✦ BONDED COMPANION</span><h3>'+escapeHTML(name)+'</h3><p>'+escapeHTML(species)+' · Level '+Number(companion.level||1)+'</p><span class="profile-yokai-rarity">'+escapeHTML(companion.rarity||"Common")+'</span></div></section>';
 }
 function renderMemberProfile(){
  const p=state.viewingProfile;if(!p)return;
