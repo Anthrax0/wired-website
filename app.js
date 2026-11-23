@@ -546,13 +546,13 @@ function handleCommunityNavigation(page){
  if(state.page!=='community'||!state.activeCommunity||!['home','chats','profile'].includes(page))return false;
  if(page==='home'){renderCommunity();window.scrollTo({top:0,behavior:'smooth'});return true;}
  if(page==='profile'){
-  const el=document.querySelector('.community-local-profile');
-  if(!el){toast('Join this community to create your community profile.');return true;}
-  el.scrollIntoView({behavior:'smooth',block:'start'});return true;
+  if(!state.activeCommunityRole){toast('Join this community to create your community profile.');return true;}
+  openCommunityMemberProfile(state.user.id).catch(e=>toast(errorText(e)));
+  return true;
  }
  if(page==='chats'){
-  const btn=document.getElementById('communityChatBtn');
-  if(btn)btn.click();else toast('Join this community to use Community Chats.');
+  if(!state.activeCommunityRole){toast('Join this community to use Community Chats.');return true;}
+  openCommunityChat(state.activeCommunity.id).catch(e=>toast(errorText(e)));
   return true;
  }
  return false;
