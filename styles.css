@@ -1200,3 +1200,13 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .profile-unified-content h3.orange-fruit-nameplate{display:inline-flex!important;align-items:center!important;width:fit-content!important;max-width:100%!important;margin:0 0 10px!important;padding:9px 15px!important;border:2px solid #ffbd4a!important;border-radius:13px 13px 13px 5px!important;background:linear-gradient(135deg,#ffcf54,#ff8a19 48%,#e94b08)!important;color:#662304!important;font-family:inherit!important;letter-spacing:.04em!important;text-shadow:0 1px 0 rgba(255,255,255,.55)!important;box-shadow:inset 0 2px 4px rgba(255,255,255,.7),0 3px 12px rgba(239,104,13,.38)!important}
 .profile-unified-content h3.orange-fruit-nameplate::before{content:"🍊"!important;display:inline!important;margin:0 7px 0 0!important;color:inherit!important;font:inherit!important;letter-spacing:normal!important}
 .profile-unified-content h3:not(.equipped-nameplate)::before{content:none!important}
+
+/* Companion display and switcher share one row; biography follows below. */
+.profile-companion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch;margin:18px 0}
+.profile-companion-grid>.profile-yokai-card,.profile-companion-grid>.profile-companion-switch{margin:0;min-width:0;height:100%;box-sizing:border-box}
+.profile-companion-grid .profile-yokai-card{gap:12px}
+.profile-companion-grid .profile-yokai-art{width:88px;height:88px;flex:0 0 88px}
+.profile-companion-grid .profile-companion-switch-row{display:flex;flex-direction:column;align-items:stretch}
+.profile-companion-grid .profile-companion-switch select{width:100%;flex:0 0 auto;box-sizing:border-box}
+.profile-companion-grid .profile-companion-switch button{width:100%}
+@media(max-width:600px){.profile-companion-grid{gap:8px}.profile-companion-grid>.profile-yokai-card,.profile-companion-grid>.profile-companion-switch{padding:10px;border-radius:13px}.profile-companion-grid .profile-yokai-card{flex-direction:column;align-items:flex-start}.profile-companion-grid .profile-yokai-art{width:76px;height:76px;flex:0 0 76px}.profile-companion-grid .profile-yokai-kicker{font-size:.6rem}.profile-companion-grid .profile-yokai-info h3{overflow-wrap:anywhere}.profile-companion-grid .profile-companion-switch label{font-size:.85rem}.profile-companion-grid .profile-companion-switch select{font-size:.85rem;padding:9px 6px}.profile-companion-grid .profile-companion-switch button{font-size:.85rem;padding:10px 6px}}
