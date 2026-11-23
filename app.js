@@ -1025,7 +1025,7 @@ async function equipPetStoreItem(itemId,petId,button){
  catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent="Equip to yokai";}}
 }
 let wiredStoreSection='home';
-try{const savedStoreSection=sessionStorage.getItem('wired:storeSection');if(['home','profile','yokai'].includes(savedStoreSection))wiredStoreSection=savedStoreSection;}catch(e){}
+try{const savedStoreSection=sessionStorage.getItem('wired:storeSection');if(['home','profile','yokai','gifts'].includes(savedStoreSection))wiredStoreSection=savedStoreSection;}catch(e){}
 const WIRED_FRIEND_GIFTS=[
  ['coffee','☕','Coffee',15],['cookie','🍪','Cookie',15],['cake','🍰','Cake',20],
  ['pizza','🍕','Pizza',20],['burger','🍔','Burger',25],['sushi','🍣','Sushi',25],
@@ -1148,7 +1148,7 @@ function renderGlobalStore(){
  v.querySelectorAll('[data-select-gift]').forEach(button=>button.addEventListener('click',()=>{const select=v.querySelector('#giftTypeSelect');if(select){select.value=button.dataset.selectGift;updateGiftPrice();}v.querySelectorAll('[data-select-gift]').forEach(tile=>tile.classList.toggle('selected',tile===button));}));
  if(wiredStoreSection==='gifts')updateGiftPrice();
  v.querySelector('.store-wallet-history')?.addEventListener('click',openPointsHistory);
- v.querySelectorAll('[data-store-section]').forEach(b=>b.addEventListener('click',()=>{wiredStoreSection=b.dataset.storeSection;try{sessionStorage.setItem('wired:storeSection',wiredStoreSection);}catch(e){}if(wiredStoreSection==='gifts')Promise.all([loadGiftFriends(),loadReturnedGiftInventory()]).then(()=>{if(state.page==='store'&&wiredStoreSection==='gifts')renderGlobalStore()}).catch(e=>toast(errorText(e)));renderGlobalStore();}));
+ v.querySelectorAll('[data-store-section]').forEach(b=>b.addEventListener('click',()=>{wiredStoreSection=b.dataset.storeSection;try{sessionStorage.setItem('wired:storeSection',wiredStoreSection);}catch(e){}saveWiredRoute();if(wiredStoreSection==='gifts')Promise.all([loadGiftFriends(),loadReturnedGiftInventory()]).then(()=>{if(state.page==='store'&&wiredStoreSection==='gifts')renderGlobalStore()}).catch(e=>toast(errorText(e)));renderGlobalStore();}));
 
 
  v.querySelectorAll('[data-store-buy]').forEach(b=>b.addEventListener('click',()=>purchaseGlobalStoreItem(b.dataset.storeBuy)));
@@ -2180,7 +2180,7 @@ async function restoreWiredRoute(route){
  if(!pages.has(route.page)||(['bugs','features'].includes(route.page)&&!wiredStaffAccess))return false;
  nav(route.page);
  if(route.page==='discover'){state.discoveryMode=route.discoveryMode||'';render();}
- if(route.page==='store'){wiredStoreSection=['home','profile','yokai'].includes(route.storeSection)?route.storeSection:'home';sessionStorage.setItem('wired:storeSection',wiredStoreSection);renderGlobalStore();}
+ if(route.page==='store'){wiredStoreSection=['home','profile','yokai','gifts'].includes(route.storeSection)?route.storeSection:'home';sessionStorage.setItem('wired:storeSection',wiredStoreSection);renderGlobalStore();}
  if(route.page==='pets'){state.yokaiSanctuaryView=route.sanctuaryView||'home';sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);await loadPetParadise().catch(()=>{});if(state.page==='pets')renderPetParadise();}
  return true;
 }
@@ -2197,7 +2197,7 @@ async function init(){const {data:{session}}=await sb.auth.getSession();state.us
  if(savedPage==="notifications"&&state.user){await openNotifications();return;}
  if(savedPage==="global-members"&&state.user){state.page="global-members";document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page==="discover"));renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return;}
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);if(savedCommunityProfile)await openCommunityMemberProfile(savedCommunityProfile);return;}
- if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){const savedSanctuary=savedPage==="pets"?sessionStorage.getItem("wired:sanctuaryView"):null;nav(savedPage);if(savedPage==="store"){const savedStore=sessionStorage.getItem("wired:storeSection");if(["home","profile","yokai"].includes(savedStore)){wiredStoreSection=savedStore;renderGlobalStore();}}if(savedSanctuary){state.yokaiSanctuaryView=savedSanctuary;sessionStorage.setItem("wired:sanctuaryView",savedSanctuary);if(savedPage==="pets")loadPetParadise().then(()=>{if(state.page==="pets")renderPetParadise()}).catch(()=>{});}return;}
+ if(tabs.has(savedPage)&&savedPage!=="home"&&(!["bugs","features"].includes(savedPage)||wiredStaffAccess)){const savedSanctuary=savedPage==="pets"?sessionStorage.getItem("wired:sanctuaryView"):null;nav(savedPage);if(savedPage==="store"){const savedStore=sessionStorage.getItem("wired:storeSection");if(["home","profile","yokai","gifts"].includes(savedStore)){wiredStoreSection=savedStore;renderGlobalStore();}}if(savedSanctuary){state.yokaiSanctuaryView=savedSanctuary;sessionStorage.setItem("wired:sanctuaryView",savedSanctuary);if(savedPage==="pets")loadPetParadise().then(()=>{if(state.page==="pets")renderPetParadise()}).catch(()=>{});}return;}
  render();saveWiredRoute()}
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 init().catch(e=>{console.error(e);render()});
