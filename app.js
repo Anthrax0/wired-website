@@ -585,7 +585,7 @@ function renderMemberProfile(){
  const quick=document.createElement('div');quick.className='profile-social-actions';quick.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:12px 0';
  quick.innerHTML=['Followers','Following','Friends'].map((label,i)=>'<button type="button" class="ghost small" data-member-social="'+['followers','following','friends'][i]+'">'+label+'</button>').join('');
  const actions=v.querySelector('.profile-social-actions');if(actions){for(const id of ['profileBlockBtn','profileSendGiftBtn']){const btn=actions.querySelector('#'+id);if(btn)quick.appendChild(btn);}}
- const companionSection=v.querySelector('.profile-companion, .profile-yokai, .bonded-companion, .profile-yokai-section, .profile-companion-section');
+ const companionSection=v.querySelector('.profile-yokai-card, .profile-companion, .profile-yokai, .bonded-companion, .profile-yokai-section, .profile-companion-section');
  if(companionSection)companionSection.before(quick);else (v.querySelector('.profile-about')||v.querySelector('.profile-person'))?.before(quick);
  quick.querySelectorAll('[data-member-social]').forEach(el=>el.addEventListener('click',()=>openViewedMemberSocial(p.id,el.dataset.memberSocial)));
  $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('people')});
