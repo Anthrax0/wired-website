@@ -683,36 +683,42 @@ async function refreshGlobalMemberConnections(){
  state.globalMemberFollowers=new Set((incoming.data||[]).map(x=>String(x.follower_id)));
  state.globalMemberFriends=new Set((accepted.error?[]:accepted.data||[]).map(x=>String(x.sender_id===id?x.recipient_id:x.sender_id)));
 }
+const directoryFollowPending=new Set();
 async function toggleDirectoryFollow(userId){
  if(!state.user||String(userId)===String(state.user.id))return;
- const uid=state.user.id;
- const button=[...document.querySelectorAll("[data-directory-follow]")].find(x=>x.dataset.directoryFollow===userId);
+ const target=String(userId),uid=state.user.id;
+ if(directoryFollowPending.has(target))return;
+ // The rendered button represents the user's requested action. Do not reinterpret
+ // an Unfollow click as Follow based on a potentially stale follow query.
+ const button=[...document.querySelectorAll("[data-directory-follow]")].find(x=>x.dataset.directoryFollow===target);
+ const shouldUnfollow=button?.textContent?.trim()==="Unfollow";
+ directoryFollowPending.add(target);
  if(button)button.disabled=true;
  try{
-  const {data:current,error:readError}=await sb.from("profile_follows").select("follower_id").eq("follower_id",uid).eq("following_id",userId);
-  if(readError)throw readError;
-  const wasFollowing=(current||[]).length>0;
-  if(wasFollowing){
-   const {error}=await sb.from("profile_follows").delete().eq("follower_id",uid).eq("following_id",userId);
+  if(shouldUnfollow){
+   const {error}=await sb.from("profile_follows").delete().eq("follower_id",uid).eq("following_id",target);
    if(error)throw error;
-   state.globalMemberFollowing?.delete(String(userId));
-   // Unfollowing breaks mutual friendship immediately in the interface.
-   state.globalMemberFriends?.delete(String(userId));
   }else{
-   const {error}=await sb.from("profile_follows").insert({follower_id:uid,following_id:userId});
+   // Concurrent clicks, other devices, and stale lists must never cause a
+   // duplicate-primary-key error when following someone already followed.
+   const {error}=await sb.from("profile_follows").upsert(
+    {follower_id:uid,following_id:target},
+    {onConflict:"follower_id,following_id",ignoreDuplicates:true}
+   );
    if(error)throw error;
-   state.globalMemberFollowing??=new Set();
-   state.globalMemberFollowing.add(String(userId));
   }
-  renderGlobalMemberDirectory();
-  // Reconcile with the authoritative database, but don't falsely claim failure
-  // when a successful delete has already been persisted.
-  try{await refreshGlobalMemberConnections();if(state.page==="global-members")renderGlobalMemberDirectory();}
-  catch(e){console.warn("Follow status refresh pending",e);}
+  await refreshGlobalMemberConnections();
+  if(state.page==="global-members")renderGlobalMemberDirectory();
+  const isFollowing=state.globalMemberFollowing?.has(target);
+  if(isFollowing===shouldUnfollow)toast("Follow status did not update. Please try again.");
  }catch(e){
   toast("Could not change follow status: "+errorText(e));
-  try{await refreshGlobalMemberConnections();renderGlobalMemberDirectory();}
-  catch(_){if(button)button.disabled=false;}
+  try{await refreshGlobalMemberConnections();if(state.page==="global-members")renderGlobalMemberDirectory();}
+  catch(refreshError){console.warn("Could not refresh follow status",refreshError);}
+ }finally{
+  directoryFollowPending.delete(target);
+  const latest=[...document.querySelectorAll("[data-directory-follow]")].find(x=>x.dataset.directoryFollow===target);
+  if(latest)latest.disabled=false;
  }
 }
 function renderGlobalMemberDirectory(){
