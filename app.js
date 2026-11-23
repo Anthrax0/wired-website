@@ -934,6 +934,7 @@ async function equipPetStoreItem(itemId,petId,button){
  catch(e){toast(errorText(e));if(button){button.disabled=false;button.textContent="Equip to yokai";}}
 }
 let wiredStoreSection='home';
+try{const savedStoreSection=sessionStorage.getItem('wired:storeSection');if(['home','profile','yokai'].includes(savedStoreSection))wiredStoreSection=savedStoreSection;}catch(e){}
 function renderGlobalStore(){
  const v=$('view');
  if(!state.user){v.innerHTML='<div class="section-head"><h2>Global Store</h2></div><div class="card"><p>Log in to browse the WIRED-wide store and use your points.</p><button class="primary" id="storeLoginBtn">Log in</button></div>';v.querySelector('#storeLoginBtn')?.addEventListener('click',openAuth);return;}
@@ -956,7 +957,7 @@ function renderGlobalStore(){
  const contents=wiredStoreSection==='profile'?back+(profileShop||'<div class="empty">No profile cosmetics available yet.</div>')+inventoryProfile:wiredStoreSection==='yokai'?back+(petShop||'<div class="empty">No yokai products available yet.</div>')+inventoryYokai:storeHome;
  v.innerHTML='<div class="store-heading"><div class="section-head"><div><span class="pill">APP-WIDE STORE</span><h2>WIRED Global Store</h2><p>Choose a shop category to browse its products.</p></div><button type="button" class="store-wallet store-wallet-history" aria-label="View points transaction history" title="View points earned and spent"><span>Your points</span><b>◉ '+Number(state.globalStoreBalance||0)+'</b></button></div></div>'+contents;
  v.querySelector('.store-wallet-history')?.addEventListener('click',openPointsHistory);
- v.querySelectorAll('[data-store-section]').forEach(b=>b.addEventListener('click',()=>{wiredStoreSection=b.dataset.storeSection;renderGlobalStore();}));
+ v.querySelectorAll('[data-store-section]').forEach(b=>b.addEventListener('click',()=>{wiredStoreSection=b.dataset.storeSection;try{sessionStorage.setItem('wired:storeSection',wiredStoreSection);}catch(e){}renderGlobalStore();}));
 
 
  v.querySelectorAll('[data-store-buy]').forEach(b=>b.addEventListener('click',()=>purchaseGlobalStoreItem(b.dataset.storeBuy)));
