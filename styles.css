@@ -1608,3 +1608,15 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .wired-gift-tile:hover,.wired-gift-tile.selected{border-color:#d39bff;box-shadow:0 0 12px #9b43c855}
 .wired-gift-tile span{font-size:2rem}.wired-gift-tile strong{font-size:.87rem}.wired-gift-tile small{color:#d0a8ed}
 .wired-gift-dialog{text-align:center;max-width:390px}.wired-gift-big-emoji{font-size:4rem;margin:6px auto 15px}.wired-gift-points{color:#e0b4ff;font-weight:700}
+
+/* WIRED gift arrival modal — black and violet cyberpunk, matching the global UI. */
+#wiredFriendGiftPopup{background:rgba(3,1,10,.89);backdrop-filter:blur(11px)}
+#wiredFriendGiftPopup .wired-gift-dialog{position:relative;isolation:isolate;width:min(100%,390px);padding:30px 24px 26px;border:1px solid #ad52e7;border-radius:22px;background:radial-gradient(ellipse at 50% 0%,#3a1953 0%,#1a0b2c 48%,#090610 100%);box-shadow:0 0 0 1px #bb73fa30,0 0 35px #8b36d76b,0 24px 75px #000;color:#f6eaff}
+#wiredFriendGiftPopup .wired-gift-dialog:before{content:"";position:absolute;inset:7px;border:1px solid #a65be328;border-radius:16px;pointer-events:none}
+#wiredFriendGiftPopup .wired-gift-big-emoji{display:grid;place-items:center;width:104px;height:104px;margin:0 auto 22px;border:1px solid #a75be7;border-radius:23px;background:linear-gradient(145deg,#3c1856,#170b28);box-shadow:0 0 23px #9e43e455,inset 0 0 17px #a14ad322;font-size:3.5rem}
+#wiredFriendGiftPopup .wired-gift-dialog h2{margin:0 0 14px;color:#f1d2ff;font-size:1.5rem;letter-spacing:.04em;text-shadow:0 0 13px #a14bdc70}
+#wiredFriendGiftPopup .wired-gift-dialog p{margin:0 0 18px;color:#e6d3f1;line-height:1.55;white-space:normal}
+#wiredFriendGiftPopup .wired-gift-dialog strong{color:#f2baff}
+#wiredFriendGiftPopup .wired-gift-points{padding:12px 14px;border:1px solid #78429c;border-radius:12px;background:#190d29;color:#e9baff!important;font-weight:800}
+#wiredFriendGiftPopup #acceptWiredGift{width:100%;min-height:48px;margin-top:8px;border:1px solid #c781ff;border-radius:13px;background:linear-gradient(120deg,#a044e4,#59218e);box-shadow:0 0 16px #9b45e044;color:#fff;font-weight:800;cursor:pointer}
+#wiredFriendGiftPopup #acceptWiredGift:hover,#wiredFriendGiftPopup #acceptWiredGift:focus-visible{filter:brightness(1.16);box-shadow:0 0 22px #b65cf577}
