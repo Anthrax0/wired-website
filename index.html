@@ -8,12 +8,12 @@
   <title>WIRED — Stay connected.</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="wired-logo.png"><link rel="apple-touch-icon" href="wired-logo.png">
-  <link rel="stylesheet" href="styles.css?v=148">
+  <link rel="stylesheet" href="styles.css?v=149">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#" aria-label="WIRED home"><img class="brand-icon" src="wired-logo.png" alt=""><span><b>WIRED</b><small>STAY CONNECTED.</small></span></a>
-    <div class="header-actions"><button class="ghost" id="installBtn" hidden>Install</button><div class="header-notification-stack"><span class="header-points" id="headerPoints" hidden>◉ 0 points</span><button class="ghost notifications-trigger" id="notificationsBtn" type="button" hidden aria-label="Global notifications">Notifications <span class="notification-count" id="notificationCount" hidden>0</span></button></div><div class="header-account-stack"><button class="ghost" id="accountBtn">Log in</button><button class="ghost" id="headerLogoutBtn" type="button" hidden>Log Out</button></div></div>
+    <div class="header-actions"><button class="ghost" id="installBtn" hidden>Install</button><div class="header-notification-stack"><button class="header-points" id="headerPoints" type="button" hidden title="View points history" aria-label="View points earned and spent">◉ 0 points</button><button class="ghost notifications-trigger" id="notificationsBtn" type="button" hidden aria-label="Global notifications">Notifications <span class="notification-count" id="notificationCount" hidden>0</span></button></div><div class="header-account-stack"><button class="ghost" id="accountBtn">Log in</button><button class="ghost" id="headerLogoutBtn" type="button" hidden>Log Out</button></div></div>
   </header>
   <main id="app">
     <section class="hero">
@@ -80,7 +80,7 @@
         script.src = sources[index];
         script.onload = function () {
           const app = document.createElement("script");
-          app.src = "app.js?v=175";
+          app.src = "app.js?v=176";
           app.onerror = function () {
             document.getElementById("view").innerHTML =
               '<div class="card"><h2>WIRED could not start</h2><p>The app script did not load. Please reload the page.</p><button class="primary" onclick="location.reload()">Reload WIRED</button></div>';
