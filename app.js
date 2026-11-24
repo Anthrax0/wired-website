@@ -2863,12 +2863,18 @@ function messageIsMine(message){
 function renderThreadMessages(){
  const log=$('chatLog');
  if(!log)return;
+ const playing=new Map(Array.from(log.querySelectorAll('audio[data-voice-message]'),audio=>[audio.dataset.voiceMessage,audio]));
  log.innerHTML=state.messages.map(message=>{
   const own=messageIsMine(message);
   const actions=own&&!message.unsent_at?' tabindex="0" aria-haspopup="dialog" aria-label="Your message. Hold or press Enter for message actions." data-message-actions="'+escapeHTML(message.id)+'"':'';
   return '<article class="message-bubble'+(own?' message-own':'')+'"'+actions+'><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
-   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :editableTextMarkup('message',message,false))+'</article>';
+   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :message.voice_path?'<button type="button" class="ghost small" data-play-voice="'+escapeHTML(message.id)+'">▶ Play voice clip</button>':editableTextMarkup('message',message,false))+'</article>';
  }).join('')||'<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>';
+ for(const [id,audio] of playing){
+  const button=log.querySelector('[data-play-voice="'+CSS.escape(id)+'"]');
+  if(button)button.replaceWith(audio);
+  else releaseVoicePlayer(audio);
+ }
  log.scrollTop=log.scrollHeight;
 }
 function markThreadMessageUnsent(id,at){
@@ -2897,7 +2903,7 @@ function openMessageActions(bubble){
  dialog.id='messageActions';
  dialog.setAttribute('aria-labelledby','messageActionsTitle');
  dialog.innerHTML='<h2 id="messageActionsTitle">Message actions</h2><form method="dialog">'+
-  '<button class="ghost" value="edit" autofocus>Edit message</button>'+
+  (message.voice_path?'':'<button class="ghost" value="edit" autofocus>Edit message</button>')+
   '<button class="ghost" value="unsend">Unsend</button>'+
   '<button class="ghost" value="cancel">Cancel</button></form>';
  document.body.append(dialog);
@@ -2908,7 +2914,7 @@ function openMessageActions(bubble){
   if(bubble.isConnected)bubble.focus({preventScroll:true});
   if(state.activeThread!==thread)return;
   const current=state.messages.find(item=>String(item.id)===id);
-  if(action==='edit'&&current&&!current.unsent_at)void editAuthoredText('message',id,current.body);
+  if(action==='edit'&&current&&!current.unsent_at&&!current.voice_path)void editAuthoredText('message',id,current.body);
   if(action==='unsend')void unsendThreadMessage(id);
  },{once:true});
  dialog.showModal();
@@ -2947,7 +2953,172 @@ function attachMessageActions(log){
   openMessageActions(bubble);
  });
 }
-function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);attachMessageActions($('chatLog'));renderThreadMessages();$("messageBody")?.focus()}
+const VOICE_BUCKET='chat-voice-clips';
+const VOICE_FORMATS={
+ 'audio/webm':'webm','audio/ogg':'ogg','audio/mp4':'m4a'
+};
+const VOICE_LIMIT=5*1024*1024;
+function releaseVoicePlayer(audio){
+ audio.pause();
+ URL.revokeObjectURL(audio.src);
+ audio.removeAttribute('src');
+}
+async function playVoiceClip(button,log,thread){
+ const id=button.dataset.playVoice;
+ const message=state.messages.find(item=>String(item.id)===id);
+ if(!message?.voice_path||message.unsent_at||state.activeThread!==thread)return;
+ button.disabled=true;
+ button.textContent='Loading voice clip…';
+ try{
+  const {data,error}=await sb.storage.from(VOICE_BUCKET).download(message.voice_path);
+  if(error)throw error;
+  if(!log.isConnected||state.activeThread!==thread||
+    !state.messages.some(item=>String(item.id)===id&&!item.unsent_at))return;
+  const target=log.querySelector('[data-play-voice="'+CSS.escape(id)+'"]');
+  if(!target)return;
+  const audio=document.createElement('audio');
+  audio.controls=true;
+  audio.preload='metadata';
+  audio.setAttribute('aria-label','Voice clip');
+  audio.dataset.voiceMessage=id;
+  audio.src=URL.createObjectURL(data);
+  target.replaceWith(audio);
+  await audio.play().catch(()=>{});
+ }catch(error){
+  if(button.isConnected){button.disabled=false;button.textContent='▶ Play voice clip';toast(errorText(error));}
+ }
+}
+function attachVoiceRecorder(panel,log,thread){
+ const record=panel.querySelector('[data-record-voice]');
+ const status=panel.querySelector('[data-voice-status]');
+ const preview=panel.querySelector('[data-voice-preview]');
+ const player=preview.querySelector('audio');
+ const send=preview.querySelector('[data-send-voice]');
+ const discard=preview.querySelector('[data-discard-voice]');
+ const user=state.user?.id;
+ const connected=()=>panel.isConnected&&state.activeThread===thread&&state.user?.id===user;
+ let recorder=null,stream=null,timeout=null,draft=null;
+ const releaseMic=()=>{
+  clearTimeout(timeout);
+  stream?.getTracks().forEach(track=>track.stop());
+  stream=null;
+ };
+ const clearDraft=()=>{
+  if(draft)URL.revokeObjectURL(draft.preview);
+  player.pause();
+  player.removeAttribute('src');
+  draft=null;
+  preview.hidden=true;
+ };
+ const observer=new MutationObserver(()=>{
+  if(panel.isConnected)return;
+  observer.disconnect();
+  if(recorder?.state==='recording')recorder.stop();
+  releaseMic();
+  clearDraft();
+  log.querySelectorAll('audio[data-voice-message]').forEach(releaseVoicePlayer);
+ });
+ observer.observe($('view'),{childList:true});
+ log.addEventListener('click',event=>{
+  const button=event.target.closest('[data-play-voice]');
+  if(button&&!button.disabled)void playVoiceClip(button,log,thread);
+ });
+ if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){
+  record.disabled=true;
+  status.textContent='Voice recording is unavailable in this browser.';
+ }
+ record.addEventListener('click',async()=>{
+  if(recorder?.state==='recording'){
+   record.disabled=true;
+   recorder.stop();
+   return;
+  }
+  record.disabled=true;
+  status.textContent='Allow microphone access to record.';
+  try{
+   stream=await navigator.mediaDevices.getUserMedia({audio:true});
+   if(!connected()){releaseMic();return;}
+   const preferred=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported(type));
+   recorder=new MediaRecorder(stream,preferred?{mimeType:preferred}:undefined);
+   const chunks=[];
+   let failed=false;
+   recorder.addEventListener('dataavailable',event=>{if(event.data.size)chunks.push(event.data);});
+   recorder.addEventListener('error',()=>{
+    failed=true;releaseMic();
+    if(connected()){record.textContent='Record voice clip';record.disabled=false;status.textContent='Recording failed. Try again.';}
+   },{once:true});
+   recorder.addEventListener('stop',()=>{
+    releaseMic();
+    recorder=null;
+    if(!connected()||failed)return;
+    const mime=(chunks[0]?.type||preferred||'').split(';')[0].toLowerCase();
+    const extension=VOICE_FORMATS[mime];
+    const clip=new Blob(chunks,{type:mime});
+    record.textContent='Record voice clip';
+    if(!extension||!clip.size||clip.size>VOICE_LIMIT){
+     record.disabled=false;
+     status.textContent='This recording could not be used. Try a shorter clip.';
+     return;
+    }
+    draft={clip,preview:URL.createObjectURL(clip),path:thread+'/'+user+'/'+crypto.randomUUID()+'.'+extension,uploaded:false};
+    player.src=draft.preview;
+    preview.hidden=false;
+    status.textContent='Preview your voice clip before sending.';
+   },{once:true});
+   recorder.start();
+   record.textContent='Stop recording';
+   record.disabled=false;
+   status.textContent='Recording · up to 60 seconds';
+   timeout=setTimeout(()=>{
+    if(recorder?.state==='recording'){record.disabled=true;recorder.stop();}
+   },60000);
+  }catch(error){
+   releaseMic();
+   if(connected()){
+    record.disabled=false;
+    status.textContent=error.name==='NotAllowedError'?'Microphone access was denied.':'Could not start recording.';
+   }
+  }
+ });
+ discard.addEventListener('click',()=>{
+  clearDraft();
+  status.textContent='';
+  record.disabled=false;
+ });
+ send.addEventListener('click',async()=>{
+  if(!draft||send.disabled||!connected())return;
+  const clip=draft;
+  send.disabled=discard.disabled=true;
+  status.textContent='Sending voice clip…';
+  try{
+   if(!clip.uploaded){
+    const {error}=await sb.storage.from(VOICE_BUCKET).upload(clip.path,clip.clip,{contentType:clip.clip.type,upsert:false});
+    if(error)throw error;
+    clip.uploaded=true;
+   }
+   if(!connected())return;
+   const {data,error}=await sb.rpc('send_my_voice_clip',{p_thread_id:thread,p_path:clip.path});
+   if(error)throw error;
+   const sent=Array.isArray(data)?data[0]:data;
+   if(!sent?.id)throw new Error('Could not confirm the voice clip was sent.');
+   if(connected()){
+    mergeThreadMessages([{...sent,username:state.profile?.username||'Member'}]);
+    clearDraft();
+    renderThreadMessages();
+    status.textContent='Voice clip sent.';
+    record.disabled=false;
+   }
+  }catch(error){
+   if(connected()){status.textContent='Could not send voice clip. '+errorText(error);send.focus();}
+  }finally{send.disabled=discard.disabled=false;}
+ });
+}
+function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form><div class="chat-voice-tools" id="chatVoiceTools">
+ <button type="button" class="ghost small" data-record-voice>Record voice clip</button>
+ <span class="hint" role="status" data-voice-status></span>
+ <div class="voice-preview" data-voice-preview hidden><audio controls preload="metadata" aria-label="Voice clip preview"></audio>
+ <button type="button" class="primary small" data-send-voice>Send voice clip</button>
+ <button type="button" class="ghost small" data-discard-voice>Discard</button></div></div></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);attachMessageActions($('chatLog'));attachVoiceRecorder($('chatVoiceTools'),$('chatLog'),state.activeThread);renderThreadMessages();$("messageBody")?.focus()}
 async function toggleFollowerInvitePanel(){const panel=$("inviteFollowersPanel");if(!panel)return;if(!panel.hidden){panel.hidden=true;return;}panel.hidden=false;const communityChat=!!state.threads.find(t=>String(t.id)===String(state.activeThread))?.community_id;panel.innerHTML='<p class="hint">Loading your '+(communityChat?'community':'global')+' followers…</p>';try{const d=await api("/threads/"+encodeURIComponent(state.activeThread)+"/followers");const people=d.items||[];panel.innerHTML='<div class="chat-invite-heading"><strong>Invite your '+(communityChat?'community':'global')+' followers</strong><button type="button" class="chat-invite-close" id="closeFollowerInvite" aria-label="Close">×</button></div>'+(people.length?'<div class="chat-invite-list">'+people.map(p=>'<div class="chat-invite-person"><span>'+escapeHTML(p.username||"WIRED member")+'</span><button type="button" class="primary chat-invite-action" data-invite-follower="'+escapeHTML(p.id)+'">Invite</button></div>').join("")+'</div>':'<p class="hint">No followers available to invite. Only members who follow your '+(communityChat?'community':'global')+' profile appear here.</p>');$("closeFollowerInvite")?.addEventListener("click",()=>{panel.hidden=true;});panel.querySelectorAll("[data-invite-follower]").forEach(btn=>btn.addEventListener("click",()=>inviteGlobalFollower(btn.dataset.inviteFollower,btn)));}catch(e){panel.innerHTML='<p class="hint">'+escapeHTML(errorText(e))+'</p>';}}
 async function inviteGlobalFollower(userId,button){if(!userId||!button)return;button.disabled=true;button.textContent="Inviting…";try{await api("/threads/"+encodeURIComponent(state.activeThread)+"/invite","POST",{user_id:userId});button.textContent="Invited";button.classList.add("invited");toast("Follower invited to chat.");}catch(e){button.disabled=false;button.textContent="Invite";toast(errorText(e));}}
 async function sendMessage(e){
