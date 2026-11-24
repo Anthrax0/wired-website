@@ -2089,9 +2089,9 @@ async function openCommunity(id,section='latest'){
   const collections=state.communityPostCollections;
   if(state.activeCommunityRole){
    try{
-    const result=await api('/communities/'+encodeURIComponent(id)+'/posts');
+    const posts=await loadCommunityFeed(id);
     if(!isCurrent())return;
-    state.posts=result.items||[];
+    state.posts=posts;
    }catch(error){
     if(!isCurrent())return;
     state.communityFeedError=error;
@@ -2149,7 +2149,14 @@ function renderPostCard(p){
   '<button type="button" class="ghost small" data-post-collection="saved" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.saved.has(p.id)+'">'+(collections.saved.has(p.id)?'Unsave':'Save post')+'</button>'+
   (['owner','mod'].includes(state.activeCommunityRole)?
    '<button type="button" class="ghost small" data-post-collection="featured" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.featured.has(p.id)+'">'+(collections.featured.has(p.id)?'Remove from Featured':'Feature post')+'</button>':'')+'</div>':'';
- return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="meta"><span class="pill">' +escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
+ const name=escapeHTML(p.authorName||p.username||'WIRED member');
+ const avatar='<span class="post-author-avatar" aria-hidden="true">'+(p.authorAvatar?
+  '<img src="'+escapeHTML(p.authorAvatar)+'" alt="" loading="lazy">':'W')+'</span>';
+ const identity=avatar+'<span>'+name+'</span>';
+ const author=p.author_id?
+  '<button type="button" class="post-author" data-profile-id="'+escapeHTML(p.author_id)+'">'+identity+'</button>':
+  '<span class="post-author">'+identity+'</span>';
+ return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="post-author-row">'+author+(p.id_verified?'<span class="hint">✓ Verified</span>':'')+'</div><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
 }
 function renderCommunity(){
  updateCommunitySidebar();
@@ -2400,7 +2407,45 @@ function updatePostComposer(){
  if($('postImageWrap'))$('postImageWrap').hidden=false;
  if(type==='quiz'&&!$('quizQuestionBuilder')?.querySelector('[data-quiz-question]'))addQuizQuestion();
 }
-async function refreshCommunityPosts(){const d=await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/posts');state.posts=d.items||[];state.communityFeedError=null;renderCommunity();}
+async function loadCommunityFeed(communityId){
+ const result=await api('/communities/'+encodeURIComponent(communityId)+'/posts');
+ let posts=result.items||[];
+ if(!posts.length)return posts;
+ try{
+  const missingIds=posts.filter(post=>!post.author_id).map(post=>post.id);
+  if(missingIds.length){
+   const {data,error}=await sb.from('posts').select('id,author_id').eq('community_id',communityId).in('id',missingIds);
+   if(error)throw error;
+   const authorsByPost=new Map(data.map(post=>[post.id,post.author_id]));
+   posts=posts.map(post=>post.author_id?post:{...post,author_id:authorsByPost.get(post.id)});
+  }
+  const ids=[...new Set(posts.map(post=>post.author_id).filter(Boolean))];
+  if(!ids.length)return posts;
+  const [local,global]=await Promise.all([
+   sb.from('community_profiles').select('user_id,nickname,avatar_url').eq('community_id',communityId).in('user_id',ids),
+   sb.from('profiles').select('id,username,avatar_url').in('id',ids)
+  ]);
+  const localById=new Map((local.data||[]).map(profile=>[profile.user_id,profile]));
+  const globalById=new Map((global.data||[]).map(profile=>[profile.id,profile]));
+  return posts.map(post=>{
+   const communityProfile=localById.get(post.author_id);
+   const globalProfile=globalById.get(post.author_id);
+   return {...post,authorName:communityProfile?.nickname||globalProfile?.username||post.username,
+    authorAvatar:communityProfile?.avatar_url||globalProfile?.avatar_url||post.avatar_url};
+  });
+ }catch(error){
+  console.warn('Community post author details unavailable',error);
+  return posts;
+ }
+}
+async function refreshCommunityPosts(){
+ const community=state.activeCommunity;
+ const posts=await loadCommunityFeed(community.id);
+ if(state.page!=='community'||state.activeCommunity!==community)return;
+ state.posts=posts;
+ state.communityFeedError=null;
+ if(!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
+}
 async function createPost(e){
  e.preventDefault();
  try{

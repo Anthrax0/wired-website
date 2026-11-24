@@ -1804,3 +1804,9 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .member-moderation-actions{display:grid;gap:8px;margin-block:12px}
 .member-moderation-actions button{min-height:44px;text-align:left}
 #memberModerationHistory .moderation-row{overflow-wrap:anywhere}
+
+.post-author-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.post-author{display:inline-flex;align-items:center;gap:10px;max-width:100%;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);font:inherit;font-weight:700;text-align:left;overflow-wrap:anywhere}
+button.post-author:hover,button.post-author:focus-visible{color:var(--bright);text-decoration:underline}
+.post-author-avatar{display:grid;place-items:center;flex:0 0 40px;height:40px;border:1px solid var(--purple);border-radius:50%;overflow:hidden;background:var(--panel2);color:var(--bright)}
+.post-author-avatar img{width:100%;height:100%;object-fit:cover}
