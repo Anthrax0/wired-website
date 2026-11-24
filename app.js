@@ -578,7 +578,7 @@ function profileYokaiMarkup(companion){
  const name=companion.nickname||species;
  const portrait=yokaiPortraitUrl(species,companion.pet_key,false);
  const speciesClass=String(companion.pet_key||species).toLowerCase().replace(/[^a-z0-9-]/g,"");
- return '<section class="profile-yokai-card yokai-motion yokai-'+escapeHTML(speciesClass)+'"><div class="profile-yokai-art"><img class="yokai-portrait-image" src="'+portrait+'" alt="'+escapeHTML(species)+' companion">'+yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>String(x.pet_id)===String(companion.id)),companion)+'</div><div class="profile-yokai-info"><span class="profile-yokai-kicker">✦ BONDED COMPANION</span><h3>'+escapeHTML(name)+'</h3><p>'+escapeHTML(species)+' · Level '+Number(companion.level||1)+'</p><span class="profile-yokai-rarity">'+escapeHTML(companion.rarity||"Common")+'</span></div></section>';
+ return '<section class="profile-yokai-card yokai-motion yokai-'+escapeHTML(speciesClass)+'"><div class="profile-yokai-art'+yokaiBackgroundClass(companion.background_sku)+'"'+yokaiBackgroundStyle(companion.background_sku)+'><img class="yokai-portrait-image" src="'+portrait+'" alt="'+escapeHTML(species)+' companion">'+yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>String(x.pet_id)===String(companion.id)),companion)+'</div><div class="profile-yokai-info"><span class="profile-yokai-kicker">✦ BONDED COMPANION</span><h3>'+escapeHTML(name)+'</h3><p>'+escapeHTML(species)+' · Level '+Number(companion.level||1)+'</p><span class="profile-yokai-rarity">'+escapeHTML(companion.rarity||"Common")+'</span></div></section>';
 }
 async function openViewedMemberSocial(userId,type){
  try{
@@ -900,9 +900,18 @@ function renderDiscoveryResults(){
 }
 async function loadGlobalStore(){
  if(!state.user){state.globalStoreItems=[];state.globalStorePurchases=[];state.globalStoreBalance=0;return;}
- const [data,inventoryResult]=await Promise.all([api('/store'),sb.rpc('my_store_inventory')]);
+ const [data,inventoryResult,backgroundCatalog]=await Promise.all([
+  api('/store'),
+  sb.rpc('my_store_inventory'),
+  sb.from('global_store_items').select('id,sku,name,description,category,price_points,sort_order')
+   .eq('category','Yokai Backgrounds').eq('active',true).order('sort_order')
+ ]);
  if(inventoryResult.error)throw inventoryResult.error;
- state.globalStoreItems=data.items||[];
+ const items=data.items||[];
+ state.globalStoreItems=backgroundCatalog.error?items:[
+  ...items.filter(item=>item.category!=='Yokai Backgrounds'),
+  ...(backgroundCatalog.data||[])
+ ];
  state.globalStorePurchases=inventoryResult.data||[];
  state.globalStoreEquipped=data.equipped||{};
  // The transaction ledger is authoritative; /store can return a stale zero balance.
@@ -963,9 +972,14 @@ async function purchaseGlobalStoreItem(id){
  try{
   const item=(state.globalStoreItems||[]).find(x=>String(x.id)===String(id));
   if(!item)throw new Error('Store item not found. Refresh the store and try again.');
-  const itemKey=item.item_key||item.sku;
-  if(!itemKey)throw new Error('This store item has no purchase key.');
-  const result=await api('/store/purchase','POST',{itemKey});
+  if(item.category==='Yokai Backgrounds'){
+   const {error}=await sb.rpc('purchase_my_yokai_background',{p_item_id:id});
+   if(error)throw error;
+  }else{
+   const itemKey=item.item_key||item.sku;
+   if(!itemKey)throw new Error('This store item has no purchase key.');
+   await api('/store/purchase','POST',{itemKey});
+  }
   await loadGlobalStore();toast('Purchase complete. Your item is now in My purchases.');render();
  }catch(e){toast(errorText(e));}
 }
@@ -1041,6 +1055,53 @@ function yokaiAccessoryOverlay(items,pet){
  piece('pet-crystal-ball','🔮','bottom:5%;left:8%')+
  piece('pet-cloud-bed','⚰️','bottom:0;left:35%')+
  piece('pet-mushroom-house','⛩️','bottom:2%;right:2%')+'</span>';
+}
+function yokaiBackgroundUrl(sku){
+ const match=/^yokai-bg-([a-z0-9-]+)$/.exec(sku||'');
+ return match?'assets/yokai-backgrounds/'+match[1]+'.webp':'';
+}
+function yokaiBackgroundClass(sku){
+ return yokaiBackgroundUrl(sku)?' yokai-background-equipped':'';
+}
+function yokaiBackgroundStyle(sku){
+ const url=yokaiBackgroundUrl(sku);
+ return url?' style="--yokai-background:url('+url+')"':'';
+}
+function yokaiBackgroundCard(item,owned){
+ const art=yokaiBackgroundUrl(item.sku);
+ const image='<img src="'+art+'" alt="'+escapeHTML(item.name)+'" loading="lazy">';
+ return '<article class="card store-item"><a class="yokai-background-preview" href="'+art+'" target="_blank" rel="noopener" aria-label="Preview '+escapeHTML(item.name)+'">'+image+'</a><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points).toLocaleString()+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(owned||Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>'+(owned?'Owned':'Purchase')+'</button></div></article>';
+}
+let yokaiBackgroundTarget='';
+async function setYokaiBackground(petId,itemId,expectedItemId=null){
+ try{
+  const {error}=await sb.rpc('set_my_yokai_background',{p_pet_id:petId,p_item_id:itemId,p_expected_item_id:expectedItemId});
+  if(error)throw error;
+  await loadYokaiBackgrounds();
+  if(state.page==='store'&&wiredStoreSection==='yokai')renderGlobalStore();
+  toast(itemId?'Background equipped.':'Background removed.');
+ }catch(e){toast(errorText(e));}
+}
+async function loadYokaiBackgrounds(){
+ const owner=state.user?.id;
+ if(!owner){state.yokaiBackgrounds={};return;}
+ const {data,error}=await sb.rpc('my_yokai_backgrounds');
+ if(error)throw error;
+ if(state.user?.id===owner)state.yokaiBackgrounds=Object.fromEntries((data||[]).map(row=>[row.pet_id,row]));
+}
+function yokaiBackgroundInventory(purchases){
+ const pets=state.userPets||[];
+ if(!pets.some(pet=>String(pet.id)===yokaiBackgroundTarget))yokaiBackgroundTarget=String(pets[0]?.id||'');
+ const equipped=state.yokaiBackgrounds?.[yokaiBackgroundTarget];
+ const picker=pets.length?'<label class="field">Companion<select data-yokai-background-target>'+pets.map(pet=>'<option value="'+escapeHTML(pet.id)+'" '+(String(pet.id)===yokaiBackgroundTarget?'selected':'')+'>'+escapeHTML(pet.nickname)+'</option>').join('')+'</select></label><button type="button" class="ghost" data-yokai-background-clear '+(equipped?'':'disabled')+'>No background</button>':'<p class="hint">Summon a yokai to equip a background.</p>';
+ const rows=purchases.map(purchase=>{
+  const item=purchase.global_store_items;
+  const itemId=escapeHTML(purchase.item_id);
+  const isEquipped=equipped?.item_id===purchase.item_id;
+  const refund=Math.floor(Math.max(0,Number(purchase.price_points)||0)*.25);
+  return '<article class="store-purchase-row pet-merch-inventory"><img class="yokai-background-thumb" src="'+yokaiBackgroundUrl(item.sku)+'" alt="" loading="lazy"><div><b>'+escapeHTML(item.name)+'</b><small>'+(isEquipped?'Equipped':'Owned')+'</small></div><div class="yokai-wardrobe-actions"><button type="button" class="ghost" data-yokai-background-item="'+itemId+'" '+(isEquipped?'data-unequip ':(!yokaiBackgroundTarget?'disabled':''))+'>'+(isEquipped?'Unequip':'Equip to yokai')+'</button><button type="button" class="ghost" data-store-recycle="'+escapeHTML(purchase.id)+'">Recycle · +'+refund.toLocaleString()+' points</button></div></article>';
+ }).join('');
+ return '<section class="store-purchases" id="myYokaiBackgrounds" tabindex="-1"><div class="section-head"><h2>My backgrounds</h2></div>'+picker+(rows||'<p class="empty">You haven’t purchased a background yet.</p>')+'</section>';
 }
 function petStoreEmoji(item){
  const sku=String(item?.sku||"");
@@ -1225,24 +1286,25 @@ function subscribeFriendGifts(){
 function renderGlobalStore(){
  const v=$('view');
  if(!state.user){v.innerHTML='<div class="section-head"><h2>Global Store</h2></div><div class="card"><p>Log in to browse the WIRED-wide store and use your points.</p><button class="primary" id="storeLoginBtn">Log in</button></div>';v.querySelector('#storeLoginBtn')?.addEventListener('click',openAuth);return;}
- const petItems=state.globalStoreItems.filter(x=>String(x.category||"").startsWith("Yokai "));
+ const petItems=state.globalStoreItems.filter(x=>x.category==="Yokai Backgrounds").sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0));
  const profileItems=state.globalStoreItems.filter(x=>!String(x.category||"").startsWith("Yokai "));
  const purchases=state.globalStorePurchases||[];
  const ownedItemIds=new Set(purchases.map(p=>String(p.item_id)));
- const petPurchases=purchases.filter(p=>String(p.global_store_items?.category||"").startsWith("Yokai "));
+ const petPurchases=purchases.filter(p=>String(p.global_store_items?.category||"").startsWith("Yokai ")&&p.global_store_items.category!=="Yokai Backgrounds");
+ const backgroundPurchases=purchases.filter(p=>p.global_store_items?.category==="Yokai Backgrounds");
  const profilePurchases=purchases.filter(p=>!String(p.global_store_items?.category||"").startsWith("Yokai "));
- const petShop=petItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>🐾 Yokai merchandise</h2><p class="hint">Equip haunted relics, cursed charms, and eerie resting places.</p></div></div><div class="store-grid">'+petItems.map(item=>'<article class="card store-item pet-store-item"><div class="store-item-art pet-merch-art"><span>'+petStoreEmoji(item)+'</span><small>YOKAI PREVIEW</small></div><span class="pill">'+escapeHTML(item.category)+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(ownedItemIds.has(String(item.id))||Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>'+(ownedItemIds.has(String(item.id))?'Owned':'Purchase')+'</button></div></article>').join('')+'</div></section>':'';
+ const petShop=petItems.length?'<section class="store-category-section"><div class="section-head"><h2>Yokai Backgrounds</h2><button type="button" class="ghost" data-open-yokai-backgrounds>My backgrounds ↓</button></div><div class="store-grid">'+petItems.map(item=>yokaiBackgroundCard(item,ownedItemIds.has(String(item.id)))).join('')+'</div></section>':'';
  const profileShop=profileItems.length?'<section class="store-category-section"><div class="section-head"><div><h2>✨ Profile cosmetics</h2><p class="hint">Customize your global profile.</p></div></div><div class="store-grid">'+profileItems.map(item=>'<article class="card store-item"><div class="store-item-art store-art-'+storeCosmeticType(item)+'">'+storeItemArt(item)+'<span class="store-preview-caption">PROFILE PREVIEW</span></div><span class="pill">'+escapeHTML(item.category||'Digital item')+'</span><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points)+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(ownedItemIds.has(String(item.id))||Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>'+(ownedItemIds.has(String(item.id))?'Owned':'Purchase')+'</button></div></article>').join('')+'</div></section>':'';
  const isYokaiItemEquipped=(itemId,petId)=>{const sku=(state.globalStoreItems||[]).find(i=>String(i.id)===String(itemId))?.sku;return (state.petEquipment||[]).some(e=>String(e.pet_id)===String(petId)&&(String(e.item_id||'')===String(itemId)||!!sku&&String(e.global_store_items?.sku||e.sku||'')===String(sku)));};
  const petInventory=petPurchases.length?petPurchases.map(p=>'<article class="store-purchase-row pet-merch-inventory"><span class="store-purchase-icon pet-inventory-emoji">'+petStoreEmoji({sku:p.global_store_items?.sku})+'</span><div><b>'+escapeHTML(p.global_store_items?.name||'Yokai merchandise')+'</b><small>'+escapeHTML(p.global_store_items?.description||'')+'</small><label class="pet-equip-picker">Equip to <select data-yokai-target="'+escapeHTML(p.item_id)+'">'+(state.userPets||[]).map(pet=>'<option value="'+escapeHTML(pet.id)+'">'+escapeHTML(pet.nickname)+'</option>').join('')+'</select></label></div><div class="yokai-wardrobe-actions"><button class="ghost" data-pet-equip-item="'+escapeHTML(p.item_id)+'" '+(!(state.userPets||[]).length||isYokaiItemEquipped(p.item_id,state.userPets[0]?.id)?'disabled':'')+'>'+(isYokaiItemEquipped(p.item_id,state.userPets[0]?.id)?'Equipped':'Equip to yokai')+'</button>'+('<button class="ghost" data-store-recycle="'+escapeHTML(p.id)+'">Recycle · +'+Math.floor(Math.max(0,Number(p.price_points)||0)*.25)+' points</button>')+'</div></article>').join(''):'<div class="empty">Your yokai wardrobe is empty. Choose a charm or relic above!</div>';
  const equippedProfileIds=new Set([state.profile?.equipped_frame_item_id,state.profile?.equipped_nameplate_item_id,state.profile?.equipped_theme_item_id].filter(Boolean).map(String));
  const profileInventory=profilePurchases.length?profilePurchases.map(p=>'<article class="store-purchase-row purchase-'+storeCosmeticType(p.global_store_items||p)+'"><span class="store-purchase-icon">'+storeItemArt(p.global_store_items||p)+'</span><div><b>'+escapeHTML(p.global_store_items?.name||'WIRED store item')+'</b><small>'+escapeHTML(p.global_store_items?.description||'')+'</small></div><button class="ghost" data-store-equip="'+escapeHTML(p.item_id)+'" '+(equippedProfileIds.has(String(p.item_id))?'aria-label="Unequip item"':'')+'>'+(equippedProfileIds.has(String(p.item_id))?'Unequip':'Equip')+'</button>'+('<button class="ghost" data-store-recycle="'+escapeHTML(p.id)+'">Recycle · +'+Math.floor(Math.max(0,Number(p.price_points)||0)*.25)+' points</button>')+'</article>').join(''):'<div class="empty">No profile cosmetics purchased yet.</div>';
- const storeHome='<div class="wired-store-choices"><button type="button" class="wired-store-choice" data-store-section="profile"><span class="wired-store-choice-icon">✦</span><strong>Profile Cosmetics</strong><small>Themes, frames &amp; nameplates</small><span>Browse →</span></button><button type="button" class="wired-store-choice" data-store-section="yokai"><span class="wired-store-choice-icon">☯</span><strong>Yokai Products</strong><small>Companion merchandise &amp; accessories</small><span>Browse →</span></button><button type="button" class="wired-store-choice" data-store-section="gifts"><span class="wired-store-choice-icon">🎁</span><strong>Gifts</strong><small>Send gifts to any WIRED member</small><span>Browse →</span></button></div>';
+ const storeHome='<div class="wired-store-choices"><button type="button" class="wired-store-choice" data-store-section="profile"><span class="wired-store-choice-icon">✦</span><strong>Profile Cosmetics</strong><small>Themes, frames &amp; nameplates</small><span>Browse →</span></button><button type="button" class="wired-store-choice" data-store-section="yokai"><span class="wired-store-choice-icon">☯</span><strong>Yokai Backgrounds</strong><small>Spooky scenes for your companions</small><span>Browse →</span></button><button type="button" class="wired-store-choice" data-store-section="gifts"><span class="wired-store-choice-icon">🎁</span><strong>Gifts</strong><small>Send gifts to any WIRED member</small><span>Browse →</span></button></div>';
  const back='<button type="button" class="ghost wired-store-back" data-store-section="home">← All shop categories</button>';
  const inventoryProfile='<section class="store-purchases"><div class="section-head"><h2>✨ My profile purchases</h2><span>Your account inventory</span></div>'+profileInventory+'</section>';
  const inventoryYokai='<section class="store-purchases"><div class="section-head"><div><h2>🐾 Yokai wardrobe</h2><span>Choose a companion to equip each item to.</span></div></div>'+petInventory+'</section>';
  const giftShop='<section class="card wired-gift-shop"><div class="section-head"><h2>🎁 Gifts</h2></div><p>Purchase gifts first and save them in your gift inventory. Send gifts to any WIRED member, without following or friendship requirements. Recipients receive the gift value plus a 10% bonus when accepted.</p><form id="purchaseFriendGiftForm"><label class="field">Choose a gift<select id="giftTypeSelect" required>'+WIRED_FRIEND_GIFTS.map(g=>'<option value="'+g[0]+'">'+g[1]+' '+g[2]+' · '+g[3]+' points</option>').join('')+'</select></label><div class="wired-gift-grid">'+WIRED_FRIEND_GIFTS.map(g=>'<button type="button" class="wired-gift-tile" data-select-gift="'+g[0]+'"><span>'+g[1]+'</span><strong>'+g[2]+'</strong><small>'+g[3]+' points</small></button>').join('')+'</div><p class="hint" id="friendGiftPrice"></p><button type="submit" class="primary">Purchase gift</button></form><section class="wired-returned-gifts"><h3>🎁 My Gift Inventory</h3><p class="hint">Purchased and rejected gifts are stored here. Sending a gift costs no additional points.</p><label class="field">Send inventory gift to member<select id="giftFriendRecipient"><option value="">Choose a recipient</option>'+(wiredGiftTarget&&!wiredGiftFriends.some(f=>f.id===wiredGiftTarget.id)?'<option value="'+escapeHTML(wiredGiftTarget.id)+'">'+escapeHTML(wiredGiftTarget.username)+' (selected profile)</option>':'')+wiredGiftFriends.map(f=>'<option value="'+escapeHTML(f.id)+'">'+escapeHTML(f.username)+'</option>').join('')+'</select></label><div class="wired-gift-grid">'+(wiredGiftInventory.map(g=>'<article class="wired-gift-tile"><span>'+escapeHTML(g.gift_emoji)+'</span><strong>'+escapeHTML(g.gift_name)+'</strong><small>Purchased for '+Number(g.base_points)+' points</small><button type="button" class="ghost" data-resend-gift="'+escapeHTML(g.id)+'">Send gift</button></article>').join('')||'<p class="hint">Your gift inventory is empty.</p>')+'</div></section></section>';
- const contents=wiredStoreSection==='profile'?back+(profileShop||'<div class="empty">No profile cosmetics available yet.</div>')+inventoryProfile:wiredStoreSection==='yokai'?back+(petShop||'<div class="empty">No yokai products available yet.</div>')+inventoryYokai:wiredStoreSection==='gifts'?back+giftShop:storeHome;
+ const contents=wiredStoreSection==='profile'?back+(profileShop||'<div class="empty">No profile cosmetics available yet.</div>')+inventoryProfile:wiredStoreSection==='yokai'?back+(petShop||'<div class="empty">No yokai backgrounds available yet.</div>')+yokaiBackgroundInventory(backgroundPurchases)+(petPurchases.length?inventoryYokai:''):wiredStoreSection==='gifts'?back+giftShop:storeHome;
  v.innerHTML='<div class="store-heading"><div class="section-head"><div><span class="pill">APP-WIDE STORE</span><h2>WIRED Global Store</h2><p>Choose a shop category to browse its products.</p></div><button type="button" class="store-wallet store-wallet-history" aria-label="View points transaction history" title="View points earned and spent"><span>Your points</span><b>◉ '+Number(state.globalStoreBalance||0)+'</b></button></div></div>'+contents;
  v.querySelector('#purchaseFriendGiftForm')?.addEventListener('submit',purchaseFriendGift);
  if(wiredGiftTarget){const recipient=v.querySelector('#giftFriendRecipient');if(recipient)recipient.value=wiredGiftTarget.id;}
@@ -1254,7 +1316,28 @@ function renderGlobalStore(){
  v.querySelectorAll('[data-store-section]').forEach(b=>b.addEventListener('click',()=>{wiredStoreSection=b.dataset.storeSection;if(wiredStoreSection!=='gifts')wiredGiftTarget=null;try{sessionStorage.setItem('wired:storeSection',wiredStoreSection);}catch(e){}saveWiredRoute();if(wiredStoreSection==='gifts')Promise.all([loadGiftFriends(),loadReturnedGiftInventory()]).then(()=>{if(state.page==='store'&&wiredStoreSection==='gifts')renderGlobalStore()}).catch(e=>toast(errorText(e)));renderGlobalStore();}));
 
 
- v.querySelectorAll('[data-store-buy]').forEach(b=>b.addEventListener('click',()=>purchaseGlobalStoreItem(b.dataset.storeBuy)));
+ v.querySelectorAll('[data-store-buy]').forEach(button=>button.addEventListener('click',async()=>{
+  button.disabled=true;
+  await purchaseGlobalStoreItem(button.dataset.storeBuy);
+  if(button.isConnected)button.disabled=false;
+ }));
+ v.querySelector('[data-open-yokai-backgrounds]')?.addEventListener('click',()=>{
+  const inventory=v.querySelector('#myYokaiBackgrounds');
+  inventory?.focus({preventScroll:true});
+  inventory?.scrollIntoView();
+ });
+ v.querySelector('[data-yokai-background-target]')?.addEventListener('change',event=>{
+  yokaiBackgroundTarget=event.target.value;
+  renderGlobalStore();
+  v.querySelector('[data-yokai-background-target]')?.focus();
+ });
+ v.querySelectorAll('[data-yokai-background-item],[data-yokai-background-clear]').forEach(button=>button.addEventListener('click',async()=>{
+  const itemId=button.dataset.yokaiBackgroundItem;
+  const clear=button.hasAttribute('data-unequip')||button.hasAttribute('data-yokai-background-clear');
+  button.disabled=true;
+  await setYokaiBackground(yokaiBackgroundTarget,clear?null:itemId,clear?state.yokaiBackgrounds?.[yokaiBackgroundTarget]?.item_id:null);
+  if(button.isConnected)button.disabled=false;
+ }));
  v.querySelectorAll('[data-store-equip]').forEach(b=>b.addEventListener('click',()=>toggleGlobalStoreCosmetic(b.dataset.storeEquip,b)));
  v.querySelectorAll('[data-store-recycle]').forEach(b=>b.addEventListener('click',()=>recycleStorePurchase(b.dataset.storeRecycle)));
  v.querySelectorAll('[data-pet-equip-item]').forEach(b=>{const id=b.dataset.petEquipItem,select=v.querySelector('[data-yokai-target="'+CSS.escape(id)+'"]');const update=()=>{const equipped=isYokaiItemEquipped(id,select?.value);b.textContent=equipped?'Equipped':'Equip to yokai';b.disabled=equipped||!select?.value;};select?.addEventListener('change',update);update();b.addEventListener('click',()=>equipPetStoreItem(id,select?.value,b));});
@@ -1263,10 +1346,13 @@ function isGlobalGroupThread(thread){return thread.type==="group"||thread.kind==
 function isGlobalThread(thread){return !thread.community_id&&!thread.communityId&&thread.type!=="community"&&thread.kind!=="community";}
 
 async function loadPetParadise(){
-  if(!state.user){state.petSpecies=[];state.userPets=[];state.petEquipment=[];return;}
+  if(!state.user){state.petSpecies=[];state.userPets=[];state.petEquipment=[];state.yokaiBackgrounds={};return;}
   // Use the authenticated server endpoint so the account's own collection is
   // read by the verified user id, independent of browser-side table RLS.
-  const data=await api("/pets?fresh="+Date.now());
+  const [data]=await Promise.all([
+   api("/pets?fresh="+Date.now()),
+   loadYokaiBackgrounds().catch(error=>console.warn("Yokai background refresh unavailable",error))
+  ]);
   state.petSpecies=data.species||[];
   state.userPets=data.owned||[];
   state.petEquipment=data.equipment||[];
@@ -1538,7 +1624,8 @@ function renderPetParadise(){
     const species=p.pet_species||{},xp=Number(p.xp)||0,level=Number(p.level)||1,progress=xp%100,evolved=level>=Number(species.evolution_level||15),ascendant=level>=45,eternal=level>=90;
     const displayName=eternal?(species.fourth_evolved_name||("Eternal "+(species.third_evolved_name||species.name||"Yokai"))):ascendant?(species.third_evolved_name||("Ascendant "+(species.evolved_name||species.name||"Yokai"))):evolved?(species.evolved_name||("Awakened "+(species.name||"Yokai"))):(species.name||"WIRED spirit");
     const portraitUrl=yokaiPortraitUrl(species.name,species.slug,evolved);
-    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span><span class="pet-level">LVL '+level+'</span></div><div style="position:relative" class="pet-creature yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+'"><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(displayName)+' gothic anime portrait">' + yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>x.pet_id===p.id),p) + '</div><h3>'+escapeHTML(p.nickname)+'</h3><p class="pet-species">'+escapeHTML(displayName)+(eternal?' <span class="yokai-evolved-tag">✵ ETERNAL</span>':ascendant?' <span class="yokai-evolved-tag">✺ ASCENDANT</span>':evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p><div class="pet-xp"><div><span>Experience</span><b>'+progress+'/100 XP</b></div><i><span style="width:'+progress+'%"></span></i></div><div class="yokai-ability"><b>✧ '+escapeHTML(species.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(species.ability_description||"A unique gift that grows with your bond.")+'</span></div>'+(eternal?'<p class="yokai-evolution-note">✵ '+escapeHTML(species.fourth_evolution_description||"Your yokai has transcended!")+'</p>':ascendant?'<p class="yokai-evolution-note">✺ '+escapeHTML(species.third_evolution_description||"Your yokai has ascended!")+' Next transcendence: level 90.</p>':evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+' Next ascension: level 45. Transcendence at level 90.</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(species.evolved_name||"Awakened form")+' at level '+Number(species.evolution_level||15)+'. Ascension at level 45, transcendence at level 90.</p>')+'<p class="yokai-evolution-note">As your yokai grows, each awakening unlocks one additional skill.</p>'+petStat("Happiness",p.happiness,"🖤")+petStat("Fullness",p.hunger,"🥩")+petStat("Energy",p.energy,"⚡")+'<div class="yokai-whisper" aria-live="polite"><b>☾ Spirit whisper</b><p>'+escapeHTML(yokaiSpeech.get(String(p.id))||((YOKAI_WHISPERS[species.name]||[])[0]||"The veil stirs around us."))+'</p></div><button class="pet-action yokai-skill-action" type="button" data-yokai-skill="'+escapeHTML(p.id)+'">✦ Invoke Skill · 1h cooldown</button>'+(evolved?'<div class="yokai-ability"><b>☾ '+escapeHTML(species.evolved_name||displayName)+' — Awakened Dominion</b><span>Unleash your evolved yokai’s greater power. Earn extra XP and points, and restore happiness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-evolved-skill="'+escapeHTML(p.id)+'">☾ Invoke Awakened Skill · 3h cooldown</button>':'')+(ascendant?'<div class="yokai-ability"><b>✺ '+escapeHTML(species.third_evolved_name||displayName)+' — Sovereign Eclipse</b><span>Ascendant power: extra XP, points, happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-ascendant-skill="'+escapeHTML(p.id)+'">✺ Invoke Ascendant Skill · 5h cooldown</button>':'')+(eternal?'<div class="yokai-ability"><b>✵ '+escapeHTML(species.fourth_evolved_name||displayName)+' — Veilbreaker</b><span>Eternal power: earn greater XP and points, restoring happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-eternal-skill="'+escapeHTML(p.id)+'">✵ Invoke Eternal Skill · 7h cooldown</button>':'')+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🥩 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">⚔️ Train</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><button class="pet-action pet-release-action" type="button" data-pet-release="'+escapeHTML(p.id)+'">↗ Release Companion</button><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
+    const backgroundSku=state.yokaiBackgrounds?.[p.id]?.sku;
+    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span><span class="pet-level">LVL '+level+'</span></div><div class="pet-creature yokai-owned-art yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+yokaiBackgroundClass(backgroundSku)+'"'+yokaiBackgroundStyle(backgroundSku)+'><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(displayName)+' gothic anime portrait">' + yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>x.pet_id===p.id),p) + '</div><h3>'+escapeHTML(p.nickname)+'</h3><p class="pet-species">'+escapeHTML(displayName)+(eternal?' <span class="yokai-evolved-tag">✵ ETERNAL</span>':ascendant?' <span class="yokai-evolved-tag">✺ ASCENDANT</span>':evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p><div class="pet-xp"><div><span>Experience</span><b>'+progress+'/100 XP</b></div><i><span style="width:'+progress+'%"></span></i></div><div class="yokai-ability"><b>✧ '+escapeHTML(species.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(species.ability_description||"A unique gift that grows with your bond.")+'</span></div>'+(eternal?'<p class="yokai-evolution-note">✵ '+escapeHTML(species.fourth_evolution_description||"Your yokai has transcended!")+'</p>':ascendant?'<p class="yokai-evolution-note">✺ '+escapeHTML(species.third_evolution_description||"Your yokai has ascended!")+' Next transcendence: level 90.</p>':evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+' Next ascension: level 45. Transcendence at level 90.</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(species.evolved_name||"Awakened form")+' at level '+Number(species.evolution_level||15)+'. Ascension at level 45, transcendence at level 90.</p>')+'<p class="yokai-evolution-note">As your yokai grows, each awakening unlocks one additional skill.</p>'+petStat("Happiness",p.happiness,"🖤")+petStat("Fullness",p.hunger,"🥩")+petStat("Energy",p.energy,"⚡")+'<div class="yokai-whisper" aria-live="polite"><b>☾ Spirit whisper</b><p>'+escapeHTML(yokaiSpeech.get(String(p.id))||((YOKAI_WHISPERS[species.name]||[])[0]||"The veil stirs around us."))+'</p></div><button class="pet-action yokai-skill-action" type="button" data-yokai-skill="'+escapeHTML(p.id)+'">✦ Invoke Skill · 1h cooldown</button>'+(evolved?'<div class="yokai-ability"><b>☾ '+escapeHTML(species.evolved_name||displayName)+' — Awakened Dominion</b><span>Unleash your evolved yokai’s greater power. Earn extra XP and points, and restore happiness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-evolved-skill="'+escapeHTML(p.id)+'">☾ Invoke Awakened Skill · 3h cooldown</button>':'')+(ascendant?'<div class="yokai-ability"><b>✺ '+escapeHTML(species.third_evolved_name||displayName)+' — Sovereign Eclipse</b><span>Ascendant power: extra XP, points, happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-ascendant-skill="'+escapeHTML(p.id)+'">✺ Invoke Ascendant Skill · 5h cooldown</button>':'')+(eternal?'<div class="yokai-ability"><b>✵ '+escapeHTML(species.fourth_evolved_name||displayName)+' — Veilbreaker</b><span>Eternal power: earn greater XP and points, restoring happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-eternal-skill="'+escapeHTML(p.id)+'">✵ Invoke Eternal Skill · 7h cooldown</button>':'')+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🥩 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">⚔️ Train</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><button class="pet-action pet-release-action" type="button" data-pet-release="'+escapeHTML(p.id)+'">↗ Release Companion</button><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
   },"pet-collection");
   const shop=rarityGroup(state.petSpecies,p=>{
     const freeCommon=first&&p.rarity==="common";

@@ -1622,3 +1622,31 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 #wiredFriendGiftPopup #acceptWiredGift:hover,#wiredFriendGiftPopup #acceptWiredGift:focus-visible{filter:brightness(1.16);box-shadow:0 0 22px #b65cf577}
 
 .wired-gift-response-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.wired-gift-response-actions button{min-height:48px;border-radius:13px;font-weight:800}.wired-gift-response-actions .ghost{border:1px solid #9456b8;color:#e7c9f6;background:#1d102c}.wired-returned-gifts{margin-top:25px;padding-top:18px;border-top:1px solid #673b84}.wired-returned-gifts .wired-gift-tile{cursor:default}.wired-returned-gifts .wired-gift-tile button{margin-top:5px}
+
+.yokai-owned-art{position:relative}
+.yokai-background-equipped{
+  position:relative;
+  overflow:hidden;
+  background-image:var(--yokai-background);
+  background-position:center;
+  background-size:cover;
+}
+.yokai-background-preview{
+  display:block;
+  overflow:hidden;
+  border-radius:12px;
+  background:#17101e;
+}
+.yokai-background-preview img{
+  display:block;
+  width:100%;
+  aspect-ratio:3/2;
+  object-fit:cover;
+}
+.yokai-background-preview:focus-visible{outline:2px solid #c98bf8;outline-offset:3px}
+.yokai-background-thumb{
+  width:clamp(52px,12vw,84px);
+  aspect-ratio:3/2;
+  object-fit:cover;
+  border-radius:8px;
+}
