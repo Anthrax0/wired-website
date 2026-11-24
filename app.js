@@ -807,7 +807,7 @@ async function refreshUser(){
   if(state.user){await loadGlobalStore().catch(e=>console.warn('Wallet refresh unavailable',e));await loadProfile().catch(()=>{});await loadCommunities().catch(()=>{});await loadProfileSocial().catch(e=>console.warn("Profile social data unavailable",e));await loadGlobalNotifications().catch(e=>console.warn("Notifications unavailable",e));subscribeGlobalNotifications();subscribeFriendGifts();subscribeRelationshipEnds();subscribeCommunityRelationshipEnds();await loadRelationshipData().catch(e=>console.warn("Relationship data unavailable",e));}
   else {if(wiredGiftChannel){sb.removeChannel(wiredGiftChannel);wiredGiftChannel=null;}document.getElementById('wiredFriendGiftPopup')?.remove();wiredGiftPopupActive=false;if(state.relationshipEndChannel){sb.removeChannel(state.relationshipEndChannel);state.relationshipEndChannel=null;}state.relationshipEndPopup=null;document.getElementById("relationshipEndOverlay")?.remove();state.profile=null;state.communities=[];}
   await refreshWiredStaffAccess();
-  render();
+  if(!wiredRestoringRoute)render();
 }
 function updateCommunityNavigation(){
  const inside=state.page==='community'&&!!state.activeCommunity;
@@ -838,7 +838,7 @@ function handleCommunityNavigation(page){
 }
 function goGlobalHome(){if(state.page==='community'){state.page='home';try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch{}}nav('home');window.scrollTo({top:0,behavior:'smooth'});}
 document.querySelector('.brand')?.addEventListener('click',event=>{event.preventDefault();goGlobalHome();});
-function nav(page){try{sessionStorage.removeItem("wired:openedMember");sessionStorage.removeItem("wired:sanctuaryView");}catch(e){}if(page==="discover")state.discoveryMode="";if(page==="chats"){state.globalChatSection="home";try{sessionStorage.setItem("wired:globalChatSection","home");}catch(e){}}if(page==="pets")state.yokaiSanctuaryView="home";if(page==="store"){wiredGiftTarget=null;wiredStoreSection="home";try{sessionStorage.setItem("wired:storeSection","home");}catch(e){}}if(handleCommunityNavigation(page))return;if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities"||page==="all-communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="profile")loadProfileComments(state.user.id).then(comments=>{if(state.page==="profile"){state.profileComments=comments;render();}}).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadProfile(),loadGlobalStore(),loadPetParadise()]).then(()=>{if(state.page==="store")render();}).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
+function nav(page,{chatSection="home",loadChatInbox=true}={}){try{sessionStorage.removeItem("wired:openedMember");sessionStorage.removeItem("wired:sanctuaryView");}catch(e){}if(page==="discover")state.discoveryMode="";if(page==="chats"){state.globalChatSection=chatSection;try{sessionStorage.setItem("wired:globalChatSection",chatSection);}catch(e){}}if(page==="pets")state.yokaiSanctuaryView="home";if(page==="store"){wiredGiftTarget=null;wiredStoreSection="home";try{sessionStorage.setItem("wired:storeSection","home");}catch(e){}}if(handleCommunityNavigation(page))return;if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities"||page==="all-communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="profile")loadProfileComments(state.user.id).then(comments=>{if(state.page==="profile"){state.profileComments=comments;render();}}).catch(e=>toast(errorText(e)));if(page==="chats"&&loadChatInbox)loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadProfile(),loadGlobalStore(),loadPetParadise()]).then(()=>{if(state.page==="store")render();}).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
 $("notificationsBtn")?.addEventListener("click",openNotifications);
@@ -1763,6 +1763,7 @@ function render(){
  const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";const headerLogout=$("headerLogoutBtn");if(headerLogout)headerLogout.hidden=!state.user;updateNotificationBell();
  const hero=document.querySelector("#app > .hero");
  if(hero)hero.hidden=!(state.page==="home"||state.page==="discover");
+ if(state.activeThread&&$("backChats")&&(state.page==="chats"||state.page==="community"))return;
  const v=$("view");
  if(state.page==="bugs"){renderBugReports();return;}
  if(state.page==="features"){renderFeatureRequests();return;}
@@ -2071,6 +2072,7 @@ async function toggleCommunityPostCollection(button){
 }
 async function openCommunity(id,section='latest'){
  try{
+  state.activeThread=null;
   const c=state.communities.find(x=>x.id===id)||{id,name:'Community'};state.activeCommunity=c;state.page='community';updateCommunityNavigation();try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',id);}catch(e){}state.activeCommunityRole=null;state.joinRequests=[];state.managerOpen=false;
   state.communityTab=section!=='profile'&&Object.prototype.hasOwnProperty.call(COMMUNITY_SECTIONS,section)?section:'latest';
   state.communityPostCollections={featured:new Map(),saved:new Map(),loading:true,error:null};
@@ -2755,6 +2757,8 @@ async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)=
  try{
   if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}
   state.activeThread=id;
+  if(state.page==="community")state.communityTab="chats";
+  saveWiredRoute();
   const d=await api(`/threads/${encodeURIComponent(id)}/messages`);
   if(state.activeThread!==id)return;
   state.messages=d.items||[];
@@ -2953,7 +2957,7 @@ let wiredRestoringRoute=true;
 function saveWiredRoute(){
  if(wiredRestoringRoute)return;
  try{
-  const route={page:state.page,communityId:state.activeCommunity?.id||null,communitySection:state.communityTab,communityManagerOpen:!!state.managerOpen,communityThreadId:state.page==='community'&&$('backChats')?state.activeThread:null,communityProfileId:sessionStorage.getItem('wired:lastCommunityProfile')||null,memberId:state.page==='member-profile'?state.viewingProfile?.id:null,threadId:state.page==='chats'?state.activeThread:null,discoveryMode:state.discoveryMode||'',socialTab:state.profileSocialTab||'following',storeSection:wiredStoreSection,sanctuaryView:state.yokaiSanctuaryView||'home'};
+  const route={page:state.page,communityId:state.activeCommunity?.id||null,communitySection:state.communityTab,communityManagerOpen:!!state.managerOpen,communityThreadId:state.page==='community'&&state.communityTab==='chats'?state.activeThread:null,communityProfileId:sessionStorage.getItem('wired:lastCommunityProfile')||null,memberId:state.page==='member-profile'?state.viewingProfile?.id:null,threadId:state.page==='chats'?state.activeThread:null,globalChatSection:state.globalChatSection,discoveryMode:state.discoveryMode||'',socialTab:state.profileSocialTab||'following',storeSection:wiredStoreSection,sanctuaryView:state.yokaiSanctuaryView||'home'};
   sessionStorage.setItem('wired:route:v2',JSON.stringify(route));
   sessionStorage.setItem('wired:lastPage',route.page||'home');
  }catch(e){console.warn('Could not save WIRED route',e);}
@@ -2987,7 +2991,15 @@ async function restoreWiredRoute(route){
  if(route.page==='global-members'){state.page='global-members';renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return true;}
  if(route.page==='notifications'){await openNotifications();return true;}
  if(route.page==='profile-social'){state.page='profile-social';state.profileSocialTab=route.socialTab||'following';render();return true;}
- if(route.page==='chats'&&route.threadId){state.page='chats';await loadThreads();await openThread(route.threadId);return true;}
+ if(route.page==='chats'){
+  const section=route.globalChatSection??state.globalChatSection;
+  nav('chats',{chatSection:['direct','groups'].includes(section)?section:'home',loadChatInbox:false});
+  await loadThreads();
+  if(state.page==='chats'&&!state.activeThread&&route.threadId&&state.threads.some(thread=>
+   String(thread.id)===String(route.threadId)&&!(thread.community_id||thread.communityId)
+  ))await openThread(route.threadId);
+  return true;
+ }
  const pages=new Set(['home','discover','all-communities','chats','pets','store','profile','communities','people','create','bugs','features']);
  if(!pages.has(route.page)||(['bugs','features'].includes(route.page)&&!wiredStaffAccess))return false;
  nav(route.page);
@@ -3006,6 +3018,7 @@ async function init(){const {data:{session}}=await sb.auth.getSession();state.us
  wiredRestoringRoute=false;
  const tabs=new Set(["home","all-communities","discover","chats","pets","store","profile","communities","people","bugs","features"]);
  if(savedPage==="member-profile"&&state.user){const member=sessionStorage.getItem("wired:openedMember");if(member){await openMemberProfile(member);return;}}
+ if(savedPage==="chats"&&state.user){await restoreWiredRoute({page:"chats"});saveWiredRoute();return;}
  if(savedPage==="notifications"&&state.user){await openNotifications();return;}
  if(savedPage==="global-members"&&state.user){state.page="global-members";document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page==="discover"));renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return;}
  if(savedPage==="community"&&savedCommunity&&state.user){await openCommunity(savedCommunity);if(savedCommunityProfile)await openCommunityMemberProfile(savedCommunityProfile);return;}
