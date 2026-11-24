@@ -1631,6 +1631,7 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
   background-position:center;
   background-size:cover;
 }
+.pet-creature.yokai-background-equipped{animation:none}
 .yokai-background-preview{
   display:block;
   overflow:hidden;
