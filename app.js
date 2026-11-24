@@ -1310,7 +1310,8 @@ function subscribeFriendGifts(){
 function renderGlobalStore(){
  const v=$('view');
  if(!state.user){v.innerHTML='<div class="section-head"><h2>Global Store</h2></div><div class="card"><p>Log in to browse the WIRED-wide store and use your points.</p><button class="primary" id="storeLoginBtn">Log in</button></div>';v.querySelector('#storeLoginBtn')?.addEventListener('click',openAuth);return;}
- const petItems=state.globalStoreItems.filter(x=>x.category==="Yokai Backgrounds").sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0));
+ const petItems=state.globalStoreItems.filter(x=>x.category==="Yokai Backgrounds")
+  .sort((a,b)=>Number(a.price_points)-Number(b.price_points)||Number(a.sort_order||0)-Number(b.sort_order||0));
  const profileItems=state.globalStoreItems.filter(x=>!String(x.category||"").startsWith("Yokai "));
  const purchases=state.globalStorePurchases||[];
  const ownedItemIds=new Set(purchases.map(p=>String(p.item_id)));
