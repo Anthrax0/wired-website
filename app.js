@@ -846,7 +846,7 @@ function communityCards(items){
   if(!items.length)return `<div class="empty">No communities to show yet. Create the first one!</div>`;
   return '<div class="amino-community-grid">'+items.map(c=>{
    const cover=c.cover_url||c.icon_url||'';
-   const status=c.joined?(c.owner_id===state.user?.id?'Owner':'Joined'):c.join_request_status==='pending'?'Request pending':c.join_request_status==='declined'?'Request declined':'';
+   const status=c.is_banned?'Banned':c.joined?(c.owner_id===state.user?.id?'Owner':'Joined'):c.join_request_status==='pending'?'Request pending':c.join_request_status==='declined'?'Request declined':'';
    return '<article class="amino-community-card" style="'+(cover?'--community-cover:url(&quot;'+escapeHTML(cover)+'&quot;)':'')+'"><div class="amino-card-shade"></div><div class="amino-community-icon">'+(cover?'<img src="'+escapeHTML(cover)+'" alt="">':'<span>W</span>')+'</div><span class="amino-category">'+escapeHTML(c.category||'Community')+'</span><div class="amino-card-content"><h3>'+escapeHTML(c.name)+'</h3><p>'+escapeHTML(c.description||'')+'</p><div class="amino-card-actions"><button class="amino-enter" data-open-community="'+escapeHTML(c.id)+'">Enter community</button>'+(status?'<span class="amino-status">'+escapeHTML(status)+'</span>':c.visibility==='private'?'<button class="amino-join" data-join-community="'+escapeHTML(c.id)+'">Request</button>':'<button class="amino-join" data-join-community="'+escapeHTML(c.id)+'">Join</button>')+'</div></div></article>';
   }).join('')+'</div>';
 }
@@ -2082,8 +2082,9 @@ async function openCommunity(id,section='latest'){
   state.moderationWarnings=[];
   state.moderationReports=[];
   state.moderationActions=[];
+  state.moderationBans=[];
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;await loadCommunityRankTitles(id);if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
+  const role=await api('/communities/'+encodeURIComponent(id)+'/role');c.is_banned=!!role.is_banned;state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;await loadCommunityRankTitles(id);if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
   const isCurrent=()=>state.page==='community'&&state.activeCommunity===c&&state.communityPostCollections===collections;
   const collections=state.communityPostCollections;
   if(state.activeCommunityRole){
@@ -2161,6 +2162,7 @@ function renderCommunity(){
  if(!joined&&c.rules)html+='<article class="card"><h3>Community rules</h3><p>'+escapeHTML(c.rules)+'</p></article>';
  if(joined&&!state.managerOpen&&activeTab==='latest'&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
  if(joined&&!state.managerOpen&&activeTab==='compose'){html+='<div class="card form-card"><div class="section-head"><h3>Create a post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button class="primary">Publish to community</button></form></div>';}
+ else if(!joined&&c.is_banned)html+='<p class="empty">You are banned from this community.</p>';
  else if(!joined&&c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
  else if(!joined)html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
  if(manager){
@@ -2176,6 +2178,10 @@ function renderCommunity(){
   html+='<section class="manager-panel moderation-panel"><div class="manager-heading"><div><span class="eyebrow">COMMUNITY SAFETY</span><h2>Moderation tools</h2><p class="muted">Manage members, review reports, and remove posts that break your rules.</p></div></div>';
   html+='<div class="section-head"><h3>Members ('+state.moderationMembers.length+')</h3></div>';
   html+=state.moderationMembers.map(m=>'<article class="moderation-row"><div class="member-identity">'+communityAvatarWithBadge(m.avatar_url,m)+'<button class="profile-member-link" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+escapeHTML(m.username||'WIRED member')+'</button>'+communityLevelBadge(m)+'<p class="hint">'+escapeHTML(m.role||'member')+(m.banned?' · Banned':'')+'</p></div><div class="card-actions">'+(m.role!=='owner'?'<button class="ghost small" data-member-role="'+escapeHTML(m.user_id)+'" data-next-role="'+(m.role==='mod'?'member':'mod')+'">'+(m.role==='mod'?'Remove moderator':'Make moderator')+'</button>'+(m.user_id!==state.user?.id&&(m.role!=='mod'||c.owner_id===state.user?.id)?'<button class="ghost small" data-member-ban="'+escapeHTML(m.user_id)+'" data-banned="'+(m.banned?'true':'false')+'">'+(m.banned?'Unban':'Temporary / permanent ban')+'</button>':'')+'<button class="ghost small" data-member-warning="'+escapeHTML(m.user_id)+'">Issue warning</button>':'<span class="pill">Owner</span>')+'</div></article>').join('')||'<div class="empty">No members found.</div>';
+  const bans=state.moderationBans||[];
+  html+='<div class="section-head"><h3>Banned members ('+bans.length+')</h3></div>';
+  html+=bans.map(ban=>'<article class="moderation-row"><div><button type="button" class="profile-member-link" data-profile-id="'+escapeHTML(ban.user_id)+'">'+escapeHTML(ban.profiles?.username||'WIRED member')+'</button><p class="hint">'+(ban.expires_at?'Until '+escapeHTML(new Date(ban.expires_at).toLocaleString()):'Permanent ban')+'</p></div>'+
+   (ban.former_role!=='mod'||c.owner_id===state.user?.id?'<button type="button" class="ghost small" data-member-ban="'+escapeHTML(ban.user_id)+'" data-banned="true">Lift ban</button>':'')+'</article>').join('')||'<p class="empty">No active bans.</p>';
   html+='<div class="section-head"><h3>Open reports ('+state.moderationReports.length+')</h3></div>';
   html+=state.moderationReports.map(r=>'<article class="moderation-row"><div><b>'+escapeHTML(r.reason||'Reported content')+'</b><p class="hint">Post · '+escapeHTML(r.target_id)+'</p></div><div class="card-actions"><button class="ghost small" data-report-resolve="'+escapeHTML(r.id)+'">Resolve</button><button class="primary small" data-report-remove="'+escapeHTML(r.id)+'" data-report-post="'+escapeHTML(r.target_id)+'">Remove post</button></div></article>').join('')||'<div class="empty">No open reports for this community.</div>';
   html+='<div class="section-head"><h3>Community posts · moderation</h3></div>';
@@ -2238,6 +2244,11 @@ async function loadModerationData(communityId,isCurrent=()=>state.activeCommunit
  if(memberError)throw memberError;
  if(!isCurrent())return;
  state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),banned_until:m.banned_until,username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const [warnings,actions]=await Promise.all([sb.from('moderation_warnings').select('id,user_id,reason,created_at').eq('community_id',communityId).order('created_at',{ascending:false}).limit(30),sb.from('moderation_actions').select('id,actor_id,target_user_id,action,details,created_at').eq('community_id',communityId).order('created_at',{ascending:false}).limit(40)]);if(warnings.error)throw warnings.error;if(actions.error)throw actions.error;if(!isCurrent())return;state.moderationWarnings=warnings.data||[];state.moderationActions=actions.data||[];
+ const {data:bans,error:banError}=await sb.from('community_bans').select('user_id,former_role,expires_at,profiles!community_bans_user_id_fkey(username)')
+  .eq('community_id',communityId).or('expires_at.is.null,expires_at.gt.'+new Date().toISOString());
+ if(banError)throw banError;
+ if(!isCurrent())return;
+ state.moderationBans=bans||[];
  const postIds=(state.posts||[]).map(p=>p.id);
  if(!postIds.length){state.moderationReports=[];return;}
  const {data:reports,error:reportError}=await sb.from('reports').select('id,target_id,reason,status,created_at').eq('target_type','post').eq('status','open').in('target_id',postIds.map(String));
@@ -2293,8 +2304,8 @@ async function setMemberBanned(userId,banned){
   toast(banned?'Member banned.':'Member unbanned.');
   const isCurrent=()=>state.page==='community'&&state.activeCommunity===community&&state.managerOpen;
   if(isCurrent()){
-   const member=state.moderationMembers.find(item=>item.user_id===userId);
-   if(member){member.banned=banned;member.banned_until=until;}
+   state.moderationMembers=state.moderationMembers.filter(item=>item.user_id!==userId);
+   if(!banned)state.moderationBans=(state.moderationBans||[]).filter(item=>item.user_id!==userId);
    renderCommunity();
    await loadModerationData(community.id,isCurrent).catch(error=>console.warn('Moderation history refresh failed',error));
    if(isCurrent())renderCommunity();
@@ -2470,14 +2481,17 @@ function openMemberModeration(panel,community,userId,name){
  if(userId===state.user?.id)return;
  void (async()=>{
   try{
-   const {data:member,error}=await sb.from('community_members').select('role,banned,banned_until')
-    .eq('community_id',community.id).eq('user_id',userId).maybeSingle();
-   if(error)throw error;
-   if(!dialog.open||!current()||!member||member.role==='owner'||userId===community.owner_id||
-      member.role==='mod'&&state.user?.id!==community.owner_id)return;
+   const [membership,banStatus]=await Promise.all([
+    sb.from('community_members').select('role').eq('community_id',community.id).eq('user_id',userId).maybeSingle(),
+    sb.from('community_bans').select('former_role,expires_at').eq('community_id',community.id).eq('user_id',userId).maybeSingle()
+   ]);
+   if(membership.error||banStatus.error)throw membership.error||banStatus.error;
+   const ban=banStatus.data,banned=!!ban&&(!ban.expires_at||Date.parse(ban.expires_at)>Date.now());
+   const role=banned?ban.former_role:membership.data?.role;
+   if(!dialog.open||!current()||!role||role==='owner'||userId===community.owner_id||
+      role==='mod'&&state.user?.id!==community.owner_id)return;
    const actions=dialog.querySelector('.member-moderation-actions');
-   const banned=member.banned||!!(member.banned_until&&Date.parse(member.banned_until)>Date.now());
-   actions.insertAdjacentHTML('beforeend','<button class="ghost" type="button" data-member-sanction="strike">Issue strike</button>'+
+   actions.insertAdjacentHTML('beforeend',(banned?'':'<button class="ghost" type="button" data-member-sanction="strike">Issue strike</button>')+
     '<button class="ghost" type="button" data-member-sanction="'+(banned?'unban':'ban')+'">'+(banned?'Lift ban':'Ban member')+'</button>');
    actions.querySelectorAll('[data-member-sanction]').forEach(button=>button.addEventListener('click',()=>{
     action=button.dataset.memberSanction;
