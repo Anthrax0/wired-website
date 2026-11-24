@@ -1871,11 +1871,39 @@ async function toggleCommunityPostCollection(button){
 async function openCommunity(id,section='latest'){
  try{
   const c=state.communities.find(x=>x.id===id)||{id,name:'Community'};state.activeCommunity=c;state.page='community';updateCommunityNavigation();try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',id);}catch(e){}state.activeCommunityRole=null;state.joinRequests=[];state.managerOpen=false;
-  state.communityTab=Object.hasOwn(COMMUNITY_SECTIONS,section)?section:'latest';
-  state.communityPostCollections={featured:new Map(),saved:new Map(),error:null};
+  state.communityTab=Object.prototype.hasOwnProperty.call(COMMUNITY_SECTIONS,section)?section:'latest';
+  state.communityPostCollections={featured:new Map(),saved:new Map(),loading:true,error:null};
+  state.communityFeedError=null;
+  state.posts=[];
+  state.moderationMembers=[];
+  state.moderationWarnings=[];
+  state.moderationReports=[];
+  state.moderationActions=[];
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;await loadCommunityRankTitles(id);if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
-  if(state.activeCommunityRole){const d=await api('/communities/'+encodeURIComponent(id)+'/posts');state.posts=d.items||[];if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];await loadModerationData(id);}else{const {data:members,error:membersError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',id).order('joined_at',{ascending:true});if(membersError)throw membersError;state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}else{state.posts=[];state.moderationMembers=[];state.moderationReports=[];state.moderationActions=[];state.moderationWarnings=[];if(state.activeCommunityRole&&state.user){const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}
+  const isCurrent=()=>state.page==='community'&&state.activeCommunity===c&&state.communityPostCollections===collections;
+  const collections=state.communityPostCollections;
+  if(state.activeCommunityRole){
+   try{
+    const result=await api('/communities/'+encodeURIComponent(id)+'/posts');
+    if(!isCurrent())return;
+    state.posts=result.items||[];
+   }catch(error){
+    if(!isCurrent())return;
+    state.communityFeedError=error;
+   }
+  }
+  renderCommunity();
+  if(!state.activeCommunityRole)return;
+  void loadCommunityPostCollections(id).catch(error=>({...collections,error})).then(result=>{
+   if(!isCurrent())return;
+   Object.assign(collections,result,{loading:false});
+   if(state.communityTab!=='compose'&&!state.managerOpen&&!$('closeLocalProfile'))renderCommunity();
+  });
+  try{
+  if(state.activeCommunityRole){if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];await loadModerationData(id);}else{const {data:members,error:membersError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',id).order('joined_at',{ascending:true});if(membersError)throw membersError;state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}
+  }catch(error){console.warn('Community member tools unavailable',error);}
+  if(!isCurrent())return;
   if(state.activeCommunityRole&&state.moderationMembers.length){
    try{
     const {data:locals,error:localError}=await sb.from('community_profiles').select('user_id,nickname,avatar_url').eq('community_id',id);
@@ -1887,12 +1915,8 @@ async function openCommunity(id,section='latest'){
     });
    }catch(profileError){console.warn('Community identities unavailable',profileError);}
   }
-  if(state.activeCommunityRole){
-   const [collections]=await Promise.all([loadCommunityPostCollections(id),loadCommunityMemberLevels(id)]);
-   if(state.page!=='community'||state.activeCommunity?.id!==id)return;
-   state.communityPostCollections=collections;
-  }
-  renderCommunity();
+  await loadCommunityMemberLevels(id);
+  if(isCurrent()&&state.communityTab!=='compose'&&!$('closeLocalProfile'))renderCommunity();
  }catch(e){toast(errorText(e));}
 }
 function renderPostCard(p){
@@ -1917,7 +1941,7 @@ function renderPostCard(p){
  const reactions=Object.keys(icons).map(r=>'<button type="button" aria-label="React '+r+'" class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
  const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b><p>'+escapeHTML(z.body)+'</p></div>').join('');
  const collections=state.communityPostCollections;
- const actions=collections&&!collections.error?'<div class="community-post-actions">'+
+ const actions=collections&&!collections.loading&&!collections.error?'<div class="community-post-actions">'+
   '<button type="button" class="ghost small" data-post-collection="saved" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.saved.has(p.id)+'">'+(collections.saved.has(p.id)?'Unsave':'Save post')+'</button>'+
   (['owner','mod'].includes(state.activeCommunityRole)?
    '<button type="button" class="ghost small" data-post-collection="featured" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.featured.has(p.id)+'">'+(collections.featured.has(p.id)?'Remove from Featured':'Feature post')+'</button>':'')+'</div>':'';
@@ -1965,9 +1989,14 @@ function renderCommunity(){
   const collections=state.communityPostCollections;
   const posts=communityFeedPosts(activeTab,state.posts,collections);
   html+='<div class="wired-feed-heading"><h2>'+title+'</h2></div>';
-  const failed=collections.error&&['saved','featured'].includes(activeTab);
-  html+=failed?'<div class="empty">Could not load this feed. Reopen the community to retry.</div>':
-   posts.map(renderPostCard).join('')||'<div class="empty">'+empty+'</div>';
+  const collectionFeed=['saved','featured'].includes(activeTab);
+  if(state.communityFeedError||collectionFeed&&collections.error){
+   html+='<div class="empty"><p>Could not load this feed.</p><button type="button" class="ghost" id="retryCommunityFeed">Retry</button></div>';
+  }else if(collectionFeed&&collections.loading){
+   html+='<p class="empty" role="status">Loading posts…</p>';
+  }else{
+   html+=posts.map(renderPostCard).join('')||'<div class="empty">'+empty+'</div>';
+  }
  }
  if(joined&&!state.managerOpen&&activeTab==='guidelines'){
   html+='<section class="wired-guidelines"><h2>Community guidelines</h2><p>'+escapeHTML(c.rules||'Be respectful, stay on topic, and help keep this community welcoming for everyone.')+'</p></section>';
@@ -1979,6 +2008,7 @@ function renderCommunity(){
  ).join('')+'</nav>':'';
  html=communityHeader+sectionNav+'<div class="community-main">'+html+memberDirectory+'</div>';
  v.innerHTML=html;
+ $('retryCommunityFeed')?.addEventListener('click',()=>openCommunity(c.id,state.communityTab));
  v.querySelectorAll('[data-community-tab]').forEach(button=>button.addEventListener('click',()=>{
   state.communityTab=button.dataset.communityTab;
   state.managerOpen=false;
@@ -2112,7 +2142,7 @@ function updatePostComposer(){
  if($('postImageWrap'))$('postImageWrap').hidden=false;
  if(type==='quiz'&&!$('quizQuestionBuilder')?.querySelector('[data-quiz-question]'))addQuizQuestion();
 }
-async function refreshCommunityPosts(){const d=await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/posts');state.posts=d.items||[];renderCommunity();}
+async function refreshCommunityPosts(){const d=await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/posts');state.posts=d.items||[];state.communityFeedError=null;renderCommunity();}
 async function createPost(e){
  e.preventDefault();
  try{
