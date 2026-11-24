@@ -1754,3 +1754,27 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
   #communityMenuButton:not([hidden]){display:inline-flex;align-items:center;margin:0 0 10px;min-height:44px}
   .community-side-links button{min-height:44px}
 }
+
+.wired-community-header.has-community-cover{
+  display:flex;
+  align-items:flex-end;
+  min-height:clamp(128px,20vw,224px);
+}
+.wired-community-cover-art{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.has-community-cover .wired-community-header-glow{
+  background:linear-gradient(0deg,#0b0515f5 4%,#0b0515a0 46%,#0b051524 100%);
+}
+.has-community-cover .wired-community-header-main{width:100%}
+.wired-community-header,.wired-community-header-icon,
+.community-side-links button[aria-current="page"]{
+  border-color:color-mix(in srgb,var(--community-accent,#a85be5) 70%,#332446);
+}
+.community-side-links button[aria-current="page"]{
+  background:color-mix(in srgb,var(--community-accent,#a85be5) 25%,#160e22);
+}

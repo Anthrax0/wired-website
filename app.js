@@ -1859,6 +1859,24 @@ const COMMUNITY_SECTIONS={
 function isCommunitySection(id,section){
  return !!id&&state.page==='community'&&state.activeCommunity?.id===id&&state.communityTab===section&&!$('backChats')&&!$('closeLocalProfile');
 }
+function communityAccent(community){
+ const color=community?.theme_color;
+ return /^#[a-f0-9]{6}$/i.test(color||'')?color:'#a85be5';
+}
+function communityHeaderMarkup(community,joined,fallbackCount){
+ const name=escapeHTML(community.name||'Community');
+ const cover=community.cover_url?'<img class="wired-community-cover-art" src="'+escapeHTML(community.cover_url)+'" alt="" decoding="async">':'';
+ const icon=community.icon_url?'<img class="wired-community-header-icon" src="'+escapeHTML(community.icon_url)+'" alt="">':'<span class="wired-community-header-icon wired-community-header-fallback" aria-hidden="true">W</span>';
+ const count=Number(community.member_count??fallbackCount);
+ const memberLabel=Number.isSafeInteger(count)&&count>=0?count.toLocaleString()+' '+(count===1?'member':'members'):'';
+ const details=[community.category,memberLabel,community.visibility==='private'?'Private community':''].filter(Boolean).map(value=>escapeHTML(value)).join(' · ');
+ return '<header class="wired-community-header'+(cover?' has-community-cover':'')+'">'+cover+
+  '<div class="wired-community-header-glow" aria-hidden="true"></div><div class="wired-community-header-main">'+
+  '<button type="button" class="wired-community-back" id="backDiscover" aria-label="Back to Discover">←</button>'+
+  '<div class="wired-community-header-identity">'+icon+'<div class="wired-community-header-copy"><h1>'+name+'</h1>'+
+  (details?'<span class="wired-community-header-subtitle">'+details+'</span>':'')+'</div></div>'+
+  (joined?'<span class="wired-community-header-status">Joined</span>':'')+'</div></header>';
+}
 function communitySidebarMarkup(community){
  const manager=['owner','mod'].includes(state.activeCommunityRole);
  const sectionButton=key=>'<button type="button" data-community-destination="'+key+'" '+
@@ -1881,6 +1899,8 @@ function updateCommunitySidebar(){
  const community=state.page==='community'?state.activeCommunity:null;
  workspace.classList.toggle('community-workspace-active',!!community);
  sidebar.hidden=trigger.hidden=!community;
+ workspace.style.setProperty('--community-accent',communityAccent(community));
+ drawer.style.setProperty('--community-accent',communityAccent(community));
  if(!community){
   if($('communityMenu')?.open)$('communityMenu').close();
   sidebar.textContent=drawer.textContent='';
@@ -2141,7 +2161,7 @@ function renderCommunity(){
   html+='<section class="wired-guidelines"><h2>Community guidelines</h2><p>'+escapeHTML(c.rules||'Be respectful, stay on topic, and help keep this community welcoming for everyone.')+'</p></section>';
  }
  const memberDirectory=joined&&activeTab==='members'&&!state.managerOpen?'<section class="community-directory"><section class="member-sidebar-card"><div class="member-sidebar-heading"><h3>Members</h3><span class="pill">'+state.moderationMembers.length+'</span></div><div class="member-sidebar-list">'+(state.moderationMembers.map(m=>'<button class="member-sidebar-item" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+communityAvatarWithBadge(m.avatar_url,m)+'<span class="member-sidebar-name">'+escapeHTML(m.username||'WIRED member')+communityLevelBadge(m)+'<small>'+escapeHTML(m.role==='mod'?'Moderator':m.role==='owner'?'Owner':'Member')+(m.banned?' · Banned':'')+'</small></span></button>').join('')||'<p class="hint">No members yet.</p>')+'</div></section></section>':'';
- const communityHeader='<header class="wired-community-header"><div class="wired-community-header-glow" aria-hidden="true"></div><div class="wired-community-header-main"><button type="button" class="wired-community-back" id="backDiscover" aria-label="Back to Discover">←</button><div class="wired-community-header-identity">'+(c.icon_url?'<img class="wired-community-header-icon" src="'+escapeHTML(c.icon_url)+'" alt="">':'<span class="wired-community-header-icon wired-community-header-fallback">W</span>')+'<div class="wired-community-header-copy"><span class="wired-community-header-eyebrow">WIRED / COMMUNITY</span><h1>'+escapeHTML(c.name||'Community')+'</h1><span class="wired-community-header-subtitle">Stay connected. · '+Number(c.member_count||state.moderationMembers.length||0)+' members</span></div></div><span class="wired-community-header-status">'+(joined?'CONNECTED':'EXPLORE')+'</span></div></header>';
+ const communityHeader=communityHeaderMarkup(c,joined,state.moderationMembers.length);
  if(joined&&!state.managerOpen&&activeTab==='chats')html+='<section id="communityChatList"></section>';
  if(joined&&!state.managerOpen&&activeTab==='notifications')html+='<section id="communityNotificationList"></section>';
  v.innerHTML=communityHeader+'<div class="community-main">'+html+memberDirectory+'</div>';
