@@ -2189,15 +2189,16 @@ function renderCommunity(){
  v.querySelectorAll('[data-approve-request]').forEach(b=>b.addEventListener('click',()=>reviewJoinRequest(b.dataset.approveRequest,'approved')));
  v.querySelectorAll('[data-decline-request]').forEach(b=>b.addEventListener('click',()=>reviewJoinRequest(b.dataset.declineRequest,'declined')));
 }
-async function loadModerationData(communityId){
+async function loadModerationData(communityId,isCurrent=()=>state.activeCommunity?.id===communityId){
  const {data:members,error:memberError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',communityId).order('joined_at',{ascending:true});
  if(memberError)throw memberError;
- state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),banned_until:m.banned_until,username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const [warnings,actions]=await Promise.all([sb.from('moderation_warnings').select('id,user_id,reason,created_at').eq('community_id',communityId).order('created_at',{ascending:false}).limit(30),sb.from('moderation_actions').select('id,actor_id,target_user_id,action,details,created_at').eq('community_id',communityId).order('created_at',{ascending:false}).limit(40)]);if(warnings.error)throw warnings.error;if(actions.error)throw actions.error;state.moderationWarnings=warnings.data||[];state.moderationActions=actions.data||[];
+ if(!isCurrent())return;
+ state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),banned_until:m.banned_until,username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const [warnings,actions]=await Promise.all([sb.from('moderation_warnings').select('id,user_id,reason,created_at').eq('community_id',communityId).order('created_at',{ascending:false}).limit(30),sb.from('moderation_actions').select('id,actor_id,target_user_id,action,details,created_at').eq('community_id',communityId).order('created_at',{ascending:false}).limit(40)]);if(warnings.error)throw warnings.error;if(actions.error)throw actions.error;if(!isCurrent())return;state.moderationWarnings=warnings.data||[];state.moderationActions=actions.data||[];
  const postIds=(state.posts||[]).map(p=>p.id);
  if(!postIds.length){state.moderationReports=[];return;}
  const {data:reports,error:reportError}=await sb.from('reports').select('id,target_id,reason,status,created_at').eq('target_type','post').eq('status','open').in('target_id',postIds.map(String));
  if(reportError)throw reportError;
- state.moderationReports=reports||[];
+ if(isCurrent())state.moderationReports=reports||[];
 }
 async function logModerationAction(action,targetUserId=null,details=''){const {error}=await sb.from('moderation_actions').insert({community_id:state.activeCommunity.id,actor_id:state.user.id,target_user_id:targetUserId,action,details});if(error)throw error;}async function issueMemberWarning(userId,reason){const {error}=await sb.from('moderation_warnings').insert({community_id:state.activeCommunity.id,user_id:userId,moderator_id:state.user.id,reason});if(error)throw error;await logModerationAction('issue_warning',userId,reason);toast('Warning issued.');await openCommunity(state.activeCommunity.id);}async function setMemberRole(userId,role){
  const cid=state.activeCommunity?.id;
@@ -2229,11 +2230,29 @@ async function resolveCommunityReport(reportId){
  try{const {error}=await sb.from('reports').update({status:'resolved'}).eq('id',reportId);if(error)throw error;await logModerationAction('resolve_report',null,'Report '+reportId+' resolved');toast('Report resolved.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
 }
 async function removeReportedPost(reportId,postId){
- try{const {error:postError}=await sb.from('posts').update({removed:true}).eq('id',postId);if(postError)throw postError;const {error:reportError}=await sb.from('reports').update({status:'resolved'}).eq('id',reportId);if(reportError)throw reportError;await logModerationAction('remove_reported_post',null,'Post '+postId+' removed and report '+reportId+' resolved');toast('Post removed and report resolved.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
+ await moderateRemovePost(postId,reportId);
 }
-async function moderateRemovePost(postId){
- if(!await wiredDialog('Remove this post from the community?'))return;
- try{const {error}=await sb.from('posts').update({removed:true}).eq('id',postId);if(error)throw error;await logModerationAction('remove_post',null,'Post '+postId+' removed');toast('Post removed.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
+async function moderateRemovePost(postId,reportId=null){
+ const community=state.activeCommunity;
+ if(!community||!await wiredDialog('Remove this post from the community?'))return;
+ if(state.page!=='community'||state.activeCommunity!==community)return;
+ try{
+  const {error}=await sb.rpc('moderate_remove_community_post',{
+   p_community_id:community.id,p_post_id:postId,p_report_id:reportId
+  });
+  if(error)throw error;
+  toast(reportId?'Post removed and report resolved.':'Post removed.');
+  const isCurrent=()=>state.page==='community'&&state.activeCommunity===community;
+  if(!isCurrent())return;
+  state.posts=state.posts.filter(post=>post.id!==postId);
+  state.moderationReports=state.moderationReports.filter(report=>report.target_id!==postId);
+  const managerIsOpen=()=>isCurrent()&&state.managerOpen;
+  if(managerIsOpen()){
+   renderCommunity();
+   await loadModerationData(community.id,managerIsOpen).catch(error=>console.warn('Moderation log refresh failed',error));
+   if(managerIsOpen())renderCommunity();
+  }
+ }catch(error){toast(errorText(error));}
 }
 async function saveCommunitySettings(e){
  e.preventDefault();const status=$('managerSettingsStatus');if(status)status.textContent='Saving settings…';
