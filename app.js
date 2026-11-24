@@ -1073,7 +1073,7 @@ const WIRED_FRIEND_GIFTS=[
  ['pizza','🍕','Pizza',20],['burger','🍔','Burger',25],['sushi','🍣','Sushi',25],
  ['cocktail','🍹','Cocktail',25],['mocktail','🍸','Mocktail',25],['dinner','🍽️','Dinner',30],
  ['flowers','💐','Flower Bouquet',90],['roses','🌹','Roses',90],['chocolates','🍫','Chocolate Box',90],
- ['teddy','🧸','Teddy Bear',90],['heart','💝','Heart Gift',90]
+ ['teddy','🧸','Teddy Bear',90],['heart','💝','Heart Gift',90],['champagne','🍾','Champagne',150]
 ];
 let wiredGiftFriends=[],wiredGiftInventory=[],wiredGiftChannel=null,wiredGiftPopupActive=false,wiredGiftTarget=null;
 async function wiredBlockState(userId){
