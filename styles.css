@@ -1778,3 +1778,8 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .community-side-links button[aria-current="page"]{
   background:color-mix(in srgb,var(--community-accent,#a85be5) 25%,#160e22);
 }
+
+
+.brand{flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.brand-wordmark{display:block;width:clamp(108px,40vw,184px);max-width:100%;height:auto;border-radius:6px}
+.brand small{padding-left:4px}
