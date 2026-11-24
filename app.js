@@ -1906,7 +1906,13 @@ async function openCommunitySection(section){
  state.managerOpen=section==='manager';
  if(section==='profile'){
   updateCommunitySidebar();
-  await openCommunityMemberProfile(state.user.id);
+  $('view').innerHTML='<p class="empty" role="status">Loading your community profile…</p>';
+  window.scrollTo({top:0});
+  const opened=await openCommunityMemberProfile(state.user.id,cid,()=>state.communityTab==='profile');
+  if(opened===false&&state.page==='community'&&state.activeCommunity?.id===cid&&state.communityTab==='profile'){
+   $('view').innerHTML='<div class="empty"><p>Could not load your community profile.</p><button class="ghost" type="button" id="retryCommunityProfile">Retry</button></div>';
+   $('retryCommunityProfile').addEventListener('click',()=>openCommunitySection('profile'));
+  }
   return;
  }
  renderCommunity();
@@ -2030,7 +2036,7 @@ async function openCommunity(id,section='latest'){
   void loadCommunityPostCollections(id).catch(error=>({...collections,error})).then(result=>{
    if(!isCurrent())return;
    Object.assign(collections,result,{loading:false});
-   if(state.communityTab!=='compose'&&!state.managerOpen&&!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
+   if(!['compose','profile'].includes(state.communityTab)&&!state.managerOpen&&!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
   });
   try{
   if(state.activeCommunityRole){if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];await loadModerationData(id);}else{const {data:members,error:membersError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',id).order('joined_at',{ascending:true});if(membersError)throw membersError;state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}
@@ -2048,7 +2054,7 @@ async function openCommunity(id,section='latest'){
    }catch(profileError){console.warn('Community identities unavailable',profileError);}
   }
   await loadCommunityMemberLevels(id);
-  if(isCurrent()&&state.communityTab!=='compose'&&!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
+  if(isCurrent()&&!['compose','profile'].includes(state.communityTab)&&!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
  }catch(e){toast(errorText(e));}
 }
 function renderPostCard(p){
@@ -2308,9 +2314,13 @@ async function submitQuiz(e,id){
  catch(err){if(button){button.disabled=false;button.textContent='Submit quiz';}toast(errorText(err));}
 }
 
-async function openCommunityMemberProfile(userId){
- const cid=state.activeCommunity?.id,uid=state.user?.id;if(!cid||!uid)return;
- if(userId!==uid){try{const block=await wiredBlockState(userId);if(block.blockedBy){toast('This profile is unavailable.');return;}if(block.blocked){const v=$('view');v.innerHTML='<section class="card"><h2>Blocked</h2><p>You blocked this member across WIRED.</p><button type="button" class="ghost" id="communityBlockedBtn">Blocked</button></section>';v.querySelector('#communityBlockedBtn')?.addEventListener('click',()=>toggleWiredBlock(userId));return;}}catch(e){toast(errorText(e));return;}}
+let communityProfileRequest=0;
+async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,stillSelected=()=>true){
+ const community=state.activeCommunity,uid=state.user?.id;
+ if(!uid||!cid||community?.id!==cid||state.page!=='community')return;
+ const request=++communityProfileRequest;
+ const isCurrent=()=>request===communityProfileRequest&&state.page==='community'&&state.activeCommunity?.id===cid&&state.user?.id===uid&&stillSelected();
+ if(userId!==uid){try{const block=await wiredBlockState(userId);if(!isCurrent())return;if(block.blockedBy){toast('This profile is unavailable.');return;}if(block.blocked){const v=$('view');v.innerHTML='<section class="card"><h2>Blocked</h2><p>You blocked this member across WIRED.</p><button type="button" class="ghost" id="communityBlockedBtn">Blocked</button></section>';v.querySelector('#communityBlockedBtn')?.addEventListener('click',()=>toggleWiredBlock(userId));return;}}catch(e){toast(errorText(e));return;}}
  try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',cid);sessionStorage.setItem('wired:lastCommunityProfile',userId);}catch(e){}
  try{
   const [{data:local,error},{data:global,error:ge},{data:follows,error:fe},{data:relationships,error:re}]=await Promise.all([
@@ -2319,6 +2329,7 @@ async function openCommunityMemberProfile(userId){
    sb.from('community_profile_follows').select('follower_id,following_id').eq('community_id',cid),
    sb.from('community_relationships').select('id,requester_id,recipient_id,status,ended_by').eq('community_id',cid).in('status',['pending','accepted']).or('and(requester_id.eq.'+uid+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+uid+')').limit(1)
   ]);
+  if(!isCurrent())return;
   if(error||ge||fe||re)throw error||ge||fe||re;
   const name=local?.nickname||global?.username||'Community member';
   const following=(follows||[]).some(f=>f.follower_id===uid&&f.following_id===userId);
@@ -2350,10 +2361,11 @@ async function openCommunityMemberProfile(userId){
    try{const leaderboard=await api('/communities/'+encodeURIComponent(cid)+'/leaderboard');profileCommunityPoints=Number((leaderboard.items||[]).find(m=>(m.user_id||m.id)===userId)?.points)||0;}
    catch(e){console.warn('Community profile level unavailable',e);profileCommunityPoints=0;}
   }
+  if(!isCurrent())return;
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
   const own=userId===uid;
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
-  panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><p class="hint">'+escapeHTML(state.activeCommunity?.name||'Community')+' profile</p><h2>'+escapeHTML(name)+'</h2></div></div>'+'<span class="community-local-avatar-wrap">'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'<span class="community-local-avatar community-local-avatar-fallback">W</span>')+communityAvatarLevelBadge({communityPoints:profileCommunityPoints})+'</span>'+'<div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(local?.show_global_companion?'<section class="community-companion-section">'+(companion?profileYokaiMarkup(companion):'<p class="hint">'+escapeHTML(companionMessage)+'</p>')+'</section>':'')+'<section class="community-profile-biography"><h3>About Me</h3><p id="communityProfileBio">'+escapeHTML(local?.bio||'No community biography yet.')+'</p></section>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
+  panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><p class="hint">'+escapeHTML(community.name||'Community')+' profile</p><h2>'+escapeHTML(name)+'</h2></div></div>'+'<span class="community-local-avatar-wrap">'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'<span class="community-local-avatar community-local-avatar-fallback">W</span>')+communityAvatarLevelBadge({communityPoints:profileCommunityPoints})+'</span>'+'<div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(local?.show_global_companion?'<section class="community-companion-section">'+(companion?profileYokaiMarkup(companion):'<p class="hint">'+escapeHTML(companionMessage)+'</p>')+'</section>':'')+'<section class="community-profile-biography"><h3>About Me</h3><p id="communityProfileBio">'+escapeHTML(local?.bio||'No community biography yet.')+'</p></section>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
   if(!own)panel.insertAdjacentHTML('beforeend','<button type="button" class="ghost" id="communitySendGiftBtn">🎁 Send Gift</button><button type="button" class="ghost" id="communityBlockBtn" style="color:#ff525f;border-color:#b42b42;font-size:.75rem;padding:.3rem .55rem">Block</button>');
   const communityQuick=panel.querySelector('.community-social-counts');
   if(communityQuick){communityQuick.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:12px 0';const gift=panel.querySelector('#communitySendGiftBtn'),block=panel.querySelector('#communityBlockBtn');if(gift)communityQuick.appendChild(gift);if(block)communityQuick.appendChild(block);const relation=panel.querySelector('.community-profile-biography')?.nextElementSibling;const heading=panel.querySelector('.profile-person');const companionSection=panel.querySelector('.community-companion-section');if(companionSection)companionSection.before(communityQuick);else (panel.querySelector('.community-profile-biography')||heading)?.before(communityQuick);}
@@ -2362,7 +2374,7 @@ async function openCommunityMemberProfile(userId){
   if(!host)throw new Error('Community page is not available.');
   host.replaceChildren(panel);
   renderCommunityProfileComments(panel,cid,userId);
-  if(own)await loadCommunityLocalProfile();
+  if(own)void loadCommunityLocalProfile();
   panel.querySelector('#communitySendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(userId,name,cid));
   panel.querySelector('#communityBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(userId));
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>openCommunitySection(state.communityTab==='members'?'members':'latest'));
@@ -2405,7 +2417,8 @@ async function openCommunityMemberProfile(userId){
     if(error)throw error;toast('Community relationship accepted.');await openCommunityMemberProfile(userId);
    }catch(e){toast(errorText(e));}
   });
- }catch(e){toast(errorText(e));}
+  return true;
+ }catch(e){if(isCurrent()){toast(errorText(e));return false;}}
 }
 async function loadCommunityLocalProfile(){
  const cid=state.activeCommunity?.id,uid=state.user?.id,el=document.getElementById('communityLocalProfile');
@@ -2621,10 +2634,12 @@ async function restoreWiredRoute(route){
  if(route.page==='community'&&route.communityId){
   await openCommunity(route.communityId,route.communitySection);
   if(!state.activeCommunityRole)return true;
-  if(route.communityProfileId){
+  if(route.communityProfileId&&route.communityProfileId!==state.user.id){
    state.communityTab='profile';
    updateCommunitySidebar();
-   await openCommunityMemberProfile(route.communityProfileId);
+   await openCommunityMemberProfile(route.communityProfileId,route.communityId,()=>state.communityTab==='profile');
+  }else if(route.communityProfileId===state.user.id||route.communitySection==='profile'){
+   await openCommunitySection('profile');
   }else if(route.communityManagerOpen&&['owner','mod'].includes(state.activeCommunityRole)){
    await openCommunitySection('manager');
   }else if(['chats','notifications'].includes(route.communitySection)){
