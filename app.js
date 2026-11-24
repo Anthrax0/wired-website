@@ -141,19 +141,21 @@ async function loadProfileComments(profileId){
 }
 function editableTextMarkup(kind,item,canEdit){
  const id=escapeHTML(item.id);
- const type=kind==='message'?'message':'comment';
- const unsend=kind==='message'?'<button class="ghost small message-unsend" type="button" data-unsend-message="'+id+'">Unsend</button>':'';
  return '<div data-editable-content><p data-editable-body>'+escapeHTML(item.body)+'</p>'+
   '<small class="hint" data-edited-label'+(item.edited_at?'':' hidden')+'>Edited</small>'+
-  (canEdit?'<div class="authored-text-actions"><button class="ghost small authored-edit-button" type="button" data-edit-kind="'+kind+'" data-edit-id="'+id+'">Edit '+type+'</button>'+unsend+'</div>':'')+'</div>';
+  (canEdit?'<div class="authored-text-actions"><button class="ghost small authored-edit-button" type="button" data-edit-kind="'+kind+'" data-edit-id="'+id+'">Edit comment</button></div>':'')+'</div>';
 }
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-edit-kind][data-edit-id]');
  if(!button||button.disabled)return;
  const kind=button.dataset.editKind,id=button.dataset.editId;
- const container=button.closest('[data-editable-content]'),field=container.querySelector('[data-editable-body]');
- const original=field.textContent,author=state.user?.id;
+ const field=button.closest('[data-editable-content]').querySelector('[data-editable-body]');
  button.disabled=true;
+ try{await editAuthoredText(kind,id,field.textContent);}
+ finally{button.disabled=false;}
+});
+async function editAuthoredText(kind,id,original){
+ const author=state.user?.id;
  try{
   const input=await wiredDialog(kind==='message'?'Edit message':'Edit comment',{
    input:true,multiline:true,defaultValue:original,danger:false,maxLength:kind.includes('profile')?1000:4000
@@ -170,16 +172,15 @@ document.addEventListener('click',async event=>{
    const item=rows?.find(row=>String(row.id)===id);
    if(item&&!item.unsent_at){item.body=body;item.edited_at=editedAt;}
   }
-  const visible=button.isConnected?container:document.querySelector(
-   '[data-edit-kind="'+CSS.escape(kind)+'"][data-edit-id="'+CSS.escape(id)+'"]'
-  )?.closest('[data-editable-content]');
+  const selector=kind==='message'?'[data-message-actions="'+CSS.escape(id)+'"] [data-editable-content]':
+   '[data-edit-kind="'+CSS.escape(kind)+'"][data-edit-id="'+CSS.escape(id)+'"]';
+  const visible=document.querySelector(selector)?.closest('[data-editable-content]');
   if(visible){
    visible.querySelector('[data-editable-body]').textContent=body;
    visible.querySelector('[data-edited-label]').hidden=false;
   }
  }catch(error){toast(errorText(error));}
- finally{button.disabled=false;}
-});
+}
 function profileCommentsMarkup(profileId,comments,kind='profile'){
  const rows=comments||[],roots=rows.filter(x=>!x.parent_comment_id),replyCount=rows.filter(x=>x.parent_comment_id).length;
  const byParent=new Map(),byId=new Map(rows.map(x=>[String(x.id),x]));
@@ -2696,8 +2697,9 @@ function renderThreadMessages(){
  if(!log)return;
  log.innerHTML=state.messages.map(message=>{
   const own=messageIsMine(message);
-  return '<article class="message-bubble'+(own?' message-own':'')+'"><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
-   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :editableTextMarkup('message',message,own))+'</article>';
+  const actions=own&&!message.unsent_at?' tabindex="0" aria-haspopup="dialog" aria-label="Your message. Hold or press Enter for message actions." data-message-actions="'+escapeHTML(message.id)+'"':'';
+  return '<article class="message-bubble'+(own?' message-own':'')+'"'+actions+'><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
+   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :editableTextMarkup('message',message,false))+'</article>';
  }).join('')||'<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>';
  log.scrollTop=log.scrollHeight;
 }
@@ -2719,10 +2721,65 @@ async function unsendThreadMessage(id){
   if(state.activeThread===thread)markThreadMessageUnsent(id,new Date().toISOString());
  }catch(error){toast(errorText(error));}
 }
-function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);$('chatLog').addEventListener('click',event=>{
- const button=event.target.closest('[data-unsend-message]');
- if(button)void unsendThreadMessage(button.dataset.unsendMessage);
-});renderThreadMessages();$("messageBody")?.focus()}
+function openMessageActions(bubble){
+ const id=bubble.dataset.messageActions,thread=state.activeThread;
+ const message=state.messages.find(item=>String(item.id)===id);
+ if(!bubble.isConnected||!message||!messageIsMine(message)||message.unsent_at||$('messageActions'))return;
+ const dialog=document.createElement('dialog');
+ dialog.id='messageActions';
+ dialog.setAttribute('aria-labelledby','messageActionsTitle');
+ dialog.innerHTML='<h2 id="messageActionsTitle">Message actions</h2><form method="dialog">'+
+  '<button class="ghost" value="edit" autofocus>Edit message</button>'+
+  '<button class="ghost" value="unsend">Unsend</button>'+
+  '<button class="ghost" value="cancel">Cancel</button></form>';
+ document.body.append(dialog);
+ dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
+ dialog.addEventListener('close',()=>{
+  const action=dialog.returnValue;
+  dialog.remove();
+  if(bubble.isConnected)bubble.focus({preventScroll:true});
+  if(state.activeThread!==thread)return;
+  const current=state.messages.find(item=>String(item.id)===id);
+  if(action==='edit'&&current&&!current.unsent_at)void editAuthoredText('message',id,current.body);
+  if(action==='unsend')void unsendThreadMessage(id);
+ },{once:true});
+ dialog.showModal();
+}
+function attachMessageActions(log){
+ let press=null;
+ const cancel=()=>{
+  if(press)clearTimeout(press.timer);
+  press=null;
+ };
+ log.addEventListener('pointerdown',event=>{
+  cancel();
+  if(!event.isPrimary||event.button!==0)return;
+  const bubble=event.target.closest('[data-message-actions]');
+  if(!bubble)return;
+  press={id:event.pointerId,x:event.clientX,y:event.clientY,timer:setTimeout(()=>{
+   cancel();
+   openMessageActions(bubble);
+  },500)};
+ });
+ log.addEventListener('pointermove',event=>{
+  if(press&&event.pointerId===press.id&&Math.hypot(event.clientX-press.x,event.clientY-press.y)>10)cancel();
+ });
+ for(const name of ['pointerup','pointercancel','pointerleave','scroll','dragstart'])log.addEventListener(name,cancel);
+ log.addEventListener('contextmenu',event=>{
+  const bubble=event.target.closest('[data-message-actions]');
+  if(!bubble)return;
+  event.preventDefault();
+  cancel();
+  openMessageActions(bubble);
+ });
+ log.addEventListener('keydown',event=>{
+  const bubble=event.target.closest('[data-message-actions]');
+  if(!bubble||!['Enter',' ','ContextMenu'].includes(event.key)&&!(event.shiftKey&&event.key==='F10'))return;
+  event.preventDefault();
+  openMessageActions(bubble);
+ });
+}
+function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);attachMessageActions($('chatLog'));renderThreadMessages();$("messageBody")?.focus()}
 async function toggleFollowerInvitePanel(){const panel=$("inviteFollowersPanel");if(!panel)return;if(!panel.hidden){panel.hidden=true;return;}panel.hidden=false;const communityChat=!!state.threads.find(t=>String(t.id)===String(state.activeThread))?.community_id;panel.innerHTML='<p class="hint">Loading your '+(communityChat?'community':'global')+' followers…</p>';try{const d=await api("/threads/"+encodeURIComponent(state.activeThread)+"/followers");const people=d.items||[];panel.innerHTML='<div class="chat-invite-heading"><strong>Invite your '+(communityChat?'community':'global')+' followers</strong><button type="button" class="chat-invite-close" id="closeFollowerInvite" aria-label="Close">×</button></div>'+(people.length?'<div class="chat-invite-list">'+people.map(p=>'<div class="chat-invite-person"><span>'+escapeHTML(p.username||"WIRED member")+'</span><button type="button" class="primary chat-invite-action" data-invite-follower="'+escapeHTML(p.id)+'">Invite</button></div>').join("")+'</div>':'<p class="hint">No followers available to invite. Only members who follow your '+(communityChat?'community':'global')+' profile appear here.</p>');$("closeFollowerInvite")?.addEventListener("click",()=>{panel.hidden=true;});panel.querySelectorAll("[data-invite-follower]").forEach(btn=>btn.addEventListener("click",()=>inviteGlobalFollower(btn.dataset.inviteFollower,btn)));}catch(e){panel.innerHTML='<p class="hint">'+escapeHTML(errorText(e))+'</p>';}}
 async function inviteGlobalFollower(userId,button){if(!userId||!button)return;button.disabled=true;button.textContent="Inviting…";try{await api("/threads/"+encodeURIComponent(state.activeThread)+"/invite","POST",{user_id:userId});button.textContent="Invited";button.classList.add("invited");toast("Follower invited to chat.");}catch(e){button.disabled=false;button.textContent="Invite";toast(errorText(e));}}
 async function sendMessage(e){

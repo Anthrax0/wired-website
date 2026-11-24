@@ -1787,3 +1787,11 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .authored-text-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .authored-text-actions button{min-height:40px}
 .authored-text-actions .authored-edit-button{color:#f0d9ff;border-color:#9655cb}
+
+.message-own[data-message-actions]{cursor:context-menu;-webkit-touch-callout:none;user-select:none}
+.message-own[data-message-actions]:focus-visible{outline:2px solid #c58afb;outline-offset:2px}
+#messageActions{max-width:min(360px,calc(100vw - 32px));padding:18px}
+#messageActions h2{margin:0 0 12px;font-size:1.15rem}
+#messageActions form{display:grid;gap:8px}
+#messageActions button{min-height:44px;text-align:left}
+#messageActions button[value="unsend"]{color:#ff9caa}
