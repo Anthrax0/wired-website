@@ -1783,3 +1783,7 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .brand{flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
 .brand-wordmark{display:block;width:clamp(108px,40vw,184px);max-width:100%;height:auto;border-radius:6px}
 .brand small{padding-left:4px}
+
+.authored-text-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.authored-text-actions button{min-height:40px}
+.authored-text-actions .authored-edit-button{color:#f0d9ff;border-color:#9655cb}

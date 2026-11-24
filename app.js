@@ -140,22 +140,25 @@ async function loadProfileComments(profileId){
  return rows.map(x=>({...x,author:byId.get(x.author_id)||{username:"WIRED member"}}));
 }
 function editableTextMarkup(kind,item,canEdit){
+ const id=escapeHTML(item.id);
+ const type=kind==='message'?'message':'comment';
+ const unsend=kind==='message'?'<button class="ghost small message-unsend" type="button" data-unsend-message="'+id+'">Unsend</button>':'';
  return '<div data-editable-content><p data-editable-body>'+escapeHTML(item.body)+'</p>'+
   '<small class="hint" data-edited-label'+(item.edited_at?'':' hidden')+'>Edited</small>'+
-  (canEdit?'<button class="ghost small" type="button" data-edit-kind="'+kind+'" data-edit-id="'+escapeHTML(item.id)+'">Edit</button>':'')+'</div>';
+  (canEdit?'<div class="authored-text-actions"><button class="ghost small authored-edit-button" type="button" data-edit-kind="'+kind+'" data-edit-id="'+id+'">Edit '+type+'</button>'+unsend+'</div>':'')+'</div>';
 }
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-edit-kind][data-edit-id]');
  if(!button||button.disabled)return;
  const kind=button.dataset.editKind,id=button.dataset.editId;
  const container=button.closest('[data-editable-content]'),field=container.querySelector('[data-editable-body]');
- const original=field.textContent;
+ const original=field.textContent,author=state.user?.id;
  button.disabled=true;
  try{
   const input=await wiredDialog(kind==='message'?'Edit message':'Edit comment',{
    input:true,multiline:true,defaultValue:original,danger:false,maxLength:kind.includes('profile')?1000:4000
   });
-  if(input===null||!button.isConnected)return;
+  if(input===null||state.user?.id!==author)return;
   const body=input.trim();
   if(!body){toast('Enter some text before saving.');return;}
   if(body===original)return;
@@ -167,9 +170,12 @@ document.addEventListener('click',async event=>{
    const item=rows?.find(row=>String(row.id)===id);
    if(item&&!item.unsent_at){item.body=body;item.edited_at=editedAt;}
   }
-  if(field.isConnected){
-   field.textContent=body;
-   container.querySelector('[data-edited-label]').hidden=false;
+  const visible=button.isConnected?container:document.querySelector(
+   '[data-edit-kind="'+CSS.escape(kind)+'"][data-edit-id="'+CSS.escape(id)+'"]'
+  )?.closest('[data-editable-content]');
+  if(visible){
+   visible.querySelector('[data-editable-body]').textContent=body;
+   visible.querySelector('[data-edited-label]').hidden=false;
   }
  }catch(error){toast(errorText(error));}
  finally{button.disabled=false;}
@@ -2691,8 +2697,7 @@ function renderThreadMessages(){
  log.innerHTML=state.messages.map(message=>{
   const own=messageIsMine(message);
   return '<article class="message-bubble'+(own?' message-own':'')+'"><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
-   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :editableTextMarkup('message',message,own)+
-    (own?'<button class="ghost small message-unsend" type="button" data-unsend-message="'+escapeHTML(message.id)+'">Unsend</button>':''))+'</article>';
+   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :editableTextMarkup('message',message,own))+'</article>';
  }).join('')||'<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>';
  log.scrollTop=log.scrollHeight;
 }
