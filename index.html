@@ -8,7 +8,7 @@
   <title>WIRED — Stay connected.</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="wired-logo.png"><link rel="apple-touch-icon" href="wired-logo.png">
-  <link rel="stylesheet" href="styles.css?v=community-feeds-1">
+  <link rel="stylesheet" href="styles.css?v=community-menu-1">
 </head>
 <body>
   <header class="topbar">
@@ -32,8 +32,18 @@
       <button class="tab" data-page="features" hidden><span class="staff-tab-label"><span aria-hidden="true">❗</span> Add Features <span aria-hidden="true">❗</span></span></button>
       <button class="tab" data-page="bugs" hidden><span class="staff-tab-label"><span class="bug-tab-icon" aria-hidden="true">❗</span> Report a Bug <span class="bug-tab-icon" aria-hidden="true">❗</span></span></button>
     </nav>
-    <section id="view" aria-live="polite"></section>
+    <div id="communityWorkspace">
+      <aside id="communitySidebar" hidden></aside>
+      <div class="community-workspace-main">
+        <button type="button" class="ghost" id="communityMenuButton" aria-haspopup="dialog" aria-controls="communityMenu" aria-expanded="false" hidden>☰ &nbsp; Community menu</button>
+        <section id="view" aria-live="polite"></section>
+      </div>
+    </div>
   </main>
+  <dialog id="communityMenu" aria-label="Community menu">
+    <form method="dialog" class="community-drawer-close"><button class="ghost" aria-label="Close community menu" autofocus>×</button></form>
+    <div id="communityDrawer"></div>
+  </dialog>
   <dialog id="authDialog">
     <form method="dialog" class="dialog-head"><div><div class="eyebrow">WELCOME TO WIRED</div><h2 id="authTitle">Log in</h2></div><button class="close" aria-label="Close">×</button></form>
     <div class="dialog-body">
@@ -80,7 +90,7 @@
         script.src = sources[index];
         script.onload = function () {
           const app = document.createElement("script");
-          app.src = "app.js?v=community-entry-1";
+          app.src = "app.js?v=community-menu-1";
           app.onerror = function () {
             document.getElementById("view").innerHTML =
               '<div class="card"><h2>WIRED could not start</h2><p>The app script did not load. Please reload the page.</p><button class="primary" onclick="location.reload()">Reload WIRED</button></div>';

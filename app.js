@@ -266,6 +266,9 @@ async function renderCommunityProfileComments(panel,cid,profileId){
   }));
  }catch(err){slot.innerHTML='<p class="hint">Comments unavailable: '+escapeHTML(errorText(err))+'</p>';}
 }
+function unreadCommunityNotifications(communityId){
+ return (state.notifications||[]).filter(row=>row.isCommunity&&row.community_id===communityId&&!row.read_at);
+}
 async function loadGlobalNotifications(){
  if(!state.user){state.notifications=[];state.notificationUnread=0;updateNotificationBell();return;}
  const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,thread_id,request_status,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
@@ -318,6 +321,11 @@ async function openPointsHistory(){
 document.addEventListener('click',e=>{if(e.target.closest('#headerPoints'))openPointsHistory();});
 function updateNotificationBell(){
  const b=$("notificationsBtn"),count=$("notificationCount");if(!b)return;
+ const communityCount=unreadCommunityNotifications(state.activeCommunity?.id).length;
+ document.querySelectorAll('[data-community-unread]').forEach(badge=>{
+  badge.hidden=!communityCount;
+  badge.textContent=communityCount>99?'99+':String(communityCount);
+ });
  b.hidden=!state.user;
  const points=$("headerPoints");if(points){points.hidden=!state.user;points.textContent="◉ "+Number(state.globalStoreBalance||0).toLocaleString()+" points";}
  if(count){count.textContent=state.notificationUnread>99?"99+":String(state.notificationUnread);count.hidden=!state.notificationUnread;}
@@ -325,25 +333,30 @@ function updateNotificationBell(){
 function subscribeGlobalNotifications(){
  if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}
  if(!state.user)return;
+ const recipient="recipient_id=eq."+state.user.id;
+ const refresh=()=>loadGlobalNotifications().then(()=>{
+  if(state.page==='notifications')renderNotifications();
+  else if(isCommunitySection(state.activeCommunity?.id,'notifications'))renderCommunityNotifications();
+ }).catch(error=>console.warn('Notifications refresh failed',error));
  state.notificationChannel=sb.channel("global-notifications-"+state.user.id)
-  .on("postgres_changes",{event:"INSERT",schema:"public",table:"global_notifications",filter:"recipient_id=eq."+state.user.id},()=>{
-   loadGlobalNotifications().then(()=>{if(state.page==="notifications")renderNotifications();}).catch(e=>console.warn("Notifications refresh failed",e));
-  }).subscribe();
+  .on("postgres_changes",{event:"INSERT",schema:"public",table:"global_notifications",filter:recipient},refresh)
+  .on("postgres_changes",{event:"INSERT",schema:"public",table:"community_notifications",filter:recipient},refresh)
+  .subscribe();
 }
 async function openNotifications(){
  state.notificationUnread=0;updateNotificationBell();
- state.page="notifications";try{sessionStorage.setItem("wired:lastPage","notifications");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+ state.page="notifications";updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage","notifications");}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
  try{await loadGlobalNotifications();renderNotifications();}catch(e){toast(errorText(e));}
 }
-function renderNotifications(){
- const v=$("view"),rows=(state.notifications||[]).filter(n=>!n.read_at);
- v.innerHTML='<div class="section-head"><div><h2>Notifications</h2><p class="hint">Global activity and updates from your communities.</p></div><button class="ghost" id="markAllNotificationsRead" '+(state.notificationUnread?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
+function renderNotifications(communityId=null,host=$("view")){
+ const v=host,rows=communityId?unreadCommunityNotifications(communityId):(state.notifications||[]).filter(n=>!n.read_at);
+ v.innerHTML='<div class="section-head"><h2>'+(communityId?'Community notifications':'Notifications')+'</h2><button class="ghost" id="markAllNotificationsRead" '+(rows.length?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
   const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
   const isChat=n.notification_type==="global_chat_request",isCommunity=!!n.isCommunity;
   const detail=isCommunity?'<p class="notification-excerpt">From '+escapeHTML(n.communityName)+(n.details?' · '+escapeHTML(n.details):'')+'</p>':isComment&&n.comment?.body?'<p class="notification-excerpt">'+escapeHTML(n.comment.body)+'</p>':'';
   return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'" data-notification-community="'+escapeHTML(n.community_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isCommunity?({'community_chat':'sent a community chat message in ','community_reply':'replied to you in ','community_mention':'mentioned you in ','community_relationship':'sent a relationship update from ','community_moderation':'sent a moderation notice from ','community_post':'posted in '}[n.notification_type]||'updated ')+escapeHTML(n.communityName):isChat?'invited you to a global chat':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isCommunity?({'community_chat':'CHAT','community_reply':'REPLY','community_mention':'MENTION','community_relationship':'RELATIONSHIP','community_moderation':'MODERATION','community_post':'COMMUNITY'}[n.notification_type]||'COMMUNITY'):isChat?'CHAT REQUEST':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
- }).join(''):'<div class="empty">You\'re all caught up. Global and community notifications will appear here.</div>')+'</div>';
- v.querySelector("#markAllNotificationsRead")?.addEventListener("click",markAllNotificationsRead);
+ }).join(''):'<div class="empty">'+(communityId?'No unread notifications in this community.':'You’re all caught up.')+'</div>')+'</div>';
+ v.querySelector("#markAllNotificationsRead")?.addEventListener("click",()=>communityId?markCommunityNotificationsRead(communityId):markAllNotificationsRead());
  v.querySelectorAll(".notification-open[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment,b.dataset.notificationCommunity)));
  v.querySelectorAll("[data-chat-request]").forEach(b=>b.addEventListener("click",()=>respondToGlobalChatRequest(b.dataset.chatRequest,b.dataset.thread,b.dataset.status,b)));
 }
@@ -362,9 +375,19 @@ async function markAllNotificationsRead(){
  if(communityError){toast(errorText(communityError));return;}state.notifications=state.notifications.map(n=>({...n,read_at:n.read_at||new Date().toISOString()}));state.notificationUnread=0;updateNotificationBell();await loadGlobalNotifications();renderNotifications();
 }
 async function openNotification(id,actorId,type,commentId,communityId){
- const row=state.notifications.find(n=>n.id===id);
+ const row=state.notifications.find(n=>n.id===id&&(!communityId||n.community_id===communityId));
  if(row&&!row.read_at){const {error}=await sb.from(row.isCommunity?"community_notifications":"global_notifications").update({read_at:new Date().toISOString()}).eq("id",id);if(error){toast(errorText(error));return;}await loadGlobalNotifications();}
- if(communityId){await openCommunity(communityId);if(row?.thread_id){try{await openThread(row.thread_id);}catch(e){toast(errorText(e));}}return;}
+ if(communityId){
+  await openCommunity(communityId,row?.thread_id?'chats':'latest');
+  if(state.activeCommunity?.id!==communityId||!state.activeCommunityRole)return;
+  if(row?.thread_id){
+   await loadThreads();
+   if(state.page==='community'&&state.activeCommunity?.id===communityId)await openThread(row.thread_id);
+  }else if(row?.post_id){
+   document.querySelector('[data-community-post="'+CSS.escape(String(row.post_id))+'"]')?.scrollIntoView({block:'center'});
+  }
+  return;
+ }
  if(type==="profile_comment"&&commentId){
   state.page="profile";await Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).catch(()=>{});render();
   setTimeout(()=>document.getElementById("profile-comment-"+commentId)?.scrollIntoView({behavior:"smooth",block:"center"}),120);
@@ -746,6 +769,7 @@ async function refreshUser(){
 }
 function updateCommunityNavigation(){
  const inside=state.page==='community'&&!!state.activeCommunity;
+ updateCommunitySidebar();
  const labels={home:inside?'Community Home':'Home',chats:inside?'Community Chats':'Chats',profile:inside?'Community Profile':'Me'};
  for(const [page,label] of Object.entries(labels)){
   const button=document.querySelector('.tab[data-page="'+page+'"]');if(!button)continue;
@@ -757,20 +781,20 @@ function updateCommunityNavigation(){
 }
 function handleCommunityNavigation(page){
  if(state.page!=='community'||!state.activeCommunity||!['home','chats','profile'].includes(page))return false;
- if(page==='home'){renderCommunity();window.scrollTo({top:0,behavior:'smooth'});return true;}
+ if(page==='home'){openCommunitySection('latest');return true;}
  if(page==='profile'){
   if(!state.activeCommunityRole){toast('Join this community to create your community profile.');return true;}
-  openCommunityMemberProfile(state.user.id).catch(e=>toast(errorText(e)));
+  openCommunitySection('profile');
   return true;
  }
  if(page==='chats'){
   if(!state.activeCommunityRole){toast('Join this community to use Community Chats.');return true;}
-  openCommunityChat(state.activeCommunity.id).catch(e=>toast(errorText(e)));
+  openCommunitySection('chats');
   return true;
  }
  return false;
 }
-function goGlobalHome(){nav('home');window.scrollTo({top:0,behavior:'smooth'});}
+function goGlobalHome(){if(state.page==='community'){state.page='home';try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch{}}nav('home');window.scrollTo({top:0,behavior:'smooth'});}
 document.querySelector('.brand')?.addEventListener('click',event=>{event.preventDefault();goGlobalHome();});
 function nav(page){try{sessionStorage.removeItem("wired:openedMember");sessionStorage.removeItem("wired:sanctuaryView");}catch(e){}if(page==="discover")state.discoveryMode="";if(page==="chats"){state.globalChatSection="home";try{sessionStorage.setItem("wired:globalChatSection","home");}catch(e){}}if(page==="pets")state.yokaiSanctuaryView="home";if(page==="store"){wiredGiftTarget=null;wiredStoreSection="home";try{sessionStorage.setItem("wired:storeSection","home");}catch(e){}}if(handleCommunityNavigation(page))return;if((page==="bugs"||page==="features")&&!wiredStaffAccess)return;if(page==="notifications"){openNotifications();return;}state.page=page;state.activeCommunity=null;state.activeThread=null;updateCommunityNavigation();try{sessionStorage.setItem("wired:lastPage",page);sessionStorage.removeItem("wired:lastCommunity");sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===page));render();if(page==="discover"||page==="communities"||page==="all-communities")loadCommunities().then(render).catch(e=>toast(errorText(e)));if(page==="profile")loadProfileComments(state.user.id).then(comments=>{if(state.page==="profile"){state.profileComments=comments;render();}}).catch(e=>toast(errorText(e)));if(page==="chats")loadThreads();if(page==="pets")loadPetParadise().then(render).catch(e=>toast(errorText(e)));if(page==="store")Promise.all([loadProfile(),loadGlobalStore(),loadPetParadise()]).then(()=>{if(state.page==="store")render();}).catch(e=>toast(errorText(e)));if(page==="people"||page==="discover")loadPeople().then(()=>{if(state.page==="discover")renderDiscoverPeople();});if(page==="profile"&&state.user)Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData(),loadPetParadise()]).then(render).catch(e=>toast(errorText(e)));}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
@@ -1826,8 +1850,116 @@ const COMMUNITY_SECTIONS={
  saved:['Saved','Saved posts','Save a post to find it here later.'],
  guidelines:['Guidelines','Community guidelines',''],
  members:['Members','Community members',''],
- compose:['New post','Create a post','']
+ compose:['New post','Create a post',''],
+ chats:['Chats','Community chats',''],
+ notifications:['Notifications','Community notifications',''],
+ profile:['My profile','Community profile','']
 };
+function isCommunitySection(id,section){
+ return !!id&&state.page==='community'&&state.activeCommunity?.id===id&&state.communityTab===section&&!$('backChats')&&!$('closeLocalProfile');
+}
+function communitySidebarMarkup(community){
+ const manager=['owner','mod'].includes(state.activeCommunityRole);
+ const sectionButton=key=>'<button type="button" data-community-destination="'+key+'" '+
+  (state.communityTab===key&&!state.managerOpen?'aria-current="page"':'')+'>'+COMMUNITY_SECTIONS[key][0]+
+  (key==='notifications'?'<span class="notification-count" data-community-unread hidden></span>':'')+'</button>';
+ return '<div class="community-side-identity">'+(community.icon_url?
+  '<img src="'+escapeHTML(community.icon_url)+'" alt="">':'<span aria-hidden="true">W</span>')+
+  '<strong>'+escapeHTML(community.name||'Community')+'</strong></div>'+
+  '<nav class="community-side-links" aria-label="Community navigation">'+
+  (state.activeCommunityRole?
+   '<div class="community-side-group">'+['latest','featured','wiki','activities','saved'].map(sectionButton).join('')+'</div>'+
+   '<div class="community-side-group">'+['chats','notifications','members','guidelines','profile'].map(sectionButton).join('')+'</div>'+
+   '<div class="community-side-group">'+sectionButton('compose')+
+    (manager?'<button type="button" data-community-destination="manager" '+(state.managerOpen?'aria-current="page"':'')+'>Community Manager</button>':'')+'</div>':'')+
+  '<div class="community-side-group"><button type="button" data-community-destination="discover">Browse communities</button><button type="button" data-community-destination="global">Back to WIRED</button></div></nav>';
+}
+function updateCommunitySidebar(){
+ const workspace=$('communityWorkspace'),sidebar=$('communitySidebar'),trigger=$('communityMenuButton'),drawer=$('communityDrawer');
+ if(!workspace||!sidebar||!trigger||!drawer)return;
+ const community=state.page==='community'?state.activeCommunity:null;
+ workspace.classList.toggle('community-workspace-active',!!community);
+ sidebar.hidden=trigger.hidden=!community;
+ if(!community){
+  if($('communityMenu')?.open)$('communityMenu').close();
+  sidebar.textContent=drawer.textContent='';
+  return;
+ }
+ const html=communitySidebarMarkup(community);
+ if(sidebar.dataset.markup!==html||!sidebar.firstChild){
+  sidebar.dataset.markup=html;
+  sidebar.innerHTML=drawer.innerHTML=html;
+ }
+ updateNotificationBell();
+}
+async function openCommunitySection(section){
+ const cid=state.activeCommunity?.id;
+ if(!cid)return;
+ if(!state.activeCommunityRole)return;
+ if(section==='manager'&&!['owner','mod'].includes(state.activeCommunityRole))return;
+ if(state.activeThread){
+  state.activeThread=null;
+  if(state.realtimeChannel){void sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}
+ }
+ try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch{}
+ state.communityTab=section==='manager'?'latest':section;
+ state.managerOpen=section==='manager';
+ if(section==='profile'){
+  updateCommunitySidebar();
+  await openCommunityMemberProfile(state.user.id);
+  return;
+ }
+ renderCommunity();
+ window.scrollTo({top:0});
+ if(section==='chats'){
+  await loadThreads();
+  if(isCommunitySection(cid,'chats'))renderCommunityChatList(cid);
+ }else if(section==='notifications'){
+  try{
+   await loadGlobalNotifications();
+   if(isCommunitySection(cid,'notifications'))renderCommunityNotifications();
+  }catch(error){toast(errorText(error));}
+ }
+}
+function renderCommunityChatList(communityId){
+ const host=$('communityChatList');
+ if(!host)return;
+ const threads=(state.threads||[]).filter(thread=>String(thread.community_id||thread.communityId||'')===String(communityId));
+ host.innerHTML='<div class="section-head"><h2>Community chats</h2></div><button type="button" class="primary" id="openPublicCommunityChat">Open public chat</button>'+
+  (threads.length?'<div class="community-chat-rows">'+threads.map(thread=>'<button type="button" class="ghost" data-community-thread="'+escapeHTML(thread.id)+'">'+escapeHTML(thread.title||'Community conversation')+'</button>').join('')+'</div>':'');
+ host.querySelector('#openPublicCommunityChat').addEventListener('click',()=>openCommunityChat(communityId));
+ host.querySelectorAll('[data-community-thread]').forEach(button=>button.addEventListener('click',()=>openThread(button.dataset.communityThread)));
+}
+function renderCommunityNotifications(){
+ const host=$('communityNotificationList');
+ if(host)renderNotifications(state.activeCommunity.id,host);
+}
+async function markCommunityNotificationsRead(communityId){
+ if(!state.user)return;
+ try{
+  const {error}=await sb.from('community_notifications').update({read_at:new Date().toISOString()})
+   .eq('recipient_id',state.user.id).eq('community_id',communityId).is('read_at',null);
+  if(error)throw error;
+  await loadGlobalNotifications();
+  if(isCommunitySection(communityId,'notifications'))renderCommunityNotifications();
+ }catch(error){toast(errorText(error));}
+}
+$('communityMenuButton').addEventListener('click',()=>{
+ const dialog=$('communityMenu');
+ dialog.showModal();
+ $('communityMenuButton').setAttribute('aria-expanded','true');
+});
+$('communityMenu').addEventListener('close',()=>$('communityMenuButton').setAttribute('aria-expanded','false'));
+$('communityMenu').addEventListener('click',event=>{if(event.target===$('communityMenu'))$('communityMenu').close();});
+document.addEventListener('click',event=>{
+ const button=event.target.closest('[data-community-destination]');
+ if(!button)return;
+ if($('communityMenu')?.open)$('communityMenu').close();
+ const destination=button.dataset.communityDestination;
+ if(destination==='global'){goGlobalHome();return;}
+ if(destination==='discover'){nav('discover');return;}
+ openCommunitySection(destination).catch(error=>toast(errorText(error)));
+});
 function communityFeedPosts(tab,posts,collections){
  const sorted=posts.slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
  if(tab==='featured'||tab==='saved'){
@@ -1871,7 +2003,7 @@ async function toggleCommunityPostCollection(button){
 async function openCommunity(id,section='latest'){
  try{
   const c=state.communities.find(x=>x.id===id)||{id,name:'Community'};state.activeCommunity=c;state.page='community';updateCommunityNavigation();try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',id);}catch(e){}state.activeCommunityRole=null;state.joinRequests=[];state.managerOpen=false;
-  state.communityTab=Object.prototype.hasOwnProperty.call(COMMUNITY_SECTIONS,section)?section:'latest';
+  state.communityTab=section!=='profile'&&Object.prototype.hasOwnProperty.call(COMMUNITY_SECTIONS,section)?section:'latest';
   state.communityPostCollections={featured:new Map(),saved:new Map(),loading:true,error:null};
   state.communityFeedError=null;
   state.posts=[];
@@ -1898,7 +2030,7 @@ async function openCommunity(id,section='latest'){
   void loadCommunityPostCollections(id).catch(error=>({...collections,error})).then(result=>{
    if(!isCurrent())return;
    Object.assign(collections,result,{loading:false});
-   if(state.communityTab!=='compose'&&!state.managerOpen&&!$('closeLocalProfile'))renderCommunity();
+   if(state.communityTab!=='compose'&&!state.managerOpen&&!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
   });
   try{
   if(state.activeCommunityRole){if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];await loadModerationData(id);}else{const {data:members,error:membersError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',id).order('joined_at',{ascending:true});if(membersError)throw membersError;state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}
@@ -1916,7 +2048,7 @@ async function openCommunity(id,section='latest'){
    }catch(profileError){console.warn('Community identities unavailable',profileError);}
   }
   await loadCommunityMemberLevels(id);
-  if(isCurrent()&&state.communityTab!=='compose'&&!$('closeLocalProfile'))renderCommunity();
+  if(isCurrent()&&state.communityTab!=='compose'&&!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
  }catch(e){toast(errorText(e));}
 }
 function renderPostCard(p){
@@ -1945,9 +2077,10 @@ function renderPostCard(p){
   '<button type="button" class="ghost small" data-post-collection="saved" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.saved.has(p.id)+'">'+(collections.saved.has(p.id)?'Unsave':'Save post')+'</button>'+
   (['owner','mod'].includes(state.activeCommunityRole)?
    '<button type="button" class="ghost small" data-post-collection="featured" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.featured.has(p.id)+'">'+(collections.featured.has(p.id)?'Remove from Featured':'Feature post')+'</button>':'')+'</div>':'';
- return '<article class="card post"><div class="meta"><span class="pill">' +escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
+ return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="meta"><span class="pill">' +escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
 }
 function renderCommunity(){
+ updateCommunitySidebar();
  const globalHero=document.querySelector('#app > .hero');if(globalHero)globalHero.hidden=true;
  const c=state.activeCommunity,v=$('view'),joined=!!state.activeCommunityRole,manager=['owner','mod'].includes(state.activeCommunityRole);
  const activeTab=joined?state.communityTab||'latest':'latest';
@@ -1960,7 +2093,6 @@ function renderCommunity(){
  else if(!joined&&c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
  else if(!joined)html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
  if(manager){
-  if(!state.managerOpen)html+='<button class="community-action manager-launch" id="openCommunityManager">⚙ &nbsp; Community Manager <small style="display:block;font-weight:400;color:#bba5d1">Customize your space and manage your community</small></button>';
   if(state.managerOpen){
    html+='<section class="manager-panel"><div class="manager-heading"><div><span class="eyebrow">WIRED COMMUNITY TOOLS</span><h2>Community Manager</h2><p class="muted">Manage the look, identity, and settings of your community.</p></div><button class="ghost" id="closeCommunityManager">Back to community</button></div><div class="manager-grid"><article class="manager-tile"><span class="manager-icon">✦</span><b>Appearance</b><small>Theme color and community identity</small></article><article class="manager-tile"><span class="manager-icon">☷</span><b>Community details</b><small>Description, category, rules and welcome</small></article><article class="manager-tile"><span class="manager-icon">⌖</span><b>Discovery</b><small>Visibility in WIRED Discovery</small></article><article class="manager-tile"><span class="manager-icon">♙</span><b>Moderation</b><small>Review member requests below</small></article></div><form id="managerSettingsForm" class="manager-settings"><div class="section-head"><h3>Community settings</h3><span class="pill">'+escapeHTML(state.activeCommunityRole)+'</span></div><label class="field">Community name<input value="'+escapeHTML(c.name||'')+'" disabled aria-describedby="managerNameHint"></label><p class="hint" id="managerNameHint">Community renaming will be added in a later manager update.</p><label class="field">Community icon<input id="managerIconFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><label class="field">Community cover image<input id="managerCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="hint">Upload a JPG, PNG, WEBP, or GIF (up to 10 MB). Leave blank to keep the current image.</p><label class="field">Description<textarea id="managerDescription" maxlength="500">'+escapeHTML(c.description||'')+'</textarea></label><label class="field">Category<input id="managerCategory" maxlength="40" value="'+escapeHTML(c.category||'')+'"></label><label class="field">Community rules<textarea id="managerRules" maxlength="3000">'+escapeHTML(c.rules||'')+'</textarea></label><label class="field">Welcome message<textarea id="managerWelcome" maxlength="1000">'+escapeHTML(c.welcome_message||'')+'</textarea></label><label class="field manager-color-field">Community accent color<input id="managerThemeColor" type="color" value="'+(/^#[0-9a-fA-F]{6}$/.test(c.theme_color||'')?c.theme_color:'#8b5cf6')+'"></label><label class="field">Community visibility<select id="managerVisibility"><option value="public" '+(c.visibility==='public'?'selected':'')+'>Public</option><option value="private" '+(c.visibility==='private'?'selected':'')+'>Private</option></select></label><label class="manager-check"><input id="managerDiscoverable" type="checkbox" '+(c.discoverable!==false?'checked':'')+'> Show this community in Discovery</label><button class="primary">Save community settings</button><p class="hint" id="managerSettingsStatus" aria-live="polite"></p></form></section>';
   }
@@ -2003,24 +2135,18 @@ function renderCommunity(){
  }
  const memberDirectory=joined&&activeTab==='members'&&!state.managerOpen?'<section class="community-directory"><section class="member-sidebar-card"><div class="member-sidebar-heading"><h3>Members</h3><span class="pill">'+state.moderationMembers.length+'</span></div><div class="member-sidebar-list">'+(state.moderationMembers.map(m=>'<button class="member-sidebar-item" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+communityAvatarWithBadge(m.avatar_url,m)+'<span class="member-sidebar-name">'+escapeHTML(m.username||'WIRED member')+communityLevelBadge(m)+'<small>'+escapeHTML(m.role==='mod'?'Moderator':m.role==='owner'?'Owner':'Member')+(m.banned?' · Banned':'')+'</small></span></button>').join('')||'<p class="hint">No members yet.</p>')+'</div></section></section>':'';
  const communityHeader='<header class="wired-community-header"><div class="wired-community-header-glow" aria-hidden="true"></div><div class="wired-community-header-main"><button type="button" class="wired-community-back" id="backDiscover" aria-label="Back to Discover">←</button><div class="wired-community-header-identity">'+(c.icon_url?'<img class="wired-community-header-icon" src="'+escapeHTML(c.icon_url)+'" alt="">':'<span class="wired-community-header-icon wired-community-header-fallback">W</span>')+'<div class="wired-community-header-copy"><span class="wired-community-header-eyebrow">WIRED / COMMUNITY</span><h1>'+escapeHTML(c.name||'Community')+'</h1><span class="wired-community-header-subtitle">Stay connected. · '+Number(c.member_count||state.moderationMembers.length||0)+' members</span></div></div><span class="wired-community-header-status">'+(joined?'CONNECTED':'EXPLORE')+'</span></div></header>';
- const sectionNav=joined?'<nav class="community-section-nav" aria-label="Community sections">'+Object.entries(COMMUNITY_SECTIONS).map(([key,[label]])=>
-  '<button type="button" class="ghost small" data-community-tab="'+key+'" '+(!state.managerOpen&&activeTab===key?'aria-current="page"':'')+'>'+label+'</button>'
- ).join('')+'</nav>':'';
- html=communityHeader+sectionNav+'<div class="community-main">'+html+memberDirectory+'</div>';
- v.innerHTML=html;
+ if(joined&&!state.managerOpen&&activeTab==='chats')html+='<section id="communityChatList"></section>';
+ if(joined&&!state.managerOpen&&activeTab==='notifications')html+='<section id="communityNotificationList"></section>';
+ v.innerHTML=communityHeader+'<div class="community-main">'+html+memberDirectory+'</div>';
+ if($('communityChatList'))renderCommunityChatList(c.id);
+ if($('communityNotificationList'))renderCommunityNotifications();
  $('retryCommunityFeed')?.addEventListener('click',()=>openCommunity(c.id,state.communityTab));
- v.querySelectorAll('[data-community-tab]').forEach(button=>button.addEventListener('click',()=>{
-  state.communityTab=button.dataset.communityTab;
-  state.managerOpen=false;
-  renderCommunity();
-  v.querySelector('[aria-current="page"]')?.focus({preventScroll:true});
- }));
  v.querySelectorAll('[data-post-collection]').forEach(button=>button.addEventListener('click',()=>toggleCommunityPostCollection(button)));
  $('communityTabChat')?.addEventListener('click',()=>openCommunityChat(c.id));
  $('communityCheckinBtn')?.addEventListener('click',doCommunityCheckin);
  $('communityLeaderboardBtn')?.addEventListener('click',openCommunityLeaderboard);
  $('closeCommunityLeaderboard')?.addEventListener('click',()=>{state.leaderboardOpen=false;renderCommunity()});
- $('backDiscover')?.addEventListener('click',()=>nav('discover'));$('openCommunityManager')?.addEventListener('click',()=>{state.managerOpen=true;renderCommunity()});$('closeCommunityManager')?.addEventListener('click',()=>{state.managerOpen=false;renderCommunity()});$('managerSettingsForm')?.addEventListener('submit',saveCommunitySettings);$('communityRankForm')?.addEventListener('submit',saveCommunityRankTitles);$('resetCommunityRanks')?.addEventListener('click',resetCommunityRankTitles);$('joinFromCommunity')?.addEventListener('click',()=>joinCommunity(c.id));$('communityChatBtn')?.addEventListener('click',()=>openCommunityChat(c.id));$('postForm')?.addEventListener('submit',createPost);
+ $('backDiscover')?.addEventListener('click',()=>nav('discover'));$('closeCommunityManager')?.addEventListener('click',()=>{state.managerOpen=false;renderCommunity()});$('managerSettingsForm')?.addEventListener('submit',saveCommunitySettings);$('communityRankForm')?.addEventListener('submit',saveCommunityRankTitles);$('resetCommunityRanks')?.addEventListener('click',resetCommunityRankTitles);$('joinFromCommunity')?.addEventListener('click',()=>joinCommunity(c.id));$('communityChatBtn')?.addEventListener('click',()=>openCommunityChat(c.id));$('postForm')?.addEventListener('submit',createPost);
  $('postType')?.addEventListener('change',updatePostComposer);$('pollOptions')?.addEventListener('input',()=>{});$('addQuizQuestion')?.addEventListener('click',addQuizQuestion);$('quizQuestionBuilder')?.addEventListener('input',e=>{if(e.target.matches('[data-quiz-options]'))updateQuizQuestionOptions(e.target.closest('[data-quiz-question]'));});$('quizQuestionBuilder')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-quiz-question]');if(!b)return;const host=$('quizQuestionBuilder');b.closest('[data-quiz-question]')?.remove();Array.from(host.querySelectorAll('[data-quiz-question]')).forEach((card,i)=>{const heading=card.querySelector('.quiz-question-editor-head b');if(heading)heading.textContent='Question '+(i+1);});});$('postImage')?.addEventListener('change',e=>{const host=$('postImagePreview');if(!host)return;const files=Array.from(e.target.files||[]);host.innerHTML=files.slice(0,5).map(f=>'<span>'+escapeHTML(f.name)+'</span>').join(' · ');});updatePostComposer();
  v.querySelectorAll('[data-vote-post]').forEach(b=>b.addEventListener('click',()=>voteOnPost(b.dataset.votePost,Number(b.dataset.voteOption))));v.querySelectorAll('[data-quiz-submit]').forEach(form=>form.addEventListener('submit',e=>submitQuiz(e,form.dataset.quizSubmit)));v.querySelectorAll('[data-quiz-retake]').forEach(b=>b.addEventListener('click',()=>{delete state.quizResults[b.dataset.quizRetake];renderCommunity();}));
  loadCommunityLocalProfile();
@@ -2239,7 +2365,7 @@ async function openCommunityMemberProfile(userId){
   if(own)await loadCommunityLocalProfile();
   panel.querySelector('#communitySendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(userId,name,cid));
   panel.querySelector('#communityBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(userId));
-  panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>{try{sessionStorage.removeItem('wired:lastCommunityProfile');}catch(e){}renderCommunity();});
+  panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>openCommunitySection(state.communityTab==='members'?'members':'latest'));
   panel.querySelectorAll('[data-community-social]').forEach(button=>button.addEventListener('click',async()=>{
    const group=button.dataset.communitySocial,ids=socialGroups[group]||[];
    let section=panel.querySelector('#communitySocialList');
@@ -2425,8 +2551,8 @@ async function startGroupChat(e){e.preventDefault();try{const usernames=$("group
 async function openCommunityChat(id){try{const d=await api("/communities/"+encodeURIComponent(id)+"/chat","POST",{});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
 async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)===String(id));const name=thread?.title||"this chat";if(!await wiredDialog("Delete "+name+" from your chat list? This only removes it from your inbox; other participants keep their copies."))return;const btn=[...document.querySelectorAll("[data-delete-thread]")].find(b=>b.dataset.deleteThread===String(id));if(btn){btn.disabled=true;btn.textContent="Deleting…";}try{const result=await api("/threads/"+encodeURIComponent(id)+"/delete","POST",{});if(result.ok!==true)throw new Error("The server did not confirm chat deletion.");
   state.deletedThreadIds??=new Set();state.deletedThreadIds.add(String(id));
-  ++inboxRefreshSequence;if(state.activeThread===id){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=null;}state.threads=state.threads.filter(t=>String(t.id)!==String(id));if(state.page==="chats")render();const {data:membership,error:membershipError}=await sb.from("thread_members").select("hidden_at").eq("thread_id",id).eq("user_id",state.user.id).maybeSingle();if(membershipError)throw membershipError;if(!membership?.hidden_at)throw new Error("The server did not persist the chat removal. Please try again.");await loadThreads();if(state.page==="chats")render();toast("Chat removed from your inbox.");}catch(e){state.deletedThreadIds?.delete(String(id));toast(errorText(e));if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="Delete";}}}async function openThread(id){try{if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=id;const d=await api(`/threads/${encodeURIComponent(id)}/messages`);state.messages=d.items||[];renderThread();state.realtimeChannel=sb.channel("wired-thread-"+id).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"thread_id=eq."+id},async payload=>{if(state.activeThread!==id)return;const last=state.messages[state.messages.length-1]?.id||0;if(Number(payload.new.id)>last){try{const fresh=await api(`/threads/${encodeURIComponent(id)}/messages?after=${last}`);state.messages=[...state.messages,...(fresh.items||[])];renderThread()}catch(e){console.warn("Message refresh failed",e)}}}).subscribe()}catch(e){toast(errorText(e))}}
-function renderThread(){const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog">${state.messages.map(m=>`<article class="message-bubble ${m.user_id===state.user?.id||m.sender_id===state.user?.id?"message-own":""}"><div class="meta">${escapeHTML(m.username||"Member")} · ${new Date(m.created_at).toLocaleString()}</div><p>${escapeHTML(m.body)}</p></article>`).join("")||`<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>`}</div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);const log=$("chatLog");if(log)log.scrollTop=log.scrollHeight;$("messageBody")?.focus()}
+  ++inboxRefreshSequence;if(state.activeThread===id){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=null;}state.threads=state.threads.filter(t=>String(t.id)!==String(id));if(state.page==="chats")render();const {data:membership,error:membershipError}=await sb.from("thread_members").select("hidden_at").eq("thread_id",id).eq("user_id",state.user.id).maybeSingle();if(membershipError)throw membershipError;if(!membership?.hidden_at)throw new Error("The server did not persist the chat removal. Please try again.");await loadThreads();if(state.page==="chats")render();toast("Chat removed from your inbox.");}catch(e){state.deletedThreadIds?.delete(String(id));toast(errorText(e));if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="Delete";}}}async function openThread(id){try{if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=id;const d=await api(`/threads/${encodeURIComponent(id)}/messages`);if(state.activeThread!==id)return;state.messages=d.items||[];renderThread();state.realtimeChannel=sb.channel("wired-thread-"+id).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"thread_id=eq."+id},async payload=>{if(state.activeThread!==id)return;const last=state.messages[state.messages.length-1]?.id||0;if(Number(payload.new.id)>last){try{const fresh=await api(`/threads/${encodeURIComponent(id)}/messages?after=${last}`);state.messages=[...state.messages,...(fresh.items||[])];renderThread()}catch(e){console.warn("Message refresh failed",e)}}}).subscribe()}catch(e){toast(errorText(e))}}
+function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog">${state.messages.map(m=>`<article class="message-bubble ${m.user_id===state.user?.id||m.sender_id===state.user?.id?"message-own":""}"><div class="meta">${escapeHTML(m.username||"Member")} · ${new Date(m.created_at).toLocaleString()}</div><p>${escapeHTML(m.body)}</p></article>`).join("")||`<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>`}</div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);const log=$("chatLog");if(log)log.scrollTop=log.scrollHeight;$("messageBody")?.focus()}
 async function toggleFollowerInvitePanel(){const panel=$("inviteFollowersPanel");if(!panel)return;if(!panel.hidden){panel.hidden=true;return;}panel.hidden=false;const communityChat=!!state.threads.find(t=>String(t.id)===String(state.activeThread))?.community_id;panel.innerHTML='<p class="hint">Loading your '+(communityChat?'community':'global')+' followers…</p>';try{const d=await api("/threads/"+encodeURIComponent(state.activeThread)+"/followers");const people=d.items||[];panel.innerHTML='<div class="chat-invite-heading"><strong>Invite your '+(communityChat?'community':'global')+' followers</strong><button type="button" class="chat-invite-close" id="closeFollowerInvite" aria-label="Close">×</button></div>'+(people.length?'<div class="chat-invite-list">'+people.map(p=>'<div class="chat-invite-person"><span>'+escapeHTML(p.username||"WIRED member")+'</span><button type="button" class="primary chat-invite-action" data-invite-follower="'+escapeHTML(p.id)+'">Invite</button></div>').join("")+'</div>':'<p class="hint">No followers available to invite. Only members who follow your '+(communityChat?'community':'global')+' profile appear here.</p>');$("closeFollowerInvite")?.addEventListener("click",()=>{panel.hidden=true;});panel.querySelectorAll("[data-invite-follower]").forEach(btn=>btn.addEventListener("click",()=>inviteGlobalFollower(btn.dataset.inviteFollower,btn)));}catch(e){panel.innerHTML='<p class="hint">'+escapeHTML(errorText(e))+'</p>';}}
 async function inviteGlobalFollower(userId,button){if(!userId||!button)return;button.disabled=true;button.textContent="Inviting…";try{await api("/threads/"+encodeURIComponent(state.activeThread)+"/invite","POST",{user_id:userId});button.textContent="Invited";button.classList.add("invited");toast("Follower invited to chat.");}catch(e){button.disabled=false;button.textContent="Invite";toast(errorText(e));}}
 async function sendMessage(e){e.preventDefault();const body=$("messageBody").value.trim();if(!body)return;try{await api(`/threads/${encodeURIComponent(state.activeThread)}/messages`,"POST",{body});const d=await api(`/threads/${encodeURIComponent(state.activeThread)}/messages`);state.messages=d.items||[];renderThread()}catch(err){toast(errorText(err))}}
@@ -2480,7 +2606,7 @@ let wiredRestoringRoute=true;
 function saveWiredRoute(){
  if(wiredRestoringRoute)return;
  try{
-  const route={page:state.page,communityId:state.activeCommunity?.id||null,communitySection:state.communityTab,communityProfileId:sessionStorage.getItem('wired:lastCommunityProfile')||null,memberId:state.page==='member-profile'?state.viewingProfile?.id:null,threadId:state.page==='chats'?state.activeThread:null,discoveryMode:state.discoveryMode||'',socialTab:state.profileSocialTab||'following',storeSection:wiredStoreSection,sanctuaryView:state.yokaiSanctuaryView||'home'};
+  const route={page:state.page,communityId:state.activeCommunity?.id||null,communitySection:state.communityTab,communityManagerOpen:!!state.managerOpen,communityThreadId:state.page==='community'&&$('backChats')?state.activeThread:null,communityProfileId:sessionStorage.getItem('wired:lastCommunityProfile')||null,memberId:state.page==='member-profile'?state.viewingProfile?.id:null,threadId:state.page==='chats'?state.activeThread:null,discoveryMode:state.discoveryMode||'',socialTab:state.profileSocialTab||'following',storeSection:wiredStoreSection,sanctuaryView:state.yokaiSanctuaryView||'home'};
   sessionStorage.setItem('wired:route:v2',JSON.stringify(route));
   sessionStorage.setItem('wired:lastPage',route.page||'home');
  }catch(e){console.warn('Could not save WIRED route',e);}
@@ -2492,7 +2618,23 @@ setInterval(saveWiredRoute,400);
 async function restoreWiredRoute(route){
  if(!route||!state.user&&['member-profile','profile-social','global-members','community','notifications','chats'].includes(route.page))return false;
  if(route.page==='member-profile'&&route.memberId){await openMemberProfile(route.memberId);return true;}
- if(route.page==='community'&&route.communityId){await openCommunity(route.communityId,route.communitySection);if(route.communityProfileId)await openCommunityMemberProfile(route.communityProfileId);return true;}
+ if(route.page==='community'&&route.communityId){
+  await openCommunity(route.communityId,route.communitySection);
+  if(!state.activeCommunityRole)return true;
+  if(route.communityProfileId){
+   state.communityTab='profile';
+   updateCommunitySidebar();
+   await openCommunityMemberProfile(route.communityProfileId);
+  }else if(route.communityManagerOpen&&['owner','mod'].includes(state.activeCommunityRole)){
+   await openCommunitySection('manager');
+  }else if(['chats','notifications'].includes(route.communitySection)){
+   await openCommunitySection(route.communitySection);
+   if(route.communitySection==='chats'&&route.communityThreadId&&state.threads.some(thread=>
+    thread.id===route.communityThreadId&&String(thread.community_id||thread.communityId||'')===String(route.communityId)
+   ))await openThread(route.communityThreadId);
+  }
+  return true;
+ }
  if(route.page==='global-members'){state.page='global-members';renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return true;}
  if(route.page==='notifications'){await openNotifications();return true;}
  if(route.page==='profile-social'){state.page='profile-social';state.profileSocialTab=route.socialTab||'following';render();return true;}
