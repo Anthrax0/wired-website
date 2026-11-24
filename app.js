@@ -68,21 +68,21 @@ async function loadCommunityMemberLevels(communityId){
  }catch(error){console.warn('Community levels unavailable',error);}
 }
 // Accessible WIRED-themed replacement for native browser confirmation and input popups.
-function wiredDialog(message,{input=false,defaultValue='',danger=true}={}){
+function wiredDialog(message,{input=false,defaultValue='',danger=true,multiline=false,maxLength=4000}={}){
  return new Promise(resolve=>{
   const overlay=document.createElement('div');overlay.className='wired-dialog-overlay';
   const dialog=document.createElement('section');dialog.className='wired-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-labelledby','wiredDialogTitle');
-  const title=document.createElement('h2');title.id='wiredDialogTitle';title.textContent=input?'WIRED · Member Management':danger?'Confirm Action':'WIRED';
-  const body=document.createElement('p');body.textContent=message;
+  const title=document.createElement('h2');title.id='wiredDialogTitle';title.textContent=input?(multiline?message:'WIRED · Member Management'):danger?'Confirm Action':'WIRED';
+  const body=document.createElement('p');body.textContent=message;body.hidden=multiline;
   const actions=document.createElement('div');actions.className='wired-dialog-actions';
   const cancel=document.createElement('button');cancel.type='button';cancel.className='wired-dialog-cancel';cancel.textContent='Cancel';
-  const accept=document.createElement('button');accept.type='button';accept.className=danger?'wired-dialog-danger':'wired-dialog-accept';accept.textContent=input?'Submit':/recycl/i.test(message)?'Recycle':/release/i.test(message)?'Release':'Confirm';
+  const accept=document.createElement('button');accept.type='button';accept.className=danger?'wired-dialog-danger':'wired-dialog-accept';accept.textContent=input?(multiline?'Save':'Submit'):/recycl/i.test(message)?'Recycle':/release/i.test(message)?'Release':'Confirm';
   dialog.append(title,body);
-  let field=null;if(input){field=document.createElement('input');field.className='wired-dialog-input';field.value=defaultValue;field.setAttribute('aria-label',message);dialog.append(field);}
+  let field=null;if(input){field=document.createElement(multiline?'textarea':'input');if(multiline){field.rows=5;field.maxLength=maxLength;field.style.width='100%';}field.className='wired-dialog-input';field.value=defaultValue;field.setAttribute('aria-label',message);dialog.append(field);}
   actions.append(cancel,accept);dialog.append(actions);overlay.append(dialog);document.body.append(overlay);
   const previous=document.activeElement;
   const close=value=>{document.removeEventListener('keydown',keyHandler,true);overlay.remove();previous?.focus?.();resolve(value);};
-  const keyHandler=e=>{if(e.key==='Escape'){e.preventDefault();close(input?null:false);}else if(e.key==='Tab'){const focusables=[cancel,...(field?[field]:[]),accept];const index=focusables.indexOf(document.activeElement);if(e.shiftKey&&index===0){e.preventDefault();accept.focus();}else if(!e.shiftKey&&index===focusables.length-1){e.preventDefault();cancel.focus();}}else if(e.key==='Enter'&&input){e.preventDefault();close(field.value);}};
+  const keyHandler=e=>{if(e.key==='Escape'){e.preventDefault();close(input?null:false);}else if(e.key==='Tab'){const focusables=[cancel,...(field?[field]:[]),accept];const index=focusables.indexOf(document.activeElement);if(e.shiftKey&&index===0){e.preventDefault();accept.focus();}else if(!e.shiftKey&&index===focusables.length-1){e.preventDefault();cancel.focus();}}else if(e.key==='Enter'&&input&&!multiline){e.preventDefault();close(field.value);}};
   document.addEventListener('keydown',keyHandler,true);
   cancel.addEventListener('click',()=>close(input?null:false));accept.addEventListener('click',()=>close(input?field.value:true));
   overlay.addEventListener('click',e=>{if(e.target===overlay)close(input?null:false);});
@@ -133,13 +133,48 @@ async function loadProfile(){
 }
 async function loadProfileComments(profileId){
  if(!profileId)return [];
- const {data,error}=await sb.from("profile_comments").select("id,profile_id,author_id,body,created_at,parent_comment_id").eq("profile_id",profileId).order("created_at",{ascending:true}).limit(300);
+ const {data,error}=await sb.from("profile_comments").select("id,profile_id,author_id,body,created_at,parent_comment_id,edited_at").eq("profile_id",profileId).order("created_at",{ascending:true}).limit(300);
  if(error)throw error;const rows=data||[],ids=[...new Set(rows.map(x=>x.author_id))];
  const {data:authors,error:authorError}=ids.length?await sb.from("profiles").select("id,username,avatar_url").in("id",ids):{data:[],error:null};
  if(authorError)throw authorError;const byId=new Map((authors||[]).map(x=>[x.id,x]));
  return rows.map(x=>({...x,author:byId.get(x.author_id)||{username:"WIRED member"}}));
 }
-function profileCommentsMarkup(profileId,comments){
+function editableTextMarkup(kind,item,canEdit){
+ return '<div data-editable-content><p data-editable-body>'+escapeHTML(item.body)+'</p>'+
+  '<small class="hint" data-edited-label'+(item.edited_at?'':' hidden')+'>Edited</small>'+
+  (canEdit?'<button class="ghost small" type="button" data-edit-kind="'+kind+'" data-edit-id="'+escapeHTML(item.id)+'">Edit</button>':'')+'</div>';
+}
+document.addEventListener('click',async event=>{
+ const button=event.target.closest('[data-edit-kind][data-edit-id]');
+ if(!button||button.disabled)return;
+ const kind=button.dataset.editKind,id=button.dataset.editId;
+ const container=button.closest('[data-editable-content]'),field=container.querySelector('[data-editable-body]');
+ const original=field.textContent;
+ button.disabled=true;
+ try{
+  const input=await wiredDialog(kind==='message'?'Edit message':'Edit comment',{
+   input:true,multiline:true,defaultValue:original,danger:false,maxLength:kind.includes('profile')?1000:4000
+  });
+  if(input===null||!button.isConnected)return;
+  const body=input.trim();
+  if(!body){toast('Enter some text before saving.');return;}
+  if(body===original)return;
+  const {data:editedAt,error}=await sb.rpc('edit_my_chat_text',{p_kind:kind,p_id:id,p_body:body});
+  if(error)throw error;
+  const lists=kind==='message'?[state.messages]:kind==='post'?(state.posts||[]).map(post=>post.comments):
+   kind==='profile'?[state.profileComments,state.viewingProfile?.comments]:[];
+  for(const rows of lists){
+   const item=rows?.find(row=>String(row.id)===id);
+   if(item&&!item.unsent_at){item.body=body;item.edited_at=editedAt;}
+  }
+  if(field.isConnected){
+   field.textContent=body;
+   container.querySelector('[data-edited-label]').hidden=false;
+  }
+ }catch(error){toast(errorText(error));}
+ finally{button.disabled=false;}
+});
+function profileCommentsMarkup(profileId,comments,kind='profile'){
  const rows=comments||[],roots=rows.filter(x=>!x.parent_comment_id),replyCount=rows.filter(x=>x.parent_comment_id).length;
  const byParent=new Map(),byId=new Map(rows.map(x=>[String(x.id),x]));
  for(const item of rows){const parent=item.parent_comment_id?String(item.parent_comment_id):null;if(!byParent.has(parent))byParent.set(parent,[]);byParent.get(parent).push(item);}
@@ -155,7 +190,7 @@ function profileCommentsMarkup(profileId,comments){
   const id=escapeHTML(x.id),canDelete=state.user&&(state.user.id===x.author_id||state.user.id===profileId);
   const parent=depth&&x.parent_comment_id?byId.get(String(x.parent_comment_id)):null;
   const replyLabel=depth?'<div class="profile-reply-context">↳ Reply to '+escapeHTML(parent?.author?.username||'comment')+'</div>':'';
-  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" style="'+(depth?'margin-left:'+Math.min(depth*14,56)+'px;border-left:3px solid #a25bdf;':'')+'" id="profile-comment-'+id+'">'+replyLabel+'<div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+(canDelete?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+id+'" aria-label="Delete comment">Delete</button>':'')+'</div><p>'+escapeHTML(x.body)+'</p>'+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" required placeholder="Write a reply…"></textarea><div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>';
+  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" style="'+(depth?'margin-left:'+Math.min(depth*14,56)+'px;border-left:3px solid #a25bdf;':'')+'" id="profile-comment-'+id+'">'+replyLabel+'<div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+(canDelete?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+id+'" aria-label="Delete comment">Delete</button>':'')+'</div>'+editableTextMarkup(kind,x,state.user?.id===x.author_id)+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" required placeholder="Write a reply…"></textarea><div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>';
  };
  return '<section class="profile-comments" aria-label="Profile comments"><div class="section-head"><h3>Comments</h3><span class="hint">'+roots.length+' '+(roots.length===1?'comment':'comments')+' · '+replyCount+' '+(replyCount===1?'reply':'replies')+'</span></div>'+(state.user?'<form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" required placeholder="Write a comment on this profile…"></textarea></label><div class="profile-comment-footer"><span class="hint">Be respectful. Up to 1,000 characters.</span><button class="primary" type="submit">Post comment</button></div></form>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(ordered.length?ordered.map(({item,depth})=>renderOne(item,depth)).join(''):'<p class="empty">No comments yet. Start the conversation.</p>')+'</div></section>';
 }
@@ -214,7 +249,7 @@ async function deleteProfileComment(commentId,profileId){
 }
 
 async function loadCommunityProfileComments(cid,profileId){
- const {data,error}=await sb.from('community_profile_comments').select('id,community_id,profile_id,author_id,body,created_at,parent_comment_id').eq('community_id',cid).eq('profile_id',profileId).order('created_at',{ascending:true}).limit(300);
+ const {data,error}=await sb.from('community_profile_comments').select('id,community_id,profile_id,author_id,body,created_at,parent_comment_id,edited_at').eq('community_id',cid).eq('profile_id',profileId).order('created_at',{ascending:true}).limit(300);
  if(error)throw error;
  const ids=[...new Set((data||[]).map(x=>x.author_id))];
  const {data:authors,error:authorError}=ids.length?await sb.from('profiles').select('id,username,avatar_url').in('id',ids):{data:[],error:null};
@@ -229,7 +264,7 @@ async function renderCommunityProfileComments(panel,cid,profileId){
   const comments=await loadCommunityProfileComments(cid,profileId);
   if(!slot.isConnected)return;
   // Reuse the global profile comment tree, reply indentation and controls.
-  slot.innerHTML=profileCommentsMarkup(profileId,comments).replace('id="profileCommentForm"','id="communityProfileCommentForm"').replace('id="profileCommentBody"','id="communityProfileCommentBody"');
+  slot.innerHTML=profileCommentsMarkup(profileId,comments,'community-profile').replace('id="profileCommentForm"','id="communityProfileCommentForm"').replace('id="profileCommentBody"','id="communityProfileCommentBody"');
   slot.querySelector('#communityProfileCommentForm')?.addEventListener('submit',async e=>{
    e.preventDefault();
    const form=e.currentTarget,body=form.querySelector('textarea')?.value.trim();if(!body)return;
@@ -570,7 +605,7 @@ async function openMemberProfile(userId){
   if(companionResult.error)throw companionResult.error;
   data.companion=companionResult.data||null;
   const [{data:comments,error:commentError},{data:follow},{data:friend},{data:relationship},{data:currentRelationship},{data:reverseFollow}] = await Promise.all([
-   sb.from('profile_comments') .select('id,profile_id,author_id,body,created_at,parent_comment_id').eq('profile_id',userId).order('created_at',{ascending:false}).limit(100),
+   sb.from('profile_comments') .select('id,profile_id,author_id,body,created_at,parent_comment_id,edited_at').eq('profile_id',userId).order('created_at',{ascending:false}).limit(100),
    sb.from('profile_follows').select('follower_id').eq('follower_id',state.user.id).eq('following_id',userId).maybeSingle(),
    sb.from('friend_requests').select('id,sender_id,recipient_id,status').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(sender_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').order('created_at',{ascending:false}).limit(1).maybeSingle(),
    sb.from('relationship_requests').select('id,requester_id,recipient_id,status').or('and(requester_id.eq.'+state.user.id+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+state.user.id+')').in('status',['pending','accepted']).order('created_at',{ascending:false}).limit(1).maybeSingle(),
@@ -2098,7 +2133,7 @@ function renderPostCard(p){
  }
  const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};
  const reactions=Object.keys(icons).map(r=>'<button type="button" aria-label="React '+r+'" class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
- const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b><p>'+escapeHTML(z.body)+'</p></div>').join('');
+ const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b>'+editableTextMarkup('post',z,state.user?.id===z.author_id)+'</div>').join('');
  const collections=state.communityPostCollections;
  const actions=collections&&!collections.loading&&!collections.error?'<div class="community-post-actions">'+
   '<button type="button" class="ghost small" data-post-collection="saved" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.saved.has(p.id)+'">'+(collections.saved.has(p.id)?'Unsave':'Save post')+'</button>'+
@@ -2626,8 +2661,14 @@ async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)=
     }catch(error){console.warn('Message refresh failed',error);}
    })
    .on('postgres_changes',{event:'UPDATE',...filter},payload=>{
-    if(state.activeThread!==id||!payload.new.unsent_at)return;
-    markThreadMessageUnsent(payload.new.id,payload.new.unsent_at);
+    if(state.activeThread!==id)return;
+    const incoming=payload.new;
+    if(incoming.unsent_at){
+     markThreadMessageUnsent(incoming.id,incoming.unsent_at);
+    }else if(incoming.edited_at){
+     const current=state.messages.find(message=>String(message.id)===String(incoming.id));
+     if(current){mergeThreadMessages([{...current,...incoming}]);renderThreadMessages();}
+    }
    }).subscribe();
  }catch(error){toast(errorText(error));}
 }
@@ -2635,7 +2676,8 @@ function mergeThreadMessages(messages){
  const byId=new Map(state.messages.map(message=>[String(message.id),message]));
  for(const message of messages){
   const key=String(message.id);
-  if(!byId.get(key)?.unsent_at)byId.set(key,message);
+  const previous=byId.get(key);
+  if(!previous?.unsent_at&&(!previous?.edited_at||message.unsent_at||Date.parse(message.edited_at)>=Date.parse(previous.edited_at)))byId.set(key,message);
  }
  state.messages=[...byId.values()].sort((a,b)=>Number(a.id)-Number(b.id));
 }
@@ -2649,7 +2691,7 @@ function renderThreadMessages(){
  log.innerHTML=state.messages.map(message=>{
   const own=messageIsMine(message);
   return '<article class="message-bubble'+(own?' message-own':'')+'"><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
-   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>':'<p>'+escapeHTML(message.body)+'</p>'+
+   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :editableTextMarkup('message',message,own)+
     (own?'<button class="ghost small message-unsend" type="button" data-unsend-message="'+escapeHTML(message.id)+'">Unsend</button>':''))+'</article>';
  }).join('')||'<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>';
  log.scrollTop=log.scrollHeight;
