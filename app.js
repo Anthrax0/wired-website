@@ -2812,15 +2812,26 @@ async function startGroupChat(e){e.preventDefault();try{const usernames=$("group
 async function openCommunityChat(id){try{const d=await api("/communities/"+encodeURIComponent(id)+"/chat","POST",{});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
 async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)===String(id));const name=thread?.title||"this chat";if(!await wiredDialog("Delete "+name+" from your chat list? This only removes it from your inbox; other participants keep their copies."))return;const btn=[...document.querySelectorAll("[data-delete-thread]")].find(b=>b.dataset.deleteThread===String(id));if(btn){btn.disabled=true;btn.textContent="Deleting…";}try{const result=await api("/threads/"+encodeURIComponent(id)+"/delete","POST",{});if(result.ok!==true)throw new Error("The server did not confirm chat deletion.");
   state.deletedThreadIds??=new Set();state.deletedThreadIds.add(String(id));
-  ++inboxRefreshSequence;if(state.activeThread===id){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=null;}state.threads=state.threads.filter(t=>String(t.id)!==String(id));if(state.page==="chats")render();const {data:membership,error:membershipError}=await sb.from("thread_members").select("hidden_at").eq("thread_id",id).eq("user_id",state.user.id).maybeSingle();if(membershipError)throw membershipError;if(!membership?.hidden_at)throw new Error("The server did not persist the chat removal. Please try again.");await loadThreads();if(state.page==="chats")render();toast("Chat removed from your inbox.");}catch(e){state.deletedThreadIds?.delete(String(id));toast(errorText(e));if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="Delete";}}}async function openThread(id){
+  ++inboxRefreshSequence;if(state.activeThread===id){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=null;}state.threads=state.threads.filter(t=>String(t.id)!==String(id));if(state.page==="chats")render();const {data:membership,error:membershipError}=await sb.from("thread_members").select("hidden_at").eq("thread_id",id).eq("user_id",state.user.id).maybeSingle();if(membershipError)throw membershipError;if(!membership?.hidden_at)throw new Error("The server did not persist the chat removal. Please try again.");await loadThreads();if(state.page==="chats")render();toast("Chat removed from your inbox.");}catch(e){state.deletedThreadIds?.delete(String(id));toast(errorText(e));if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="Delete";}}}
+async function loadThreadMessages(thread,after){
+ let query=sb.from('messages')
+  .select('id,thread_id,author_id,body,created_at,unsent_at,edited_at,voice_path,image_path,profiles(username)')
+  .eq('thread_id',thread).order('id',{ascending:after!=null}).limit(100);
+ if(after!=null)query=query.gt('id',after);
+ const {data,error}=await query;
+ if(error)throw error;
+ if(after==null)data.reverse();
+ return data.map(({profiles,...message})=>({...message,username:profiles?.username||'Member'}));
+}
+async function openThread(id){
  try{
   if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}
   state.activeThread=id;
   if(state.page==="community")state.communityTab="chats";
   saveWiredRoute();
-  const d=await api(`/threads/${encodeURIComponent(id)}/messages`);
+  const messages=await loadThreadMessages(id);
   if(state.activeThread!==id)return;
-  state.messages=d.items||[];
+  state.messages=messages;
   renderThread();
   const filter={schema:'public',table:'messages',filter:'thread_id=eq.'+id};
   state.realtimeChannel=sb.channel('wired-thread-'+id)
@@ -2829,9 +2840,9 @@ async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)=
     const last=state.messages.at(-1)?.id||0;
     if(Number(payload.new.id)<=Number(last))return;
     try{
-     const fresh=await api(`/threads/${encodeURIComponent(id)}/messages?after=${last}`);
+     const fresh=await loadThreadMessages(id,last);
      if(state.activeThread!==id)return;
-     mergeThreadMessages(fresh.items||[]);
+     mergeThreadMessages(fresh);
      renderThreadMessages();
     }catch(error){console.warn('Message refresh failed',error);}
    })
@@ -2864,18 +2875,25 @@ function renderThreadMessages(){
  const log=$('chatLog');
  if(!log)return;
  const playing=new Map(Array.from(log.querySelectorAll('audio[data-voice-message]'),audio=>[audio.dataset.voiceMessage,audio]));
+ const images=new Map(Array.from(log.querySelectorAll('[data-chat-image]'),node=>[node.dataset.chatImage,node]));
  log.innerHTML=state.messages.map(message=>{
   const own=messageIsMine(message);
   const actions=own&&!message.unsent_at?' tabindex="0" aria-haspopup="dialog" aria-label="Your message. Hold or press Enter for message actions." data-message-actions="'+escapeHTML(message.id)+'"':'';
   return '<article class="message-bubble'+(own?' message-own':'')+'"'+actions+'><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
-   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :message.voice_path?'<button type="button" class="ghost small" data-play-voice="'+escapeHTML(message.id)+'">▶ Play voice clip</button>':editableTextMarkup('message',message,false))+'</article>';
+   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :message.image_path?'<div class="chat-image" data-chat-image="'+escapeHTML(message.id)+'"><button type="button" class="ghost small">Load '+chatImageLabel(message.image_path)+'</button></div>':message.voice_path?'<button type="button" class="ghost small" data-play-voice="'+escapeHTML(message.id)+'">▶ Play voice clip</button>':editableTextMarkup('message',message,false))+'</article>';
  }).join('')||'<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>';
  for(const [id,audio] of playing){
   const button=log.querySelector('[data-play-voice="'+CSS.escape(id)+'"]');
   if(button)button.replaceWith(audio);
   else releaseVoicePlayer(audio);
  }
+ for(const [id,node] of images){
+  const placeholder=log.querySelector('[data-chat-image="'+CSS.escape(id)+'"]');
+  if(placeholder)placeholder.replaceWith(node);
+  else releaseChatImage(node);
+ }
  log.scrollTop=log.scrollHeight;
+ log.dispatchEvent(new Event('chat-images-rendered'));
 }
 function markThreadMessageUnsent(id,at){
  const message=state.messages.find(item=>String(item.id)===String(id));
@@ -2903,7 +2921,7 @@ function openMessageActions(bubble){
  dialog.id='messageActions';
  dialog.setAttribute('aria-labelledby','messageActionsTitle');
  dialog.innerHTML='<h2 id="messageActionsTitle">Message actions</h2><form method="dialog">'+
-  (message.voice_path?'':'<button class="ghost" value="edit" autofocus>Edit message</button>')+
+  (message.voice_path||message.image_path?'':'<button class="ghost" value="edit" autofocus>Edit message</button>')+
   '<button class="ghost" value="unsend">Unsend</button>'+
   '<button class="ghost" value="cancel">Cancel</button></form>';
  document.body.append(dialog);
@@ -2914,7 +2932,7 @@ function openMessageActions(bubble){
   if(bubble.isConnected)bubble.focus({preventScroll:true});
   if(state.activeThread!==thread)return;
   const current=state.messages.find(item=>String(item.id)===id);
-  if(action==='edit'&&current&&!current.unsent_at&&!current.voice_path)void editAuthoredText('message',id,current.body);
+  if(action==='edit'&&current&&!current.unsent_at&&!current.voice_path&&!current.image_path)void editAuthoredText('message',id,current.body);
   if(action==='unsend')void unsendThreadMessage(id);
  },{once:true});
  dialog.showModal();
@@ -3113,12 +3131,150 @@ function attachVoiceRecorder(panel,log,thread){
   }finally{send.disabled=discard.disabled=false;}
  });
 }
-function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form><div class="chat-voice-tools" id="chatVoiceTools">
+const CHAT_IMAGE_BUCKET='chat-images';
+const CHAT_IMAGE_TYPES={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'};
+const CHAT_IMAGE_LIMIT=10*1024*1024;
+
+function chatImageLabel(path){
+ return path.endsWith('.gif')?'GIF':'photo';
+}
+function releaseChatImage(node){
+ const image=node.querySelector('img');
+ if(image)URL.revokeObjectURL(image.src);
+}
+function attachChatImages(panel,log,thread){
+ const pick=panel.querySelector('[data-pick-chat-image]');
+ const input=panel.querySelector('input');
+ const status=panel.querySelector('[role="status"]');
+ const preview=panel.querySelector('[data-chat-image-preview]');
+ const image=preview.querySelector('img');
+ const send=preview.querySelector('[data-send-chat-image]');
+ const discard=preview.querySelector('[data-discard-chat-image]');
+ const user=state.user?.id;
+ const connected=()=>panel.isConnected&&state.activeThread===thread&&state.user?.id===user;
+ let draft=null;
+ const clearDraft=()=>{
+  if(draft)URL.revokeObjectURL(image.src);
+  image.removeAttribute('src');
+  draft=null;
+  preview.hidden=true;
+ };
+ const load=async node=>{
+  const button=node.querySelector('button');
+  const message=state.messages.find(item=>String(item.id)===node.dataset.chatImage);
+  if(!connected()||!node.isConnected||!button||button.disabled||!message?.image_path||message.unsent_at)return;
+  const label=chatImageLabel(message.image_path);
+  button.dataset.attempted='true';
+  button.disabled=true;
+  button.textContent='Loading '+label+'…';
+  try{
+   const {data,error}=await sb.storage.from(CHAT_IMAGE_BUCKET).download(message.image_path);
+   if(error)throw error;
+   if(!connected()||!node.isConnected)return;
+   const received=document.createElement('img');
+   received.alt=label==='GIF'?'Animated GIF':'Photo attachment';
+   received.addEventListener('error',()=>{
+    URL.revokeObjectURL(received.src);
+    if(received.isConnected){
+     button.disabled=false;
+     button.textContent='Retry '+label;
+     received.replaceWith(button);
+    }
+   },{once:true});
+   const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<80;
+   received.addEventListener('load',()=>{
+    if(nearBottom&&received.isConnected)log.scrollTop=log.scrollHeight;
+   },{once:true});
+   received.src=URL.createObjectURL(data);
+   button.replaceWith(received);
+  }catch(error){
+   button.disabled=false;
+   button.textContent='Retry '+label;
+  }
+ };
+ const visible=new IntersectionObserver(entries=>{
+  for(const entry of entries){
+   if(entry.isIntersecting){visible.unobserve(entry.target);void load(entry.target);}
+  }
+ },{root:log});
+ log.addEventListener('chat-images-rendered',()=>{
+  visible.disconnect();
+  log.querySelectorAll('[data-chat-image] button:not(:disabled)').forEach(button=>{
+   if(!button.dataset.attempted)visible.observe(button.parentElement);
+  });
+ });
+ log.addEventListener('click',event=>{
+  const node=event.target.closest('[data-chat-image] button')?.parentElement;
+  if(node)void load(node);
+ });
+ const observer=new MutationObserver(()=>{
+  if(panel.isConnected)return;
+  observer.disconnect();
+  visible.disconnect();
+  clearDraft();
+  log.querySelectorAll('[data-chat-image]').forEach(releaseChatImage);
+ });
+ observer.observe($('view'),{childList:true});
+ pick.addEventListener('click',()=>input.click());
+ input.addEventListener('change',()=>{
+  const file=input.files[0];
+  input.value='';
+  if(!file)return;
+  const extension=CHAT_IMAGE_TYPES[file.type];
+  if(!extension||!file.size||file.size>CHAT_IMAGE_LIMIT){
+   status.textContent='Choose a JPG, PNG, WebP, or GIF up to 10 MB.';
+   return;
+  }
+  clearDraft();
+  draft={file,path:thread+'/'+user+'/'+crypto.randomUUID()+'.'+extension,uploaded:false};
+  image.src=URL.createObjectURL(file);
+  preview.hidden=false;
+  status.textContent='Preview your '+chatImageLabel(draft.path)+' before sending.';
+ });
+ discard.addEventListener('click',()=>{clearDraft();status.textContent='';pick.focus();});
+ send.addEventListener('click',async()=>{
+  if(!draft||!connected()||send.disabled)return;
+  const attachment=draft;
+  const label=chatImageLabel(attachment.path);
+  pick.disabled=send.disabled=discard.disabled=true;
+  status.textContent='Sending '+label+'…';
+  try{
+   if(!attachment.uploaded){
+    const {error}=await sb.storage.from(CHAT_IMAGE_BUCKET).upload(attachment.path,attachment.file,{contentType:attachment.file.type});
+    if(error)throw error;
+    attachment.uploaded=true;
+   }
+   const {data,error}=await sb.rpc('send_my_chat_image',{p_thread_id:thread,p_path:attachment.path});
+   if(error)throw error;
+   const sent=Array.isArray(data)?data[0]:data;
+   if(!sent?.id)throw new Error('Could not confirm the attachment was sent.');
+   if(connected()){
+    mergeThreadMessages([{...sent,username:state.profile?.username||'Member'}]);
+    clearDraft();
+    renderThreadMessages();
+    status.textContent=label==='GIF'?'GIF sent.':'Photo sent.';
+    pick.disabled=false;
+    pick.focus();
+   }
+  }catch(error){
+   if(connected())status.textContent='Could not send '+label+'. '+errorText(error);
+  }finally{pick.disabled=send.disabled=discard.disabled=false;}
+ });
+}
+function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form><div class="chat-image-tools" id="chatImageTools">
+ <button type="button" class="ghost small" data-pick-chat-image>Photo / GIF</button>
+ <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+ <span class="hint" role="status"></span>
+ <div class="chat-image-preview" data-chat-image-preview hidden>
+  <img alt="Attachment preview">
+  <button type="button" class="primary small" data-send-chat-image>Send attachment</button>
+  <button type="button" class="ghost small" data-discard-chat-image>Discard</button>
+ </div></div><div class="chat-voice-tools" id="chatVoiceTools">
  <button type="button" class="ghost small" data-record-voice>Record voice clip</button>
  <span class="hint" role="status" data-voice-status></span>
  <div class="voice-preview" data-voice-preview hidden><audio controls preload="metadata" aria-label="Voice clip preview"></audio>
  <button type="button" class="primary small" data-send-voice>Send voice clip</button>
- <button type="button" class="ghost small" data-discard-voice>Discard</button></div></div></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);attachMessageActions($('chatLog'));attachVoiceRecorder($('chatVoiceTools'),$('chatLog'),state.activeThread);renderThreadMessages();$("messageBody")?.focus()}
+ <button type="button" class="ghost small" data-discard-voice>Discard</button></div></div></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);attachMessageActions($('chatLog'));attachVoiceRecorder($('chatVoiceTools'),$('chatLog'),state.activeThread);attachChatImages($('chatImageTools'),$('chatLog'),state.activeThread);renderThreadMessages();$("messageBody")?.focus()}
 async function toggleFollowerInvitePanel(){const panel=$("inviteFollowersPanel");if(!panel)return;if(!panel.hidden){panel.hidden=true;return;}panel.hidden=false;const communityChat=!!state.threads.find(t=>String(t.id)===String(state.activeThread))?.community_id;panel.innerHTML='<p class="hint">Loading your '+(communityChat?'community':'global')+' followers…</p>';try{const d=await api("/threads/"+encodeURIComponent(state.activeThread)+"/followers");const people=d.items||[];panel.innerHTML='<div class="chat-invite-heading"><strong>Invite your '+(communityChat?'community':'global')+' followers</strong><button type="button" class="chat-invite-close" id="closeFollowerInvite" aria-label="Close">×</button></div>'+(people.length?'<div class="chat-invite-list">'+people.map(p=>'<div class="chat-invite-person"><span>'+escapeHTML(p.username||"WIRED member")+'</span><button type="button" class="primary chat-invite-action" data-invite-follower="'+escapeHTML(p.id)+'">Invite</button></div>').join("")+'</div>':'<p class="hint">No followers available to invite. Only members who follow your '+(communityChat?'community':'global')+' profile appear here.</p>');$("closeFollowerInvite")?.addEventListener("click",()=>{panel.hidden=true;});panel.querySelectorAll("[data-invite-follower]").forEach(btn=>btn.addEventListener("click",()=>inviteGlobalFollower(btn.dataset.inviteFollower,btn)));}catch(e){panel.innerHTML='<p class="hint">'+escapeHTML(errorText(e))+'</p>';}}
 async function inviteGlobalFollower(userId,button){if(!userId||!button)return;button.disabled=true;button.textContent="Inviting…";try{await api("/threads/"+encodeURIComponent(state.activeThread)+"/invite","POST",{user_id:userId});button.textContent="Invited";button.classList.add("invited");toast("Follower invited to chat.");}catch(e){button.disabled=false;button.textContent="Invite";toast(errorText(e));}}
 async function sendMessage(e){

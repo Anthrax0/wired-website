@@ -1816,3 +1816,10 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .chat-voice-tools [data-voice-status]{display:block;margin-top:4px}
 .voice-preview:not([hidden]){display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
 .voice-preview audio,.chat-log audio{width:min(260px,100%);max-width:100%;display:block}
+
+.chat-image-tools{padding:8px 14px;border-top:1px solid var(--line)}
+.chat-image-tools button,[data-chat-image] button{min-height:40px}
+.chat-image-tools [role="status"]{margin-left:8px}
+.chat-image-preview:not([hidden]){display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.chat-image img,.chat-image-preview img{display:block;max-width:100%;max-height:260px;border-radius:8px;object-fit:contain}
+.chat-image-preview img{max-height:100px}
