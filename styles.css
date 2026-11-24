@@ -1795,3 +1795,12 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 #messageActions form{display:grid;gap:8px}
 #messageActions button{min-height:44px;text-align:left}
 #messageActions button[value="unsend"]{color:#ff9caa}
+
+.has-member-moderation{position:relative}
+.member-moderation-trigger{position:absolute;top:12px;right:12px;min-width:44px;min-height:44px;font-size:1.35rem;line-height:1}
+.has-member-moderation #closeLocalProfile{margin-right:54px;min-height:38px}
+#memberModerationDialog{width:min(460px,calc(100vw - 32px));max-height:85dvh;overflow:auto;padding:18px}
+#memberModerationDialog h2{overflow-wrap:anywhere}
+.member-moderation-actions{display:grid;gap:8px;margin-block:12px}
+.member-moderation-actions button{min-height:44px;text-align:left}
+#memberModerationHistory .moderation-row{overflow-wrap:anywhere}

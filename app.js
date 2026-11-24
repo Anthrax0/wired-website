@@ -2427,6 +2427,75 @@ async function submitQuiz(e,id){
  catch(err){if(button){button.disabled=false;button.textContent='Submit quiz';}toast(errorText(err));}
 }
 
+function openMemberModeration(panel,community,userId,name){
+ const trigger=panel.querySelector('#communityMemberModeration');
+ const current=()=>panel.isConnected&&state.page==='community'&&state.activeCommunity?.id===community.id;
+ if(!current()||$('memberModerationDialog'))return;
+ const dialog=document.createElement('dialog');
+ dialog.id='memberModerationDialog';
+ dialog.setAttribute('aria-labelledby','memberModerationTitle');
+ dialog.innerHTML='<h2 id="memberModerationTitle">'+escapeHTML(name)+'</h2>'+
+  '<form method="dialog"><button class="ghost" value="close" autofocus>Close</button></form>'+
+  '<div class="member-moderation-actions"><button class="ghost" type="button" data-member-history aria-expanded="false">View moderation history</button></div>'+
+  '<section id="memberModerationHistory" hidden></section>';
+ let action=null;
+ dialog.addEventListener('close',()=>{
+  dialog.remove();
+  if(!current())return;
+  trigger.focus();
+  if(action==='strike')void strikeCommunityMember(community,userId);
+  if(action==='ban'||action==='unban')void setMemberBanned(userId,action==='ban');
+ },{once:true});
+ dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
+ document.body.append(dialog);
+ dialog.showModal();
+ const historyButton=dialog.querySelector('[data-member-history]');
+ const history=dialog.querySelector('#memberModerationHistory');
+ historyButton.addEventListener('click',async()=>{
+  history.hidden=!history.hidden;
+  historyButton.setAttribute('aria-expanded',String(!history.hidden));
+  if(history.hidden)return;
+  history.textContent='Loading moderation history…';
+  try{
+   const {data,error}=await sb.from('moderation_actions').select('action,details,created_at')
+    .eq('community_id',community.id).eq('target_user_id',userId).order('created_at',{ascending:false}).limit(100);
+   if(error)throw error;
+   history.innerHTML=(data||[]).map(row=>'<div class="moderation-row"><div><b>'+escapeHTML(row.action.replaceAll('_',' '))+
+    '</b><p class="hint">'+escapeHTML(new Date(row.created_at).toLocaleString())+'</p><p>'+escapeHTML(row.details)+'</p></div></div>'
+   ).join('')||'<p class="empty">No moderation history for this member.</p>';
+  }catch(error){history.textContent=errorText(error);}
+ });
+ if(userId===state.user?.id)return;
+ void (async()=>{
+  try{
+   const {data:member,error}=await sb.from('community_members').select('role,banned,banned_until')
+    .eq('community_id',community.id).eq('user_id',userId).maybeSingle();
+   if(error)throw error;
+   if(!dialog.open||!current()||!member||member.role==='owner'||userId===community.owner_id||
+      member.role==='mod'&&state.user?.id!==community.owner_id)return;
+   const actions=dialog.querySelector('.member-moderation-actions');
+   const banned=member.banned||!!(member.banned_until&&Date.parse(member.banned_until)>Date.now());
+   actions.insertAdjacentHTML('beforeend','<button class="ghost" type="button" data-member-sanction="strike">Issue strike</button>'+
+    '<button class="ghost" type="button" data-member-sanction="'+(banned?'unban':'ban')+'">'+(banned?'Lift ban':'Ban member')+'</button>');
+   actions.querySelectorAll('[data-member-sanction]').forEach(button=>button.addEventListener('click',()=>{
+    action=button.dataset.memberSanction;
+    dialog.close();
+   }));
+  }catch(error){
+   if(dialog.open&&current())toast(errorText(error));
+  }
+ })();
+}
+async function strikeCommunityMember(community,userId){
+ const reason=await wiredDialog('Reason for the strike',{input:true,multiline:true,maxLength:500,danger:true});
+ if(reason===null||state.page!=='community'||state.activeCommunity?.id!==community.id)return;
+ if(!reason.trim()){toast('Enter a reason to issue a strike.');return;}
+ try{
+  const {error}=await sb.rpc('issue_community_strike',{p_community_id:community.id,p_user_id:userId,p_reason:reason.trim()});
+  if(error)throw error;
+  toast('Strike recorded and member notified.');
+ }catch(error){toast(errorText(error));}
+}
 let communityProfileRequest=0;
 async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,stillSelected=()=>true){
  const community=state.activeCommunity,uid=state.user?.id;
@@ -2479,6 +2548,11 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   const own=userId===uid;
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
   panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><p class="hint">'+escapeHTML(community.name||'Community')+' profile</p><h2>'+escapeHTML(name)+'</h2></div></div>'+'<span class="community-local-avatar-wrap">'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'<span class="community-local-avatar community-local-avatar-fallback">W</span>')+communityAvatarLevelBadge({communityPoints:profileCommunityPoints})+'</span>'+'<div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(local?.show_global_companion?'<section class="community-companion-section">'+(companion?profileYokaiMarkup(companion):'<p class="hint">'+escapeHTML(companionMessage)+'</p>')+'</section>':'')+'<section class="community-profile-biography"><h3>About Me</h3><p id="communityProfileBio">'+escapeHTML(local?.bio||'No community biography yet.')+'</p></section>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
+  if(['owner','mod'].includes(state.activeCommunityRole)){
+   panel.classList.add('has-member-moderation');
+   panel.insertAdjacentHTML('afterbegin','<button type="button" class="ghost member-moderation-trigger" id="communityMemberModeration" aria-label="Moderation tools for '+escapeHTML(name)+'" aria-haspopup="dialog">⋯</button>');
+   panel.querySelector('#communityMemberModeration').addEventListener('click',()=>openMemberModeration(panel,community,userId,name));
+  }
   if(!own)panel.insertAdjacentHTML('beforeend','<button type="button" class="ghost" id="communitySendGiftBtn">🎁 Send Gift</button><button type="button" class="ghost" id="communityBlockBtn" style="color:#ff525f;border-color:#b42b42;font-size:.75rem;padding:.3rem .55rem">Block</button>');
   const communityQuick=panel.querySelector('.community-social-counts');
   if(communityQuick){communityQuick.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:12px 0';const gift=panel.querySelector('#communitySendGiftBtn'),block=panel.querySelector('#communityBlockBtn');if(gift)communityQuick.appendChild(gift);if(block)communityQuick.appendChild(block);const relation=panel.querySelector('.community-profile-biography')?.nextElementSibling;const heading=panel.querySelector('.profile-person');const companionSection=panel.querySelector('.community-companion-section');if(companionSection)companionSection.before(communityQuick);else (panel.querySelector('.community-profile-biography')||heading)?.before(communityQuick);}
