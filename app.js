@@ -2173,7 +2173,7 @@ function renderCommunity(){
  if(manager&&state.managerOpen){
   html+='<section class="manager-panel moderation-panel"><div class="manager-heading"><div><span class="eyebrow">COMMUNITY SAFETY</span><h2>Moderation tools</h2><p class="muted">Manage members, review reports, and remove posts that break your rules.</p></div></div>';
   html+='<div class="section-head"><h3>Members ('+state.moderationMembers.length+')</h3></div>';
-  html+=state.moderationMembers.map(m=>'<article class="moderation-row"><div class="member-identity">'+communityAvatarWithBadge(m.avatar_url,m)+'<button class="profile-member-link" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+escapeHTML(m.username||'WIRED member')+'</button>'+communityLevelBadge(m)+'<p class="hint">'+escapeHTML(m.role||'member')+(m.banned?' · Banned':'')+'</p></div><div class="card-actions">'+(m.role!=='owner'?'<button class="ghost small" data-member-role="'+escapeHTML(m.user_id)+'" data-next-role="'+(m.role==='mod'?'member':'mod')+'">'+(m.role==='mod'?'Remove moderator':'Make moderator')+'</button><button class="ghost small" data-member-ban="'+escapeHTML(m.user_id)+'" data-banned="'+(m.banned?'true':'false')+'">'+(m.banned?'Unban':'Temporary / permanent ban')+'</button><button class="ghost small" data-member-warning="'+escapeHTML(m.user_id)+'">Issue warning</button>':'<span class="pill">Owner</span>')+'</div></article>').join('')||'<div class="empty">No members found.</div>';
+  html+=state.moderationMembers.map(m=>'<article class="moderation-row"><div class="member-identity">'+communityAvatarWithBadge(m.avatar_url,m)+'<button class="profile-member-link" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+escapeHTML(m.username||'WIRED member')+'</button>'+communityLevelBadge(m)+'<p class="hint">'+escapeHTML(m.role||'member')+(m.banned?' · Banned':'')+'</p></div><div class="card-actions">'+(m.role!=='owner'?'<button class="ghost small" data-member-role="'+escapeHTML(m.user_id)+'" data-next-role="'+(m.role==='mod'?'member':'mod')+'">'+(m.role==='mod'?'Remove moderator':'Make moderator')+'</button>'+(m.user_id!==state.user?.id&&(m.role!=='mod'||c.owner_id===state.user?.id)?'<button class="ghost small" data-member-ban="'+escapeHTML(m.user_id)+'" data-banned="'+(m.banned?'true':'false')+'">'+(m.banned?'Unban':'Temporary / permanent ban')+'</button>':'')+'<button class="ghost small" data-member-warning="'+escapeHTML(m.user_id)+'">Issue warning</button>':'<span class="pill">Owner</span>')+'</div></article>').join('')||'<div class="empty">No members found.</div>';
   html+='<div class="section-head"><h3>Open reports ('+state.moderationReports.length+')</h3></div>';
   html+=state.moderationReports.map(r=>'<article class="moderation-row"><div><b>'+escapeHTML(r.reason||'Reported content')+'</b><p class="hint">Post · '+escapeHTML(r.target_id)+'</p></div><div class="card-actions"><button class="ghost small" data-report-resolve="'+escapeHTML(r.id)+'">Resolve</button><button class="primary small" data-report-remove="'+escapeHTML(r.id)+'" data-report-post="'+escapeHTML(r.target_id)+'">Remove post</button></div></article>').join('')||'<div class="empty">No open reports for this community.</div>';
   html+='<div class="section-head"><h3>Community posts · moderation</h3></div>';
@@ -2267,7 +2267,38 @@ async function logModerationAction(action,targetUserId=null,details=''){const {e
  }catch(e){toast(errorText(e));}
  finally{if(button?.isConnected)button.disabled=false;}
 }
-async function setMemberBanned(userId,banned){try{let banned_until=null;if(banned){const choice=await wiredDialog('Ban duration in hours. Enter 0 for a permanent ban.',{input:true,defaultValue:'24',danger:false});if(choice===null)return;const hours=Number(choice);if(!Number.isFinite(hours)||hours<0||hours>8760){toast('Enter 0 to 8760 hours.');return;}banned_until=hours===0?null:new Date(Date.now()+hours*3600000).toISOString();}const {error}=await sb.from('community_members').update({banned,banned_until}).eq('community_id',state.activeCommunity.id).eq('user_id',userId);if(error)throw error;await logModerationAction(banned?'ban_member':'unban_member',userId,banned?(banned_until?'Temporary ban until '+banned_until:'Permanent ban'):'Ban lifted');toast(banned?'Member banned.':'Member unbanned.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}}
+async function setMemberBanned(userId,banned){
+ const community=state.activeCommunity;
+ if(!community)return;
+ let until=null;
+ if(banned){
+  const choice=await wiredDialog('Ban duration in hours. Enter 0 for a permanent ban.',{input:true,defaultValue:'24',danger:false});
+  if(choice===null)return;
+  const hours=Number(choice);
+  if(!choice.trim()||!Number.isFinite(hours)||hours<0||hours>8760){toast('Enter 0 to 8760 hours.');return;}
+  if(hours>0)until=new Date(Date.now()+hours*3600000).toISOString();
+ }
+ const reason=await wiredDialog(banned?'Reason for the ban':'Reason for lifting the ban',{
+  input:true,multiline:true,maxLength:500,danger:banned
+ });
+ if(reason===null||state.page!=='community'||state.activeCommunity!==community)return;
+ if(!reason.trim()){toast('Enter a reason to record this action.');return;}
+ try{
+  const {error}=await sb.rpc('set_community_member_ban',{
+   p_community_id:community.id,p_user_id:userId,p_banned:banned,p_banned_until:until,p_reason:reason.trim()
+  });
+  if(error)throw error;
+  toast(banned?'Member banned.':'Member unbanned.');
+  const isCurrent=()=>state.page==='community'&&state.activeCommunity===community&&state.managerOpen;
+  if(isCurrent()){
+   const member=state.moderationMembers.find(item=>item.user_id===userId);
+   if(member){member.banned=banned;member.banned_until=until;}
+   renderCommunity();
+   await loadModerationData(community.id,isCurrent).catch(error=>console.warn('Moderation history refresh failed',error));
+   if(isCurrent())renderCommunity();
+  }
+ }catch(error){toast(errorText(error));}
+}
 async function resolveCommunityReport(reportId){
  try{const {error}=await sb.from('reports').update({status:'resolved'}).eq('id',reportId);if(error)throw error;await logModerationAction('resolve_report',null,'Report '+reportId+' resolved');toast('Report resolved.');await openCommunity(state.activeCommunity.id);}catch(e){toast(errorText(e));}
 }

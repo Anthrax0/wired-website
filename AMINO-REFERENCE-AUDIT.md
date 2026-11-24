@@ -66,3 +66,17 @@ A feature is complete only when:
 ## Important platform distinction
 
 The current WIRED repository is a browser-based app/PWA deployed with GitHub Pages and Supabase. Deploying it does not create or update an Android APK. Android packaging and signed APK delivery are a separate release-engineering stage.
+
+## Community moderation cross-reference
+
+The [Zakovskiy client reference](https://github.com/Zakovskiy/amino.py/blob/master/src/amino.py) describes community-scoped ban and unban operations with a reason and a banned-member listing. The [amino.light.py reference](https://pypi.org/project/amino.light.py/0.2.3/) describes distinct warning, strike, hide, feature, ban, and unban actions. These references guide the workflows. WIRED stores and authorizes its own actions.
+
+| Workflow | WIRED behavior |
+|---|---|
+| Staff roles | Community owners and moderators have community-scoped tools. The agent, leader, and curator hierarchy has no exact equivalent. |
+| Join requests | Staff can approve or decline requests for their own community in Community Manager. |
+| Warnings and strikes | Staff can issue a warning with a reason. A distinct strike or posting-only restriction requires a separate workflow. |
+| Bans and unbans | Staff enter a reason and choose a ban duration or a permanent ban. The ban change and reason are saved together in the moderation log. |
+| Flagged content | Staff review open post reports, resolve them, or remove the reported post and close its outstanding reports. |
+| Hide or feature | Staff can remove community posts and feature or unfeature them. Profile hiding, chat moderation, and wiki review require separate workflows. |
+| Staff history | The Community Manager log records the actor, action, time, and details for supported actions. |
