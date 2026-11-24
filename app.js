@@ -1818,9 +1818,61 @@ async function openCommunityLeaderboard(){
   state.leaderboardOpen=true;renderCommunity();
  }catch(e){toast(errorText(e));}
 }
-async function openCommunity(id){
+const COMMUNITY_SECTIONS={
+ latest:['Latest','Latest posts','Be the first to share something.'],
+ featured:['Featured','Featured posts','Community staff can feature posts here.'],
+ wiki:['Wikis','Community wikis','No wiki entries yet.'],
+ activities:['Polls & Quizzes','Polls & quizzes','No polls or quizzes yet.'],
+ saved:['Saved','Saved posts','Save a post to find it here later.'],
+ guidelines:['Guidelines','Community guidelines',''],
+ members:['Members','Community members',''],
+ compose:['New post','Create a post','']
+};
+function communityFeedPosts(tab,posts,collections){
+ const sorted=posts.slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+ if(tab==='featured'||tab==='saved'){
+  const order=collections[tab];
+  return sorted.filter(post=>order.has(post.id)).sort((a,b)=>Date.parse(order.get(b.id))-Date.parse(order.get(a.id)));
+ }
+ if(tab==='wiki')return sorted.filter(post=>(post.kind||post.post_type||post.type)==='wiki');
+ if(tab==='activities')return sorted.filter(post=>['poll','quiz'].includes(post.kind));
+ return sorted;
+}
+async function loadCommunityPostCollections(communityId){
+ const [featured,saved]=await Promise.all([
+  sb.from('community_featured_posts').select('post_id,featured_at,posts!inner(community_id)').eq('posts.community_id',communityId).order('featured_at',{ascending:false}),
+  sb.from('community_saved_posts').select('post_id,saved_at,posts!inner(community_id)').eq('posts.community_id',communityId).order('saved_at',{ascending:false})
+ ]);
+ return {
+  featured:new Map((featured.data||[]).map(row=>[row.post_id,row.featured_at])),
+  saved:new Map((saved.data||[]).map(row=>[row.post_id,row.saved_at])),
+  error:featured.error||saved.error
+ };
+}
+async function toggleCommunityPostCollection(button){
+ const type=button.dataset.postCollection,postId=button.dataset.postId;
+ const communityId=state.activeCommunity?.id;
+ const collection=state.communityPostCollections[type];
+ const table=type==='featured'?'community_featured_posts':'community_saved_posts';
+ button.disabled=true;
+ try{
+  const result=collection.has(postId)?await sb.from(table).delete().eq('post_id',postId):
+   await sb.from(table).insert({post_id:postId});
+  if(result.error&&result.error.code!=='23505')throw result.error;
+  const updated=await loadCommunityPostCollections(communityId);
+  if(updated.error)throw updated.error;
+  if(state.page==='community'&&state.activeCommunity?.id===communityId){
+   state.communityPostCollections=updated;
+   if(state.communityTab!=='compose'&&!state.managerOpen&&!sessionStorage.getItem('wired:lastCommunityProfile'))renderCommunity();
+  }
+ }catch(error){toast(errorText(error));}
+ finally{button.disabled=false;}
+}
+async function openCommunity(id,section='latest'){
  try{
   const c=state.communities.find(x=>x.id===id)||{id,name:'Community'};state.activeCommunity=c;state.page='community';updateCommunityNavigation();try{sessionStorage.setItem('wired:lastPage','community');sessionStorage.setItem('wired:lastCommunity',id);}catch(e){}state.activeCommunityRole=null;state.joinRequests=[];state.managerOpen=false;
+  state.communityTab=Object.hasOwn(COMMUNITY_SECTIONS,section)?section:'latest';
+  state.communityPostCollections={featured:new Map(),saved:new Map(),error:null};
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;await loadCommunityRankTitles(id);if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
   if(state.activeCommunityRole){const d=await api('/communities/'+encodeURIComponent(id)+'/posts');state.posts=d.items||[];if(['owner','mod'].includes(state.activeCommunityRole)){const q=await api('/communities/'+encodeURIComponent(id)+'/requests');state.joinRequests=q.items||[];await loadModerationData(id);}else{const {data:members,error:membersError}=await sb.from('community_members').select('user_id,role,banned,banned_until,profiles(username,avatar_url)').eq('community_id',id).order('joined_at',{ascending:true});if(membersError)throw membersError;state.moderationMembers=(members||[]).map(m=>({user_id:m.user_id,role:m.role,banned:!!m.banned&&(!m.banned_until||new Date(m.banned_until)>new Date()),username:m.profiles?.username||'WIRED member',avatar_url:m.profiles?.avatar_url||null}));const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}else{state.posts=[];state.moderationMembers=[];state.moderationReports=[];state.moderationActions=[];state.moderationWarnings=[];if(state.activeCommunityRole&&state.user){const {data:warnings,error}=await sb.from('moderation_warnings').select('id,reason,created_at').eq('community_id',id).eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(20);if(error)throw error;state.moderationWarnings=warnings||[];}}
@@ -1835,7 +1887,11 @@ async function openCommunity(id){
     });
    }catch(profileError){console.warn('Community identities unavailable',profileError);}
   }
-  if(state.activeCommunityRole)await loadCommunityMemberLevels(id);
+  if(state.activeCommunityRole){
+   const [collections]=await Promise.all([loadCommunityPostCollections(id),loadCommunityMemberLevels(id)]);
+   if(state.page!=='community'||state.activeCommunity?.id!==id)return;
+   state.communityPostCollections=collections;
+  }
   renderCommunity();
  }catch(e){toast(errorText(e));}
 }
@@ -1860,29 +1916,36 @@ function renderPostCard(p){
  const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};
  const reactions=Object.keys(icons).map(r=>'<button type="button" aria-label="React '+r+'" class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
  const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b><p>'+escapeHTML(z.body)+'</p></div>').join('');
- return '<article class="card post"><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div><div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
+ const collections=state.communityPostCollections;
+ const actions=collections&&!collections.error?'<div class="community-post-actions">'+
+  '<button type="button" class="ghost small" data-post-collection="saved" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.saved.has(p.id)+'">'+(collections.saved.has(p.id)?'Unsave':'Save post')+'</button>'+
+  (['owner','mod'].includes(state.activeCommunityRole)?
+   '<button type="button" class="ghost small" data-post-collection="featured" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.featured.has(p.id)+'">'+(collections.featured.has(p.id)?'Remove from Featured':'Feature post')+'</button>':'')+'</div>':'';
+ return '<article class="card post"><div class="meta"><span class="pill">' +escapeHTML(p.kind||'blog')+'</span> '+escapeHTML(p.username||'WIRED member')+' '+(p.id_verified?'✓ Verified':'')+' · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
 }
 function renderCommunity(){
  const globalHero=document.querySelector('#app > .hero');if(globalHero)globalHero.hidden=true;
  const c=state.activeCommunity,v=$('view'),joined=!!state.activeCommunityRole,manager=['owner','mod'].includes(state.activeCommunityRole);
+ const activeTab=joined?state.communityTab||'latest':'latest';
  let html='';
 
  if(state.leaderboardOpen){html+='<section class="card community-leaderboard-panel"><div class="section-head"><h2>Community leaderboard</h2><button type="button" class="ghost small" id="closeCommunityLeaderboard">Close</button></div>'+(state.communityLeaderboard.length?state.communityLeaderboard.map((m,i)=>'<div class="moderation-row"><b>#'+(i+1)+' '+escapeHTML(m.username)+'</b><span>'+communityLevelBadge({communityPoints:m.points})+' · '+Number(m.points)+' XP · '+Number(m.checkins)+' check-ins</span></div>').join(''):'<p class="hint">No check-ins yet. Be the first on the leaderboard!</p>')+'</section>';}
- if(c.rules)html+='<article class="card"><h3>Community rules</h3><p>'+escapeHTML(c.rules)+'</p></article>';
- if(joined&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
- if(joined){html+='<div class="card form-card"><div class="section-head"><h3>Create a post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button class="primary">Publish to community</button></form></div>';}
- else if(c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
- else html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
+ if(!joined&&c.rules)html+='<article class="card"><h3>Community rules</h3><p>'+escapeHTML(c.rules)+'</p></article>';
+ if(joined&&!state.managerOpen&&activeTab==='latest'&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
+ if(joined&&!state.managerOpen&&activeTab==='compose'){html+='<div class="card form-card"><div class="section-head"><h3>Create a post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button class="primary">Publish to community</button></form></div>';}
+ else if(!joined&&c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
+ else if(!joined)html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
  if(manager){
-  html+='<button class="community-action manager-launch" id="openCommunityManager">⚙ &nbsp; Community Manager <small style="display:block;font-weight:400;color:#bba5d1">Customize your space and manage your community</small></button>';
+  if(!state.managerOpen)html+='<button class="community-action manager-launch" id="openCommunityManager">⚙ &nbsp; Community Manager <small style="display:block;font-weight:400;color:#bba5d1">Customize your space and manage your community</small></button>';
   if(state.managerOpen){
    html+='<section class="manager-panel"><div class="manager-heading"><div><span class="eyebrow">WIRED COMMUNITY TOOLS</span><h2>Community Manager</h2><p class="muted">Manage the look, identity, and settings of your community.</p></div><button class="ghost" id="closeCommunityManager">Back to community</button></div><div class="manager-grid"><article class="manager-tile"><span class="manager-icon">✦</span><b>Appearance</b><small>Theme color and community identity</small></article><article class="manager-tile"><span class="manager-icon">☷</span><b>Community details</b><small>Description, category, rules and welcome</small></article><article class="manager-tile"><span class="manager-icon">⌖</span><b>Discovery</b><small>Visibility in WIRED Discovery</small></article><article class="manager-tile"><span class="manager-icon">♙</span><b>Moderation</b><small>Review member requests below</small></article></div><form id="managerSettingsForm" class="manager-settings"><div class="section-head"><h3>Community settings</h3><span class="pill">'+escapeHTML(state.activeCommunityRole)+'</span></div><label class="field">Community name<input value="'+escapeHTML(c.name||'')+'" disabled aria-describedby="managerNameHint"></label><p class="hint" id="managerNameHint">Community renaming will be added in a later manager update.</p><label class="field">Community icon<input id="managerIconFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><label class="field">Community cover image<input id="managerCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="hint">Upload a JPG, PNG, WEBP, or GIF (up to 10 MB). Leave blank to keep the current image.</p><label class="field">Description<textarea id="managerDescription" maxlength="500">'+escapeHTML(c.description||'')+'</textarea></label><label class="field">Category<input id="managerCategory" maxlength="40" value="'+escapeHTML(c.category||'')+'"></label><label class="field">Community rules<textarea id="managerRules" maxlength="3000">'+escapeHTML(c.rules||'')+'</textarea></label><label class="field">Welcome message<textarea id="managerWelcome" maxlength="1000">'+escapeHTML(c.welcome_message||'')+'</textarea></label><label class="field manager-color-field">Community accent color<input id="managerThemeColor" type="color" value="'+(/^#[0-9a-fA-F]{6}$/.test(c.theme_color||'')?c.theme_color:'#8b5cf6')+'"></label><label class="field">Community visibility<select id="managerVisibility"><option value="public" '+(c.visibility==='public'?'selected':'')+'>Public</option><option value="private" '+(c.visibility==='private'?'selected':'')+'>Private</option></select></label><label class="manager-check"><input id="managerDiscoverable" type="checkbox" '+(c.discoverable!==false?'checked':'')+'> Show this community in Discovery</label><button class="primary">Save community settings</button><p class="hint" id="managerSettingsStatus" aria-live="polite"></p></form></section>';
   }
   if(state.managerOpen){
    html+='<section class="card"><div class="section-head"><h3>Community rank titles</h3></div><p class="hint">Rename each level range to fit your community theme. Levels and XP requirements stay the same.</p><form id="communityRankForm" class="manager-settings">'+COMMUNITY_RANKS.map(rank=>'<label class="field">Levels '+rank.min+'–'+(COMMUNITY_RANKS.find(next=>next.min>rank.min)?.min-1||99)+'<input id="communityRankTitle'+rank.min+'" maxlength="32" required value="'+escapeHTML(state.communityRankTitles?.[rank.min]||rank.name)+'"></label>').join('')+'<div class="card-actions"><button type="submit" class="primary">Save rank titles</button><button type="button" class="ghost" id="resetCommunityRanks">Restore defaults</button></div></form></section>';
   }
-  html+='<div class="section-head"><h2>Join requests ('+state.joinRequests.length+')</h2></div>';if(state.joinRequests.length){html+=state.joinRequests.map(r=>'<article class="card"><b>'+escapeHTML(r.username||'WIRED member')+'</b><p class="muted">Requested '+new Date(r.created_at).toLocaleDateString()+'</p><div class="card-actions"><button class="primary small" data-approve-request="'+escapeHTML(r.id)+'">Approve</button><button class="ghost" data-decline-request="'+escapeHTML(r.id)+'">Decline</button></div></article>').join('');}else html+='<div class="empty">No pending join requests.</div>';}
- if(manager){
+  if(state.managerOpen){html+='<div class="section-head"><h2>Join requests ('+state.joinRequests.length+')</h2></div>';if(state.joinRequests.length){html+=state.joinRequests.map(r=>'<article class="card"><b>'+escapeHTML(r.username||'WIRED member')+'</b><p class="muted">Requested '+new Date(r.created_at).toLocaleDateString()+'</p><div class="card-actions"><button class="primary small" data-approve-request="'+escapeHTML(r.id)+'">Approve</button><button class="ghost" data-decline-request="'+escapeHTML(r.id)+'">Decline</button></div></article>').join('');}else html+='<div class="empty">No pending join requests.</div>';}
+ }
+ if(manager&&state.managerOpen){
   html+='<section class="manager-panel moderation-panel"><div class="manager-heading"><div><span class="eyebrow">COMMUNITY SAFETY</span><h2>Moderation tools</h2><p class="muted">Manage members, review reports, and remove posts that break your rules.</p></div></div>';
   html+='<div class="section-head"><h3>Members ('+state.moderationMembers.length+')</h3></div>';
   html+=state.moderationMembers.map(m=>'<article class="moderation-row"><div class="member-identity">'+communityAvatarWithBadge(m.avatar_url,m)+'<button class="profile-member-link" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+escapeHTML(m.username||'WIRED member')+'</button>'+communityLevelBadge(m)+'<p class="hint">'+escapeHTML(m.role||'member')+(m.banned?' · Banned':'')+'</p></div><div class="card-actions">'+(m.role!=='owner'?'<button class="ghost small" data-member-role="'+escapeHTML(m.user_id)+'" data-next-role="'+(m.role==='mod'?'member':'mod')+'">'+(m.role==='mod'?'Remove moderator':'Make moderator')+'</button><button class="ghost small" data-member-ban="'+escapeHTML(m.user_id)+'" data-banned="'+(m.banned?'true':'false')+'">'+(m.banned?'Unban':'Temporary / permanent ban')+'</button><button class="ghost small" data-member-warning="'+escapeHTML(m.user_id)+'">Issue warning</button>':'<span class="pill">Owner</span>')+'</div></article>').join('')||'<div class="empty">No members found.</div>';
@@ -1892,16 +1955,37 @@ function renderCommunity(){
   html+=state.posts.map(p=>'<article class="moderation-row"><div><b>'+escapeHTML(p.title||'Post')+'</b><p class="hint">By '+escapeHTML(p.username||'WIRED member')+'</p></div><button class="ghost small" data-moderate-remove-post="'+escapeHTML(p.id)+'">Remove post</button></article>').join('')||'<div class="empty">No posts to moderate.</div>';
   html+='<div class="section-head"><h3>Moderator activity log</h3></div>';html+=state.moderationActions.map(a=>'<article class="moderation-row"><div><b>'+escapeHTML(a.action.replaceAll('_',' '))+'</b><p class="hint">'+new Date(a.created_at).toLocaleString()+'</p><p class="hint">'+escapeHTML(a.details||'')+'</p></div></article>').join('')||'<div class="empty">No moderation activity yet.</div>';html+='<div class="section-head"><h3>Member warnings</h3></div>';html+=state.moderationWarnings.map(w=>'<article class="moderation-row"><div><b>Warning</b><p class="hint">'+escapeHTML(w.reason)+' · '+new Date(w.created_at).toLocaleString()+'</p></div></article>').join('')||'<div class="empty">No warnings issued.</div>';html+='</section>';
  }
- if(joined&&state.moderationWarnings.length&&!manager){html+='<div class="section-head"><h2>Your community warnings</h2></div>';html+=state.moderationWarnings.map(w=>'<article class="moderation-row"><div><b>Moderator warning</b><p class="hint">'+escapeHTML(w.reason)+' · '+new Date(w.created_at).toLocaleString()+'</p></div></article>').join('');}
- const activeTab=state.communityTab||'featured';
- if(joined&&activeTab!=='guidelines'&&activeTab!=='chat'){const feedPosts=activeTab==='wiki'?state.posts.filter(p=>p.post_type==='wiki'||p.type==='wiki'):state.posts;html+='<div class="wired-feed-heading"><h2>'+(activeTab==='wiki'?'Community Wiki':activeTab==='latest'?'Latest Feed':'Featured Posts')+'</h2>'+(joined?'<span>Share something with your community</span>':'')+'</div>';html+=feedPosts.map(renderPostCard).join('')||'<div class="empty">No posts here yet. Be the first to share!</div>';}
- if(activeTab==='guidelines'){html+='<section class="wired-guidelines"><h2>Community Guidelines</h2><p>'+escapeHTML(c.rules||'Be respectful, stay on topic, and help keep this community welcoming for everyone.')+'</p></section>';}
- if(activeTab==='chat'){html+='<section class="wired-guidelines"><h2>Public Chat</h2><p>Join the conversation with community members.</p><button class="primary" id="communityTabChat">Open community chat</button></section>';}
- const memberSidebar=joined?'<aside class="community-sidebar"><section class="member-sidebar-card"><div class="member-sidebar-heading"><h3>Members</h3><span class="pill">'+state.moderationMembers.length+'</span></div><div class="member-sidebar-list">'+state.moderationMembers.map(m=>'<button class="member-sidebar-item" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+communityAvatarWithBadge(m.avatar_url,m)+'<span class="member-sidebar-name">'+escapeHTML(m.username||'WIRED member')+communityLevelBadge(m)+'<small>'+escapeHTML(m.role==='mod'?'Moderator':m.role==='owner'?'Owner':'Member')+(m.banned?' · Banned':'')+'</small></span></button>').join('')||'<p class="hint">No members yet.</p>'+'</div></section></aside>':'';
+ if(joined&&activeTab==='latest'&&state.moderationWarnings.length&&!manager){html+='<div class="section-head"><h2>Your community warnings</h2></div>';html+=state.moderationWarnings.map(w=>'<article class="moderation-row"><div><b>Moderator warning</b><p class="hint">'+escapeHTML(w.reason)+' · '+new Date(w.created_at).toLocaleString()+'</p></div></article>').join('');}
+ if(joined&&!state.managerOpen&&activeTab==='latest'){
+  const checkedIn=state.communityCheckinState?.checked_in_today;
+  html+='<div class="community-post-actions"><button type="button" class="ghost small" id="communityCheckinBtn" '+(checkedIn?'disabled':'')+'>'+(checkedIn?'Checked in today':'Daily check-in')+'</button><button type="button" class="ghost small" id="communityLeaderboardBtn">Leaderboard</button></div>';
+ }
+ if(joined&&!state.managerOpen&&['latest','featured','wiki','activities','saved'].includes(activeTab)){
+  const [,title,empty]=COMMUNITY_SECTIONS[activeTab];
+  const collections=state.communityPostCollections;
+  const posts=communityFeedPosts(activeTab,state.posts,collections);
+  html+='<div class="wired-feed-heading"><h2>'+title+'</h2></div>';
+  const failed=collections.error&&['saved','featured'].includes(activeTab);
+  html+=failed?'<div class="empty">Could not load this feed. Reopen the community to retry.</div>':
+   posts.map(renderPostCard).join('')||'<div class="empty">'+empty+'</div>';
+ }
+ if(joined&&!state.managerOpen&&activeTab==='guidelines'){
+  html+='<section class="wired-guidelines"><h2>Community guidelines</h2><p>'+escapeHTML(c.rules||'Be respectful, stay on topic, and help keep this community welcoming for everyone.')+'</p></section>';
+ }
+ const memberDirectory=joined&&activeTab==='members'&&!state.managerOpen?'<section class="community-directory"><section class="member-sidebar-card"><div class="member-sidebar-heading"><h3>Members</h3><span class="pill">'+state.moderationMembers.length+'</span></div><div class="member-sidebar-list">'+(state.moderationMembers.map(m=>'<button class="member-sidebar-item" type="button" data-profile-id="'+escapeHTML(m.user_id)+'">'+communityAvatarWithBadge(m.avatar_url,m)+'<span class="member-sidebar-name">'+escapeHTML(m.username||'WIRED member')+communityLevelBadge(m)+'<small>'+escapeHTML(m.role==='mod'?'Moderator':m.role==='owner'?'Owner':'Member')+(m.banned?' · Banned':'')+'</small></span></button>').join('')||'<p class="hint">No members yet.</p>')+'</div></section></section>':'';
  const communityHeader='<header class="wired-community-header"><div class="wired-community-header-glow" aria-hidden="true"></div><div class="wired-community-header-main"><button type="button" class="wired-community-back" id="backDiscover" aria-label="Back to Discover">←</button><div class="wired-community-header-identity">'+(c.icon_url?'<img class="wired-community-header-icon" src="'+escapeHTML(c.icon_url)+'" alt="">':'<span class="wired-community-header-icon wired-community-header-fallback">W</span>')+'<div class="wired-community-header-copy"><span class="wired-community-header-eyebrow">WIRED / COMMUNITY</span><h1>'+escapeHTML(c.name||'Community')+'</h1><span class="wired-community-header-subtitle">Stay connected. · '+Number(c.member_count||state.moderationMembers.length||0)+' members</span></div></div><span class="wired-community-header-status">'+(joined?'CONNECTED':'EXPLORE')+'</span></div></header>';
- html=communityHeader+'<div class="community-layout"><main class="community-main">'+html+'</main>'+memberSidebar+'</div>';
+ const sectionNav=joined?'<nav class="community-section-nav" aria-label="Community sections">'+Object.entries(COMMUNITY_SECTIONS).map(([key,[label]])=>
+  '<button type="button" class="ghost small" data-community-tab="'+key+'" '+(!state.managerOpen&&activeTab===key?'aria-current="page"':'')+'>'+label+'</button>'
+ ).join('')+'</nav>':'';
+ html=communityHeader+sectionNav+'<div class="community-main">'+html+memberDirectory+'</div>';
  v.innerHTML=html;
- v.querySelectorAll('[data-community-tab]').forEach(b=>b.addEventListener('click',()=>{state.communityTab=b.dataset.communityTab;if(state.communityTab==='chat'){openCommunityChat(c.id);return;}renderCommunity();}));
+ v.querySelectorAll('[data-community-tab]').forEach(button=>button.addEventListener('click',()=>{
+  state.communityTab=button.dataset.communityTab;
+  state.managerOpen=false;
+  renderCommunity();
+  v.querySelector('[aria-current="page"]')?.focus({preventScroll:true});
+ }));
+ v.querySelectorAll('[data-post-collection]').forEach(button=>button.addEventListener('click',()=>toggleCommunityPostCollection(button)));
  $('communityTabChat')?.addEventListener('click',()=>openCommunityChat(c.id));
  $('communityCheckinBtn')?.addEventListener('click',doCommunityCheckin);
  $('communityLeaderboardBtn')?.addEventListener('click',openCommunityLeaderboard);
@@ -2032,6 +2116,8 @@ async function refreshCommunityPosts(){const d=await api('/communities/'+encodeU
 async function createPost(e){
  e.preventDefault();
  try{
+  const communityId=state.activeCommunity.id;
+  const title=$('postTitle').value.trim(),body=$('postBody').value.trim();
   const kind=$('postType').value,metadata={},files=Array.from($('postImage')?.files||[]);
   if(files.length>5)throw new Error('You can attach up to 5 images to one post.');
   if(kind==='image'&&!files.length)throw new Error('Choose at least one image for an image post.');
@@ -2048,9 +2134,12 @@ async function createPost(e){
    urls.push(sb.storage.from('post-media').getPublicUrl(path).data.publicUrl);
   }
   if(urls.length){metadata.media_urls=urls;metadata.media_url=urls[0];}
-  await api('/communities/'+encodeURIComponent(state.activeCommunity.id)+'/posts','POST',{title:$('postTitle').value.trim(),body:$('postBody').value.trim(),kind,metadata});
+  await api('/communities/'+encodeURIComponent(communityId)+'/posts','POST',{title,body,kind,metadata});
   toast('Your '+kind+' has been published.');
-  await refreshCommunityPosts();
+  if(state.page==='community'&&state.activeCommunity?.id===communityId){
+   if(state.communityTab==='compose')state.communityTab='latest';
+   await refreshCommunityPosts();
+  }
  }catch(err){toast(errorText(err));}
 }
 async function voteOnPost(id,option_index){try{const post=state.posts.find(p=>p.id===id);const result=await api('/posts/'+encodeURIComponent(id)+'/vote','POST',{option_index});if(post?.kind==='quiz')toast(result.correct?'Correct answer!':'Not quite — try another answer.');await refreshCommunityPosts()}catch(e){toast(errorText(e))}}
@@ -2361,7 +2450,7 @@ let wiredRestoringRoute=true;
 function saveWiredRoute(){
  if(wiredRestoringRoute)return;
  try{
-  const route={page:state.page,communityId:state.activeCommunity?.id||null,communityProfileId:sessionStorage.getItem('wired:lastCommunityProfile')||null,memberId:state.page==='member-profile'?state.viewingProfile?.id:null,threadId:state.page==='chats'?state.activeThread:null,discoveryMode:state.discoveryMode||'',socialTab:state.profileSocialTab||'following',storeSection:wiredStoreSection,sanctuaryView:state.yokaiSanctuaryView||'home'};
+  const route={page:state.page,communityId:state.activeCommunity?.id||null,communitySection:state.communityTab,communityProfileId:sessionStorage.getItem('wired:lastCommunityProfile')||null,memberId:state.page==='member-profile'?state.viewingProfile?.id:null,threadId:state.page==='chats'?state.activeThread:null,discoveryMode:state.discoveryMode||'',socialTab:state.profileSocialTab||'following',storeSection:wiredStoreSection,sanctuaryView:state.yokaiSanctuaryView||'home'};
   sessionStorage.setItem('wired:route:v2',JSON.stringify(route));
   sessionStorage.setItem('wired:lastPage',route.page||'home');
  }catch(e){console.warn('Could not save WIRED route',e);}
@@ -2373,7 +2462,7 @@ setInterval(saveWiredRoute,400);
 async function restoreWiredRoute(route){
  if(!route||!state.user&&['member-profile','profile-social','global-members','community','notifications','chats'].includes(route.page))return false;
  if(route.page==='member-profile'&&route.memberId){await openMemberProfile(route.memberId);return true;}
- if(route.page==='community'&&route.communityId){await openCommunity(route.communityId);if(route.communityProfileId)await openCommunityMemberProfile(route.communityProfileId);return true;}
+ if(route.page==='community'&&route.communityId){await openCommunity(route.communityId,route.communitySection);if(route.communityProfileId)await openCommunityMemberProfile(route.communityProfileId);return true;}
  if(route.page==='global-members'){state.page='global-members';renderGlobalMemberDirectory();await loadGlobalMemberDirectory(true);return true;}
  if(route.page==='notifications'){await openNotifications();return true;}
  if(route.page==='profile-social'){state.page='profile-social';state.profileSocialTab=route.socialTab||'following';render();return true;}

@@ -1651,3 +1651,16 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
   object-fit:cover;
   border-radius:8px;
 }
+
+.community-section-nav{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin:12px 0 16px;
+}
+.community-section-nav button{min-height:44px;line-height:1.25}
+.community-section-nav button[aria-current="page"]{background:#322045;border-color:#ab6ddd;color:#fff}
+.community-post-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+.community-directory .member-sidebar-list{display:grid;max-height:none;overflow:visible}
+.community-directory .member-sidebar-item{width:100%}
+@media(max-width:580px){.community-section-nav{grid-template-columns:repeat(3,minmax(0,1fr))}}

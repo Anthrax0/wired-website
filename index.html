@@ -8,7 +8,7 @@
   <title>WIRED — Stay connected.</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="wired-logo.png"><link rel="apple-touch-icon" href="wired-logo.png">
-  <link rel="stylesheet" href="styles.css?v=yokai-backgrounds-2">
+  <link rel="stylesheet" href="styles.css?v=community-feeds-1">
 </head>
 <body>
   <header class="topbar">
@@ -80,7 +80,7 @@
         script.src = sources[index];
         script.onload = function () {
           const app = document.createElement("script");
-          app.src = "app.js?v=yokai-backgrounds-1";
+          app.src = "app.js?v=community-feeds-1";
           app.onerror = function () {
             document.getElementById("view").innerHTML =
               '<div class="card"><h2>WIRED could not start</h2><p>The app script did not load. Please reload the page.</p><button class="primary" onclick="location.reload()">Reload WIRED</button></div>';
