@@ -2604,11 +2604,96 @@ async function startGroupChat(e){e.preventDefault();try{const usernames=$("group
 async function openCommunityChat(id){try{const d=await api("/communities/"+encodeURIComponent(id)+"/chat","POST",{});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
 async function deleteThread(id){const thread=state.threads.find(t=>String(t.id)===String(id));const name=thread?.title||"this chat";if(!await wiredDialog("Delete "+name+" from your chat list? This only removes it from your inbox; other participants keep their copies."))return;const btn=[...document.querySelectorAll("[data-delete-thread]")].find(b=>b.dataset.deleteThread===String(id));if(btn){btn.disabled=true;btn.textContent="Deleting…";}try{const result=await api("/threads/"+encodeURIComponent(id)+"/delete","POST",{});if(result.ok!==true)throw new Error("The server did not confirm chat deletion.");
   state.deletedThreadIds??=new Set();state.deletedThreadIds.add(String(id));
-  ++inboxRefreshSequence;if(state.activeThread===id){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=null;}state.threads=state.threads.filter(t=>String(t.id)!==String(id));if(state.page==="chats")render();const {data:membership,error:membershipError}=await sb.from("thread_members").select("hidden_at").eq("thread_id",id).eq("user_id",state.user.id).maybeSingle();if(membershipError)throw membershipError;if(!membership?.hidden_at)throw new Error("The server did not persist the chat removal. Please try again.");await loadThreads();if(state.page==="chats")render();toast("Chat removed from your inbox.");}catch(e){state.deletedThreadIds?.delete(String(id));toast(errorText(e));if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="Delete";}}}async function openThread(id){try{if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=id;const d=await api(`/threads/${encodeURIComponent(id)}/messages`);if(state.activeThread!==id)return;state.messages=d.items||[];renderThread();state.realtimeChannel=sb.channel("wired-thread-"+id).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"thread_id=eq."+id},async payload=>{if(state.activeThread!==id)return;const last=state.messages[state.messages.length-1]?.id||0;if(Number(payload.new.id)>last){try{const fresh=await api(`/threads/${encodeURIComponent(id)}/messages?after=${last}`);state.messages=[...state.messages,...(fresh.items||[])];renderThread()}catch(e){console.warn("Message refresh failed",e)}}}).subscribe()}catch(e){toast(errorText(e))}}
-function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog">${state.messages.map(m=>`<article class="message-bubble ${m.user_id===state.user?.id||m.sender_id===state.user?.id?"message-own":""}"><div class="meta">${escapeHTML(m.username||"Member")} · ${new Date(m.created_at).toLocaleString()}</div><p>${escapeHTML(m.body)}</p></article>`).join("")||`<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>`}</div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);const log=$("chatLog");if(log)log.scrollTop=log.scrollHeight;$("messageBody")?.focus()}
+  ++inboxRefreshSequence;if(state.activeThread===id){if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}state.activeThread=null;}state.threads=state.threads.filter(t=>String(t.id)!==String(id));if(state.page==="chats")render();const {data:membership,error:membershipError}=await sb.from("thread_members").select("hidden_at").eq("thread_id",id).eq("user_id",state.user.id).maybeSingle();if(membershipError)throw membershipError;if(!membership?.hidden_at)throw new Error("The server did not persist the chat removal. Please try again.");await loadThreads();if(state.page==="chats")render();toast("Chat removed from your inbox.");}catch(e){state.deletedThreadIds?.delete(String(id));toast(errorText(e));if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="Delete";}}}async function openThread(id){
+ try{
+  if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}
+  state.activeThread=id;
+  const d=await api(`/threads/${encodeURIComponent(id)}/messages`);
+  if(state.activeThread!==id)return;
+  state.messages=d.items||[];
+  renderThread();
+  const filter={schema:'public',table:'messages',filter:'thread_id=eq.'+id};
+  state.realtimeChannel=sb.channel('wired-thread-'+id)
+   .on('postgres_changes',{event:'INSERT',...filter},async payload=>{
+    if(state.activeThread!==id)return;
+    const last=state.messages.at(-1)?.id||0;
+    if(Number(payload.new.id)<=Number(last))return;
+    try{
+     const fresh=await api(`/threads/${encodeURIComponent(id)}/messages?after=${last}`);
+     if(state.activeThread!==id)return;
+     mergeThreadMessages(fresh.items||[]);
+     renderThreadMessages();
+    }catch(error){console.warn('Message refresh failed',error);}
+   })
+   .on('postgres_changes',{event:'UPDATE',...filter},payload=>{
+    if(state.activeThread!==id||!payload.new.unsent_at)return;
+    markThreadMessageUnsent(payload.new.id,payload.new.unsent_at);
+   }).subscribe();
+ }catch(error){toast(errorText(error));}
+}
+function mergeThreadMessages(messages){
+ const byId=new Map(state.messages.map(message=>[String(message.id),message]));
+ for(const message of messages){
+  const key=String(message.id);
+  if(!byId.get(key)?.unsent_at)byId.set(key,message);
+ }
+ state.messages=[...byId.values()].sort((a,b)=>Number(a.id)-Number(b.id));
+}
+function messageIsMine(message){
+ const author=message.author_id||message.user_id||message.sender_id;
+ return !!state.user&&author===state.user.id;
+}
+function renderThreadMessages(){
+ const log=$('chatLog');
+ if(!log)return;
+ log.innerHTML=state.messages.map(message=>{
+  const own=messageIsMine(message);
+  return '<article class="message-bubble'+(own?' message-own':'')+'"><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
+   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>':'<p>'+escapeHTML(message.body)+'</p>'+
+    (own?'<button class="ghost small message-unsend" type="button" data-unsend-message="'+escapeHTML(message.id)+'">Unsend</button>':''))+'</article>';
+ }).join('')||'<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>';
+ log.scrollTop=log.scrollHeight;
+}
+function markThreadMessageUnsent(id,at){
+ const message=state.messages.find(item=>String(item.id)===String(id));
+ if(!message)return;
+ message.body='';
+ message.unsent_at=at;
+ renderThreadMessages();
+}
+async function unsendThreadMessage(id){
+ const message=state.messages.find(item=>String(item.id)===String(id));
+ const thread=state.activeThread;
+ if(!thread||!message||!messageIsMine(message)||message.unsent_at)return;
+ if(!await wiredDialog('Unsend this message for everyone in the chat?')||state.activeThread!==thread)return;
+ try{
+  const {error}=await sb.rpc('unsend_my_message',{p_thread_id:thread,p_message_id:id});
+  if(error)throw error;
+  if(state.activeThread===thread)markThreadMessageUnsent(id,new Date().toISOString());
+ }catch(error){toast(errorText(error));}
+}
+function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title"><span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div></div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form></section>`;$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("messageForm").addEventListener("submit",sendMessage);$('chatLog').addEventListener('click',event=>{
+ const button=event.target.closest('[data-unsend-message]');
+ if(button)void unsendThreadMessage(button.dataset.unsendMessage);
+});renderThreadMessages();$("messageBody")?.focus()}
 async function toggleFollowerInvitePanel(){const panel=$("inviteFollowersPanel");if(!panel)return;if(!panel.hidden){panel.hidden=true;return;}panel.hidden=false;const communityChat=!!state.threads.find(t=>String(t.id)===String(state.activeThread))?.community_id;panel.innerHTML='<p class="hint">Loading your '+(communityChat?'community':'global')+' followers…</p>';try{const d=await api("/threads/"+encodeURIComponent(state.activeThread)+"/followers");const people=d.items||[];panel.innerHTML='<div class="chat-invite-heading"><strong>Invite your '+(communityChat?'community':'global')+' followers</strong><button type="button" class="chat-invite-close" id="closeFollowerInvite" aria-label="Close">×</button></div>'+(people.length?'<div class="chat-invite-list">'+people.map(p=>'<div class="chat-invite-person"><span>'+escapeHTML(p.username||"WIRED member")+'</span><button type="button" class="primary chat-invite-action" data-invite-follower="'+escapeHTML(p.id)+'">Invite</button></div>').join("")+'</div>':'<p class="hint">No followers available to invite. Only members who follow your '+(communityChat?'community':'global')+' profile appear here.</p>');$("closeFollowerInvite")?.addEventListener("click",()=>{panel.hidden=true;});panel.querySelectorAll("[data-invite-follower]").forEach(btn=>btn.addEventListener("click",()=>inviteGlobalFollower(btn.dataset.inviteFollower,btn)));}catch(e){panel.innerHTML='<p class="hint">'+escapeHTML(errorText(e))+'</p>';}}
 async function inviteGlobalFollower(userId,button){if(!userId||!button)return;button.disabled=true;button.textContent="Inviting…";try{await api("/threads/"+encodeURIComponent(state.activeThread)+"/invite","POST",{user_id:userId});button.textContent="Invited";button.classList.add("invited");toast("Follower invited to chat.");}catch(e){button.disabled=false;button.textContent="Invite";toast(errorText(e));}}
-async function sendMessage(e){e.preventDefault();const body=$("messageBody").value.trim();if(!body)return;try{await api(`/threads/${encodeURIComponent(state.activeThread)}/messages`,"POST",{body});const d=await api(`/threads/${encodeURIComponent(state.activeThread)}/messages`);state.messages=d.items||[];renderThread()}catch(err){toast(errorText(err))}}
+async function sendMessage(e){
+ e.preventDefault();
+ const input=$('messageBody'),button=e.currentTarget.querySelector('button[type="submit"]');
+ const body=input.value.trim(),thread=state.activeThread;
+ if(!body||!thread||button.disabled)return;
+ button.disabled=true;
+ try{
+  const sent=await api(`/threads/${encodeURIComponent(thread)}/messages`,'POST',{body});
+  if(state.activeThread===thread){
+   mergeThreadMessages([{...sent,username:state.profile?.username||'Member'}]);
+   if(input.value.trim()===body)input.value='';
+   renderThreadMessages();
+  }
+ }catch(error){toast(errorText(error));}
+ finally{button.disabled=false;}
+}
 function openAuth(mode="login"){const dialog=$("authDialog");if(!dialog)return;const register=mode==="register";$("authStatus").textContent="";$("loginForm").hidden=register;$("registerForm").hidden=!register;$("authTitle").textContent=register?"Create account":"Log in";if(!dialog.open){if(typeof dialog.showModal==="function")dialog.showModal();else dialog.setAttribute("open","");}}
 $("accountBtn").addEventListener("click",()=>state.user?nav("profile"):openAuth());
 $("headerLogoutBtn")?.addEventListener("click",()=>{if(state.user)logout().catch(e=>toast(e.message||"Could not log out."));});
