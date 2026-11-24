@@ -1527,7 +1527,7 @@ setInterval(()=>{
 function renderPetParadise(){
   const v=$("view");
   if(!state.user){
-    v.innerHTML='<section class="pet-hero"><span class="pet-kicker">DARK FOLKLORE · GOTHIC SPIRITS</span><h2>Yokai Sanctuary</h2><p>Meet Japanese yokai, build bonds, and collect magical spirits.</p><button class="primary" id="petLoginBtn">Log in to meet a yokai</button></section>';
+    v.innerHTML='<section class="pet-hero"><span class="pet-kicker">DARK FOLKLORE · GOTHIC SPIRITS</span><h2>Yokai Hollow</h2><p>Meet Japanese yokai, build bonds, and collect magical spirits.</p><button class="primary" id="petLoginBtn">Log in to meet a yokai</button></section>';
     $("petLoginBtn")?.addEventListener("click",openAuth);return;
   }
   const pets=state.userPets||[],first=state.freeFirstCommonAvailable===true;
@@ -1545,12 +1545,12 @@ function renderPetParadise(){
     return '<article class="pet-adopt-card pet-rarity-'+escapeHTML(p.rarity)+'"><div class="pet-adopt-art yokai-motion yokai-'+escapeHTML(p.slug||"spirit")+'"><img class="yokai-portrait-image" src="'+yokaiPortraitUrl(p.name,p.slug,false)+'" alt="'+escapeHTML(p.name)+' gothic anime portrait"></div><span class="pet-rarity">'+rarityLabel(p.rarity)+'</span><h3>'+escapeHTML(p.name)+'</h3><p>'+escapeHTML(p.description)+'</p><div class="yokai-personality">♡ '+escapeHTML(p.personality||"A one-of-a-kind spirit.")+'</div><div class="yokai-ability"><b>✧ '+escapeHTML(p.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(p.ability_description||"A unique yokai gift.")+'</span></div><small class="yokai-evolution-note">Awakens into '+escapeHTML(p.evolved_name||"an elder spirit")+' at level '+Number(p.evolution_level||5)+'.</small><button class="primary" data-pet-adopt="'+escapeHTML(p.slug)+'" '+'>'+(freeCommon?"Adopt for free":Number(p.adoption_cost)?"Adopt · "+Number(p.adoption_cost)+" pts":"Adopt for free")+'</button></article>';
   },"pet-adoption-grid");
   const sanctuaryView=state.yokaiSanctuaryView||'home';
-  const hero='<section class="pet-hero"><div><span class="pet-kicker">WHERE THE LIVING DARE NOT WANDER</span><h2>Yokai Sanctuary <span>☾</span></h2><p>Beyond the veil, restless spirits await. Bind your fate to theirs.</p></div><div class="pet-hero-count"><b>'+pets.length+'</b><span>'+(pets.length===1?'companion':'companions')+'</span></div></section>';
+  const hero='<section class="pet-hero"><div><span class="pet-kicker">WHERE THE LIVING DARE NOT WANDER</span><h2>Yokai Hollow <span>☾</span></h2><p>Beyond the veil, restless spirits await. Bind your fate to theirs.</p></div><div class="pet-hero-count"><b>'+pets.length+'</b><span>'+(pets.length===1?'companion':'companions')+'</span></div></section>';
   const footer='<p class="pet-kindness">☾ The spirits do not perish, flee, or forget their power while you are gone. Beyond the veil, they wait in silence for your return.</p>';
   const owned='<section class="pet-section"><div class="section-head"><div><h2>My yokai</h2><p class="hint">Feed their hunger. Sharpen their power. Awaken what lurks within.</p></div></div>'+(pets.length?petCards:'<div class="pet-empty"><div>☾</div><h3>No spirits bound to you</h3><p>Enter the summoning chamber to adopt your first yokai.</p></div>')+'</section>';
   const summon='<section class="pet-section"><div class="section-head"><div><h2>Summon a yokai</h2><p class="hint">'+(first?'Your first Common yokai is on us.':'Collect new companions with your WIRED points.')+'</p></div></div><div class="pet-adoption-grid">'+shop+'</div></section>';
   const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button></div>';
-  const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Sanctuary</button>';
+  const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
   v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:choices)+footer;
   v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{state.yokaiSanctuaryView=button.dataset.yokaiView;try{sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);}catch(e){}renderPetParadise();}));
 
