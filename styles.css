@@ -1832,3 +1832,13 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .wired-profile-row strong{overflow-wrap:anywhere}
 .wired-profile-row .profile-social-avatar{flex:none}
 .wired-profile-chevron{margin-inline-start:auto;color:var(--bright);font-size:1.4rem}
+
+.wired-community-overview-stats{display:grid;grid-template-columns:1fr 1.65fr;gap:14px;margin-block:14px}
+.wired-community-overview-stats>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wired-community-overview-stats>div+div{flex-direction:column;align-items:flex-start}
+.wired-online-dot{width:9px;height:9px;border-radius:50%;background:#42e2b0;flex:none}
+.wired-community-overview-stats meter{width:min(100%,200px);height:12px;accent-color:var(--community-accent,#a85be5)}
+.wired-community-overview-action{margin:14px 0}
+.wired-community-overview-action button{width:100%;min-height:44px}
+.wired-community-description{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:480px){.wired-community-overview-stats{grid-template-columns:1fr}}
