@@ -401,6 +401,7 @@ function subscribeGlobalNotifications(){
  if(!state.user)return;
  const recipient="recipient_id=eq."+state.user.id;
  const refresh=()=>loadGlobalNotifications().then(()=>{
+  if(state.page==="chats"&&!state.activeThread)loadThreads();
   if(state.page==='notifications')renderNotifications();
   else if(isCommunitySection(state.activeCommunity?.id,'notifications'))renderCommunityNotifications();
  }).catch(error=>console.warn('Notifications refresh failed',error));
@@ -420,7 +421,7 @@ function renderNotifications(communityId=null,host=$("view")){
   const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
   const isChat=n.notification_type==="global_chat_request",isCommunity=!!n.isCommunity,isLeave=n.notification_type==="global_chat_leave"||(isCommunity&&n.notification_type==="community_chat"&&String(n.details||"").endsWith(" has left the chat."));
   const detail=isCommunity?'<p class="notification-excerpt">From '+escapeHTML(n.communityName)+(n.details?' · '+escapeHTML(n.details):'')+'</p>':isComment&&n.comment?.body?'<p class="notification-excerpt">'+escapeHTML(n.comment.body)+'</p>':'';
-  return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'" data-notification-community="'+escapeHTML(n.community_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isLeave?'has left the chat':isCommunity?({'community_chat':'sent a community chat message in ','community_reply':'replied to you in ','community_mention':'mentioned you in ','community_relationship':'sent a relationship update from ','community_moderation':'sent a moderation notice from ','community_post':'posted in '}[n.notification_type]||'updated ')+escapeHTML(n.communityName):isChat?'invited you to a global chat':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isLeave?'CHAT DEPARTURE':isCommunity?({'community_chat':'CHAT','community_reply':'REPLY','community_mention':'MENTION','community_relationship':'RELATIONSHIP','community_moderation':'MODERATION','community_post':'COMMUNITY'}[n.notification_type]||'COMMUNITY'):isChat?'CHAT REQUEST':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
+  return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'" data-notification-community="'+escapeHTML(n.community_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isLeave?'has left the chat':isCommunity?({'community_chat':'sent a community chat message in ','community_reply':'replied to you in ','community_mention':'mentioned you in ','community_relationship':'sent a relationship update from ','community_moderation':'sent a moderation notice from ','community_post':'posted in '}[n.notification_type]||'updated ')+escapeHTML(n.communityName):isChat?'invited you to a global chat':n.notification_type==="global_chat_message"?'sent you a global chat message':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isLeave?'CHAT DEPARTURE':isCommunity?({'community_chat':'CHAT','community_reply':'REPLY','community_mention':'MENTION','community_relationship':'RELATIONSHIP','community_moderation':'MODERATION','community_post':'COMMUNITY'}[n.notification_type]||'COMMUNITY'):isChat?'CHAT REQUEST':n.notification_type==="global_chat_message"?'CHAT MESSAGE':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
  }).join(''):'<div class="empty">'+(communityId?'No unread notifications in this community.':'You’re all caught up.')+'</div>')+'</div>';
  v.querySelector("#markAllNotificationsRead")?.addEventListener("click",()=>communityId?markCommunityNotificationsRead(communityId):markAllNotificationsRead());
  v.querySelectorAll(".notification-open[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment,b.dataset.notificationCommunity)));
@@ -454,6 +455,7 @@ async function openNotification(id,actorId,type,commentId,communityId){
   }
   return;
  }
+ if(type==="global_chat_message"&&row?.thread_id){nav("chats",{loadChatInbox:false});await loadThreads();if(state.threads.some(t=>String(t.id)===String(row.thread_id)))await openThread(row.thread_id);return;}
  if(type==="profile_comment"&&commentId){
   state.page="profile";await Promise.all([loadProfile(),loadProfileSocial(),loadRelationshipData()]).catch(()=>{});render();
   setTimeout(()=>document.getElementById("profile-comment-"+commentId)?.scrollIntoView({behavior:"smooth",block:"center"}),120);
@@ -1865,7 +1867,7 @@ function render(){
   const globalThreads=state.threads.filter(isGlobalThread);
   const groupThreads=globalThreads.filter(isGlobalGroupThread);
   const directThreads=globalThreads.filter(t=>!isGlobalGroupThread(t));
-  const chatCards=items=>items.map(t=>`<article class="card"><h3>${directChatIdentity(t)||escapeHTML(t.title||"Conversation")}</h3><p>${escapeHTML(t.last_body||"No messages yet")}</p><div class="chat-card-actions"><button class="primary" data-open-thread="${escapeHTML(t.id)}">Open chat</button><button class="chat-delete" type="button" data-delete-thread="${escapeHTML(t.id)}" aria-label="Delete chat">Delete</button></div></article>`).join("");
+  const chatCards=items=>items.map(t=>`<article class="card"><h3>${directChatIdentity(t)||escapeHTML(t.title||"Conversation")}${t.unreadCount?` <span style="display:inline-block;background:#a92dce;color:white;border-radius:999px;padding:3px 9px;font-size:12px" aria-label="${t.unreadCount} unread messages">${t.unreadCount}</span>`:""}</h3><p>${escapeHTML(t.last_body||"No messages yet")}</p><div class="chat-card-actions"><button class="primary" data-open-thread="${escapeHTML(t.id)}">Open chat</button><button class="chat-delete" type="button" data-delete-thread="${escapeHTML(t.id)}" aria-label="Delete chat">Delete</button></div></article>`).join("");
   const mode=state.globalChatSection||'home';
   const hub=`<div class="global-chat-hub"><button type="button" class="global-chat-hub-panel" data-global-chat-section="direct"><span class="global-chat-hub-icon" aria-hidden="true">☕</span><strong>Global Direct Chats</strong><span>Private conversations with WIRED members</span><small>${directThreads.length} conversation${directThreads.length===1?'':'s'}</small></button><button type="button" class="global-chat-hub-panel" data-global-chat-section="groups"><span class="global-chat-hub-icon" aria-hidden="true">♧</span><strong>Global Group Chats</strong><span>Conversations with multiple members</span><small>${groupThreads.length} group${groupThreads.length===1?'':'s'}</small></button></div>`;
   const back=`<button type="button" class="ghost small" data-global-chat-section="home">← Back to Global Chats</button>`;
@@ -2880,15 +2882,19 @@ async function loadThreads(){
  if(!state.user){state.threads=[];return;}
  const sequence=++inboxRefreshSequence;
  try{
-  const [d,membership]=await Promise.all([
+  const [d,membership,unread]=await Promise.all([
    api("/threads?fresh="+Date.now()),
-   sb.from("thread_members").select("thread_id").eq("user_id",state.user.id).is("hidden_at",null)
+   sb.from("thread_members").select("thread_id").eq("user_id",state.user.id).is("hidden_at",null),
+   sb.rpc("wired_global_unread_counts")
   ]);
   if(membership.error)throw membership.error;
   if(sequence!==inboxRefreshSequence)return;
   const visible=new Set((membership.data||[]).map(m=>String(m.thread_id)));
   const locallyDeleted=state.deletedThreadIds||new Set();
   state.threads=(d.items||[]).filter(t=>visible.has(String(t.id))&&!locallyDeleted.has(String(t.id)));
+  const counts=new Map((unread.data||[]).map(x=>[String(x.thread_id),Number(x.unread_count)]));
+  if(unread.error)console.warn("Unread counts unavailable",unread.error);
+  for(const t of state.threads)t.unreadCount=counts.get(String(t.id))||0;
   const direct=state.threads.filter(t=>!t.community_id&&!isGlobalGroupThread(t));
   if(direct.length){
    try{
@@ -2933,6 +2939,15 @@ async function loadThreadMessages(thread,after){
  if(after==null)data.reverse();
  return data.map(({profiles,...message})=>({...message,username:profiles?.username||'Member'}));
 }
+async function markGlobalThreadRead(id){
+ if(!state.user||state.page!=="chats"||state.activeThread!==id||document.hidden)return;
+ const last=state.messages.at(-1)?.id;if(!last)return;
+ const {error}=await sb.from("global_notifications").update({chat_read_at:new Date().toISOString(),read_at:new Date().toISOString()}).eq("recipient_id",state.user.id).eq("thread_id",id).eq("notification_type","global_chat_message").lte("message_id",last).is("chat_read_at",null);
+ if(error){console.warn("Chat read update failed",error);return;}
+ const t=state.threads.find(t=>String(t.id)===String(id));if(t)t.unreadCount=0;
+ await loadGlobalNotifications();
+}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state.activeThread)markGlobalThreadRead(state.activeThread);});
 async function openThread(id){
  try{
   if(state.realtimeChannel){await sb.removeChannel(state.realtimeChannel);state.realtimeChannel=null;}
@@ -2943,6 +2958,7 @@ async function openThread(id){
   if(state.activeThread!==id)return;
   state.messages=messages;
   renderThread();
+  await markGlobalThreadRead(id);
   const filter={schema:'public',table:'messages',filter:'thread_id=eq.'+id};
   state.realtimeChannel=sb.channel('wired-thread-'+id)
    .on('postgres_changes',{event:'INSERT',...filter},async payload=>{
@@ -2954,6 +2970,7 @@ async function openThread(id){
      if(state.activeThread!==id)return;
      mergeThreadMessages(fresh);
      renderThreadMessages();
+     await markGlobalThreadRead(id);
     }catch(error){console.warn('Message refresh failed',error);}
    })
    .on('postgres_changes',{event:'UPDATE',...filter},payload=>{
