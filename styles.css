@@ -1842,3 +1842,23 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .wired-community-overview-action button{width:100%;min-height:44px}
 .wired-community-description{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:480px){.wired-community-overview-stats{grid-template-columns:1fr}}
+
+.wired-inside-community .topbar,.wired-inside-community #app>.tabs,.wired-inside-community #communityMenuButton{display:none!important}
+.wired-inside-community #app{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+.wired-community-tools,.wired-community-tools>div,.wired-community-feed-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wired-community-tools{justify-content:space-between;margin-block:8px 12px}
+.wired-community-tools button,.wired-community-feed-tabs button,#communityDock button{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.wired-community-tools button{min-height:44px;padding:6px 9px;border-radius:8px;color:var(--bright)}
+.wired-community-tools .notification-count:not([hidden]){position:static;display:inline-grid;vertical-align:middle}
+.wired-community-feed-actions{margin-block:12px}
+.wired-community-feed-actions>button{min-height:44px}
+.wired-community-feed-tabs{display:flex;gap:6px;overflow-x:auto;position:relative;border-bottom:1px solid var(--line);margin-bottom:16px}
+.wired-community-feed-tabs button{min-height:44px;flex:none;padding:9px 12px;border-bottom:3px solid transparent;color:var(--muted);font-weight:700}
+.wired-community-feed-tabs button[aria-current=page]{color:var(--text);border-bottom-color:var(--community-accent,#a85be5)}
+#communityDock:not([hidden]){position:fixed;z-index:30;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:min(96%,540px);padding:5px;border:1px solid #59357e;border-radius:18px;background:#171020;box-shadow:0 5px 20px #0009}
+#communityDock button{min-height:54px;display:grid;align-content:center;justify-items:center;gap:1px;border-radius:12px;font-size:12px;color:#ded0ed}
+#communityDock button span{font-size:19px;line-height:1.15}
+#communityDock .wired-community-compose{background:#412362;color:#fff}
+#communityDock button[aria-current=page]{background:#513177;color:#fff}
+.wired-community-tools button:hover,.wired-community-feed-tabs button:hover,#communityDock button:hover{background:#a855f725}
+.wired-community-tools button:focus-visible,.wired-community-feed-tabs button:focus-visible,#communityDock button:focus-visible{outline:2px solid var(--bright);outline-offset:-2px}
