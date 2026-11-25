@@ -3037,6 +3037,7 @@ async function playVoiceClip(button,log,thread){
   const extension=message.voice_path.split('.').pop().toLowerCase();
   const mime=Object.keys(VOICE_FORMATS).find(type=>VOICE_FORMATS[type]===extension);
   audio.src=URL.createObjectURL(mime?new Blob([data],{type:mime}):data);
+  if(navigator.audioSession){try{navigator.audioSession.type='playback';}catch(e){}}
   audio.muted=false;audio.volume=1;
   audio.addEventListener('error',()=>{toast('This voice clip could not be decoded. Try recording a new clip.');},{once:true});
   target.replaceWith(audio);
@@ -3094,7 +3095,10 @@ function attachVoiceRecorder(panel,log,thread){
   record.disabled=true;
   status.textContent='Allow microphone access to record.';
   try{
+   player.pause();
+   if(navigator.audioSession){try{navigator.audioSession.type='play-and-record';}catch(e){}}
    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+   if(!stream.getAudioTracks().some(track=>track.enabled&&track.readyState==='live'))throw new Error('No active microphone track');
    if(!connected()){releaseMic();return;}
    const preferred=['audio/mp4','audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported(type));
    recorder=new MediaRecorder(stream,preferred?{mimeType:preferred}:undefined);
@@ -3106,10 +3110,11 @@ function attachVoiceRecorder(panel,log,thread){
     if(connected()){record.textContent='Record voice clip';record.disabled=false;status.textContent='Recording failed. Try again.';}
    },{once:true});
    recorder.addEventListener('stop',()=>{
+    const recordedMime=recorder?.mimeType;
     releaseMic();
     recorder=null;
     if(!connected()||failed)return;
-    const mime=(chunks[0]?.type||preferred||'').split(';')[0].toLowerCase();
+    const mime=(chunks[0]?.type||recordedMime||preferred||'').split(';')[0].toLowerCase();
     const extension=VOICE_FORMATS[mime];
     const clip=new Blob(chunks,{type:mime});
     record.textContent='Record voice clip';
@@ -3121,6 +3126,7 @@ function attachVoiceRecorder(panel,log,thread){
     draft={clip,preview:URL.createObjectURL(clip),path:thread+'/'+user+'/'+crypto.randomUUID()+'.'+extension,uploaded:false};
     player.muted=false;player.volume=1;
     player.src=draft.preview;player.load();
+    if(navigator.audioSession){try{navigator.audioSession.type='playback';}catch(e){}}
     preview.hidden=false;
     record.disabled=false;
     status.textContent='Preview your voice clip before sending.';
