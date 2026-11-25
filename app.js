@@ -2018,7 +2018,7 @@ async function openCommunitySection(section){
 function renderCommunityChatList(communityId){
  const host=$('communityChatList');
  if(!host)return;
- const threads=(state.threads||[]).filter(thread=>String(thread.community_id||thread.communityId||'')===String(communityId));
+ const threads=(state.threads||[]).filter(thread=>thread.kind!=='community'&&String(thread.community_id||thread.communityId||'')===String(communityId));
  host.innerHTML='<div class="section-head"><h2>Community chats</h2></div><button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:16px" id="openPublicCommunityChat"><span style="font-size:26px">☏</span><span><strong>Public chat</strong><br><small>Join the community conversation</small></span></button><h3 style="margin:20px 0 8px">My chats</h3>'+
  (threads.length?'<div class="community-chat-rows">'+threads.map(thread=>'<button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:12px" data-community-thread="'+escapeHTML(thread.id)+'"><span style="width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#38234e">☕</span><span style="min-width:0;flex:1"><strong>'+escapeHTML(thread.title||'Community conversation')+'</strong><br><small style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(thread.last_body||'No messages yet')+'</small></span><span>›</span></button>').join('')+'</div>':'<p class="hint">No community conversations yet.</p>');
  host.querySelector('#openPublicCommunityChat').addEventListener('click',()=>openCommunityChat(communityId));
