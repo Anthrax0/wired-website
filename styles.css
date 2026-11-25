@@ -1823,3 +1823,10 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .chat-image-preview:not([hidden]){display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
 .chat-image img,.chat-image-preview img{display:block;max-width:100%;max-height:260px;border-radius:8px;object-fit:contain}
 .chat-image-preview img{max-height:100px}
+
+/* Shared Orange Grove cosmetics: owner and visitor views */
+:is(.profile-unified-card,.profile-custom-card).equipped-profile-theme.orange-fruit-theme{background:radial-gradient(ellipse at 12% 8%,rgba(255,210,91,.48),transparent 38%),radial-gradient(ellipse at 92% 88%,rgba(232,83,9,.34),transparent 42%),linear-gradient(135deg,#fff0c8 0%,#ffb13e 48%,#a83c0a 100%)!important;border:2px solid #ffbd45!important;color:#542006!important;box-shadow:0 0 28px rgba(245,117,22,.28)!important}
+.profile-unified-card.orange-fruit-theme .profile-unified-content{background:transparent!important;color:#542006!important}
+.profile-custom-card.orange-fruit-theme::before,.profile-unified-card.orange-fruit-theme.orange-fruit-theme .profile-unified-content::before{content:"🍊  ORANGE GROVE EDITION  🍃";display:inline-flex;align-items:center;margin:0 0 16px;padding:8px 13px;border:1px solid #b94a0b;border-radius:999px;background:linear-gradient(90deg,#ffcf62,#ff8b22)!important;color:#642606!important;font:950 10px/1.2 ui-monospace,monospace;letter-spacing:.12em}
+:is(.profile-summary-avatar,.profile-avatar).orange-fruit-frame.orange-fruit-frame{border:4px solid #ff941f!important;outline:2px solid #7da83a!important;outline-offset:8px;box-shadow:0 0 0 3px #ffe2a0,0 0 0 6px #e85a0a,0 0 20px rgba(255,132,25,.72)!important}
+:is(.profile-unified-content,.profile-custom-card .profile-person) :is(h2,h3).orange-fruit-nameplate.orange-fruit-nameplate{background:linear-gradient(135deg,#ffcf54,#ff8a19 48%,#e94b08)!important;color:#662304!important;border:2px solid #ffbd4a!important;text-shadow:0 1px 0 rgba(255,255,255,.55)!important;box-shadow:inset 0 2px 4px rgba(255,255,255,.7),0 3px 12px rgba(239,104,13,.38)!important}
