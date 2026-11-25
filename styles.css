@@ -1898,3 +1898,49 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .wired-local-profile-stats button:hover,.wired-local-profile-post:hover{background:#a855f71c}
 .wired-local-profile-body [hidden]{display:none!important}
 #communityBlockBtn{color:#ff899a;border-color:#b42b42}
+
+/* Keep theme descriptions readable while grouping inventory actions. */
+.store-purchase-row.purchase-theme {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) max-content;
+  grid-template-rows: auto auto;
+  align-items: center;
+}
+.store-purchase-row.purchase-theme > .store-purchase-icon,
+.store-purchase-row.purchase-theme > div {
+  grid-row: 1 / 3;
+}
+.store-purchase-row.purchase-theme > [data-store-equip] {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: end;
+}
+.store-purchase-row.purchase-theme > [data-store-recycle] {
+  grid-column: 3;
+  grid-row: 2;
+  align-self: start;
+}
+@media (max-width: 620px) {
+  .store-purchase-row.purchase-theme {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    align-items: start;
+  }
+  .store-purchase-row.purchase-theme > .store-purchase-icon,
+  .store-purchase-row.purchase-theme > div {
+    grid-row: 1;
+  }
+  .store-purchase-row.purchase-theme > [data-store-equip],
+  .store-purchase-row.purchase-theme > [data-store-recycle] {
+    grid-column: 2;
+    justify-self: start;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .store-purchase-row.purchase-theme > [data-store-equip] {
+    grid-row: 2;
+  }
+  .store-purchase-row.purchase-theme > [data-store-recycle] {
+    grid-row: 3;
+  }
+}
