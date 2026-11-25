@@ -356,24 +356,31 @@ async function loadGlobalNotifications(){
  state.notifications=rows.map(n=>({...n,actor:actorMap.get(n.actor_id)||{username:"WIRED member"},comment:commentMap.get(n.profile_comment_id),communityName:communityMap.get(n.community_id)||"Community"}));
  state.notificationUnread=rows.filter(n=>!n.read_at).length;updateNotificationBell();
 }
-async function openPointsHistory(){
+async function openPointsHistory(pageHost=null){
  if(!state.user)return;
  document.getElementById('wiredPointsHistoryOverlay')?.remove();
- const overlay=document.createElement('div');overlay.id='wiredPointsHistoryOverlay';overlay.className='wired-points-overlay';
- overlay.innerHTML='<section class="wired-points-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredPointsTitle"><div class="wired-points-dialog-head"><div><span class="pet-kicker">THE LEDGER OF FORTUNES</span><h2 id="wiredPointsTitle">Points history</h2></div><button type="button" class="ghost" data-close-points aria-label="Close points history">✕</button></div><p class="wired-points-current">Current balance: <strong>'+Number(state.globalStoreBalance||0).toLocaleString()+' points</strong></p><div id="wiredPointsHistoryBody"><p class="hint">Loading transactions…</p></div></section>';
- document.body.appendChild(overlay);
- const close=()=>overlay.remove();overlay.querySelector('[data-close-points]').addEventListener('click',close);overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+ const overlay=pageHost||document.createElement('div');
+ if(!pageHost){overlay.id='wiredPointsHistoryOverlay';overlay.className='wired-points-overlay';}
+ const body='<p class="wired-points-current">Current balance: <strong>'+Number(state.globalStoreBalance||0).toLocaleString()+' points</strong></p><div id="wiredPointsHistoryBody"><p class="hint">Loading transactions…</p></div>';
+ overlay.innerHTML=pageHost?body:'<section class="wired-points-dialog" role="dialog" aria-modal="true" aria-labelledby="wiredPointsTitle"><div class="wired-points-dialog-head"><div><span class="pet-kicker">THE LEDGER OF FORTUNES</span><h2 id="wiredPointsTitle">Points history</h2></div><button type="button" class="ghost" data-close-points aria-label="Close points history">✕</button></div>'+body+'</section>';
+ if(!pageHost){
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  overlay.querySelector('[data-close-points]').addEventListener('click',close);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+ }
  const host=overlay.querySelector('#wiredPointsHistoryBody');
+ const userId=state.user.id;
  try{
   const rows=[];let offset=0;const batchSize=500;
   while(true){
-   const {data,error}=await sb.from('global_wallet_transactions').select('id,amount,transaction_type,description,created_at').eq('user_id',state.user.id).order('created_at',{ascending:false}).range(offset,offset+batchSize-1);
+   const {data,error}=await sb.from('global_wallet_transactions').select('id,amount,transaction_type,description,created_at').eq('user_id',userId).order('created_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+batchSize-1);
    if(error)throw error;rows.push(...(data||[]));
    if(!data||data.length<batchSize)break;
    offset+=batchSize;
    if(offset>=10000)break;
   }
-  if(!host.isConnected)return;
+  if(!host.isConnected||state.user?.id!==userId)return;
   // Use the same freshly fetched ledger for both balance and transaction totals.
   state.globalStoreBalance=rows.reduce((sum,row)=>sum+(Number(row.amount)||0),0);
   const balanceLabel=overlay.querySelector('.wired-points-current strong');
@@ -627,6 +634,118 @@ function profileSocialMarkup(){
  const tabs=[["following","Following"],["followers","Followers"],["friends","Friends"]];
  return '<section class="profile-social-section" aria-label="Social connections"><div class="profile-social-counts">'+tabs.map(([key,label])=>'<button type="button" class="profile-social-count" data-social-open="'+key+'"><strong>'+social[key].length+'</strong><span>'+label+'</span><small>View list →</small></button>').join("")+'</div></section>';
 }
+const PROFILE_PAGES={
+ "profile-menu":"Profile menu",
+ "profile-communities":"Community profiles",
+ "profile-account":"Account",
+ "profile-points":"Point stash",
+ "profile-blocked":"Blocked Users"
+};
+function openProfilePage(page){
+ nav(page);
+ window.scrollTo({top:0,behavior:"instant"});
+}
+function profileAccountForms(){
+ return `<form id="usernameForm" class="settings-form"><label class="field">Username<input id="settingsUsername" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" value="${escapeHTML(state.profile?.username||"")}" autocomplete="username"></label><button class="primary">Save username</button></form><form id="emailForm" class="settings-form"><label class="field">Email address<input id="settingsEmail" type="email" required value="${escapeHTML(state.user.email||"")}" autocomplete="email"></label><button class="primary">Update email</button><p class="hint">Supabase will send a confirmation email before the new address takes effect.</p></form><form id="passwordForm" class="settings-form"><label class="field">New password<input id="settingsPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label><label class="field">Confirm new password<input id="settingsPasswordConfirm" type="password" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password"></label><button class="primary">Change password</button></form><p class="status" id="settingsStatus" aria-live="polite"></p>`;
+}
+function profilePageRow(label,detail=""){
+ return `<span><strong>${escapeHTML(label)}</strong>${detail?`<small>${escapeHTML(detail)}</small>`:""}</span><span class="wired-profile-chevron" aria-hidden="true">›</span>`;
+}
+function profilePageAvatar(url){
+ return `<span class="profile-social-avatar">${url?`<img src="${escapeHTML(url)}" alt="">`:"W"}</span>`;
+}
+function renderProfilePage(view){
+ if(!state.user){nav("home");return;}
+ const page=state.page;
+ if(view.firstElementChild?.dataset.profilePage===page)return;
+ const back=page==="profile-menu"?"My profile":"Profile menu";
+ view.innerHTML=`<section class="wired-profile-page" data-profile-page="${page}"><div class="section-head wired-profile-heading"><button type="button" class="ghost" id="profilePageBack" aria-label="Back to ${back}">←</button><h2>${PROFILE_PAGES[page]}</h2></div><div id="profilePageBody" class="card"></div></section>`;
+ const body=view.querySelector("#profilePageBody");
+ view.querySelector("#profilePageBack").onclick=()=>openProfilePage(page==="profile-menu"?"profile":"profile-menu");
+ if(page==="profile-menu"){
+  const items=["profile-communities","profile-account","profile-points","store","profile-blocked"];
+  body.classList.add("wired-profile-rows");
+  for(const target of items){
+   const button=document.createElement("button");
+   button.type="button";
+   button.className="wired-profile-row";
+   button.innerHTML=profilePageRow(PROFILE_PAGES[target]||"Store");
+   button.onclick=()=>openProfilePage(target);
+   body.appendChild(button);
+  }
+ }else if(page==="profile-account"){
+  body.innerHTML=profileAccountForms();
+  body.querySelector("#usernameForm").onsubmit=saveUsername;
+  body.querySelector("#emailForm").onsubmit=saveEmail;
+  body.querySelector("#passwordForm").onsubmit=savePassword;
+ }else if(page==="profile-points"){
+  void openPointsHistory(body);
+ }else{
+  body.classList.add("wired-profile-rows");
+  void loadProfilePageList(body,page,state.user.id);
+ }
+}
+async function loadProfilePageList(body,page,userId){
+ body.innerHTML='<p class="hint" role="status">Loading…</p>';
+ try{
+  let rows;
+  if(page==="profile-communities"){
+   const [directory,localResult]=await Promise.all([
+    api("/communities"),
+    sb.from("community_profiles").select("community_id,nickname,avatar_url").eq("user_id",userId)
+   ]);
+   if(localResult.error)throw localResult.error;
+   const locals=new Map((localResult.data||[]).map(profile=>[profile.community_id,profile]));
+   rows=(directory.items||[])
+    .filter(community=>!community.is_banned&&(community.joined||community.owner_id===userId||community.role))
+    .sort((a,b)=>(a.name||"").localeCompare(b.name||""))
+    .map(community=>{
+     const local=locals.get(community.id);
+     return {id:community.id,label:local?.nickname||state.profile?.username||"WIRED member",detail:community.name||"Community",avatar:local?.avatar_url||state.profile?.avatar_url};
+    });
+  }else{
+   const {data:blocks,error}=await sb.from("wired_user_blocks").select("blocked_id").eq("blocker_id",userId).order("blocked_id");
+   if(error)throw error;
+   const ids=(blocks||[]).map(block=>block.blocked_id);
+   const profiles=new Map();
+   for(let start=0;start<ids.length;start+=100){
+    const {data,error:profileError}=await sb.from("profiles").select("id,username,avatar_url").in("id",ids.slice(start,start+100));
+    if(profileError)throw profileError;
+    for(const profile of data||[])profiles.set(profile.id,profile);
+   }
+   rows=ids.map(id=>({id,label:profiles.get(id)?.username||"Blocked member",avatar:profiles.get(id)?.avatar_url}));
+  }
+  if(!body.isConnected||state.user?.id!==userId)return;
+  body.replaceChildren();
+  if(!rows.length){
+   body.innerHTML=page==="profile-communities"?'<p class="hint">You haven’t joined any communities yet.</p>':'<p class="hint">You haven’t blocked any members.</p>';
+   return;
+  }
+  for(const row of rows){
+   const button=document.createElement("button");
+   button.type="button";
+   button.className="wired-profile-row";
+   button.innerHTML=profilePageAvatar(row.avatar)+profilePageRow(row.label,row.detail);
+   button.onclick=async()=>{
+    if(page==="profile-blocked"){
+     await openMemberProfile(row.id);
+     return;
+    }
+    button.disabled=true;
+    try{
+     await openCommunity(row.id);
+     if(state.page==="community"&&state.activeCommunity?.id===row.id&&state.activeCommunityRole){
+      await openCommunitySection("profile");
+      window.scrollTo({top:0,behavior:"instant"});
+     }
+    }finally{button.disabled=false;}
+   };
+   body.appendChild(button);
+  }
+ }catch(error){
+  if(body.isConnected)body.innerHTML='<p class="hint" role="alert">'+escapeHTML(errorText(error))+'</p>';
+ }
+}
 function renderProfileSocialPage(){
  const social=state.profileSocial||{following:[],followers:[],friends:[]};
  const tabs=[["following","Following"],["followers","Followers"],["friends","Friends"]];
@@ -641,7 +760,7 @@ function renderProfileSocialPage(){
 async function openMemberProfile(userId){
  if(!userId)return;
  if(state.user?.id===userId){state.profileReturnPage=state.page;state.page='profile';render();return;}
- try{const block=await wiredBlockState(userId);if(block.blockedBy){toast('This profile is unavailable.');return;}if(block.blocked){state.viewingProfile={id:userId,username:'Blocked member',wiredBlocked:true};state.page='member-profile';saveWiredRoute();renderMemberProfile();return;}}catch(e){toast(errorText(e));return;}
+ try{const block=await wiredBlockState(userId);if(block.blockedBy){toast('This profile is unavailable.');return;}if(block.blocked){state.profileReturnPage=state.page;state.viewingProfile={id:userId,username:'Blocked member',wiredBlocked:true};state.page='member-profile';saveWiredRoute();renderMemberProfile();return;}}catch(e){toast(errorText(e));return;}
  try{
   state.profileReturnPage=state.page;
   const [profileResult,companionResult]=await Promise.all([
@@ -703,7 +822,7 @@ async function openViewedMemberSocial(userId,type){
 function renderMemberProfile(){
  const p=state.viewingProfile;if(!p)return;
  const v=$('view');
- if(p.wiredBlocked){v.innerHTML='<section class="card"><h2>Blocked</h2><p>You blocked this member across WIRED.</p><button type="button" class="ghost" id="profileBlockBtn">Blocked</button></section>';v.querySelector('#profileBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(p.id));return;}const cover=p.cover_url?'url("'+escapeHTML(p.cover_url)+'")':'linear-gradient(120deg,#49246b,#171020 60%,#29133b)';
+ if(p.wiredBlocked){v.innerHTML='<button type="button" class="link" id="backBlockedProfile">← Back</button><section class="card"><h2>Blocked</h2><p>You blocked this member across WIRED.</p><button type="button" class="ghost" id="profileBlockBtn">Blocked</button></section>';v.querySelector('#backBlockedProfile').onclick=()=>openProfilePage(state.profileReturnPage==='profile-blocked'?'profile-blocked':'people');v.querySelector('#profileBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(p.id));return;}const cover=p.cover_url?'url("'+escapeHTML(p.cover_url)+'")':'linear-gradient(120deg,#49246b,#171020 60%,#29133b)';
  const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="Profile photo">':'W';
  const fr=p.friendRequest;const isMutualFriend=!!(p.isFollowing&&p.followsMe);const friendLabel=isMutualFriend?'Friends':'Follow each other to become friends';
  v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card '+(p.equipped_theme_item_id?'equipped-profile-theme ':'')+equippedCosmeticClass(p.equipped_theme_item_id,'theme')+' '+(p.equipped_theme_item_id==='d703a32c-2257-4bb6-b18c-9f87d0fdc3a6'?'black-rose-theme':'')+'"><div class="profile-person"><div class="profile-avatar '+(p.equipped_frame_item_id?'equipped-neon-frame':'')+' '+equippedCosmeticClass(p.equipped_frame_item_id,'frame')+' '+(p.equipped_frame_item_id==='1a48d530-1e6b-4bde-9c99-c242bda3990c'?'orange-fruit-frame':'')+'">'+avatar+'</div><div><h2 class="'+(p.equipped_nameplate_item_id?'equipped-nameplate':'')+' '+equippedCosmeticClass(p.equipped_nameplate_item_id,'nameplate')+' '+(p.equipped_nameplate_item_id==='8028d5a4-d964-45e8-8241-fb00c652a42a'?'orange-fruit-nameplate':'')+' '+(p.equipped_theme_item_id?'equipped-violet-theme':'')+'">'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2>'+relationshipSubtitleMarkup(p.displayRelationship,false)+(isMutualFriend?'<button type="button" class="ghost profile-name-chat" id="profileChatBtn">Chat</button>':'')+'</div></div>'+relationshipMarkup(p)+profileYokaiMarkup(p.companion)+'<section class="profile-about"><h3>About me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><span class="profile-friend-status">'+friendLabel+'</span>' +'<button type="button" class="ghost" id="profileSendGiftBtn">🎁 Send Gift</button><button type="button" class="ghost" id="profileBlockBtn" style="color:#ff525f;border-color:#b42b42;font-size:.75rem;padding:.3rem .55rem">Block</button></div>'+profileCommentsMarkup(p.id,p.comments)+'</section>';
@@ -1287,7 +1406,8 @@ async function toggleWiredBlock(userId){
  const result=blocking?await sb.from('wired_user_blocks').insert({blocker_id:state.user.id,blocked_id:userId}):await sb.from('wired_user_blocks').delete().eq('blocker_id',state.user.id).eq('blocked_id',userId);
  if(result.error)return toast(errorText(result.error));
  toast(blocking?'Member blocked across WIRED.':'Member unblocked.');
- if(state.page==='member-profile')await openMemberProfile(userId);
+ if(state.page==='member-profile'&&state.profileReturnPage==='profile-blocked')openProfilePage('profile-blocked');
+ else if(state.page==='member-profile')await openMemberProfile(userId);
  else if(state.activeCommunity?.id)await openCommunityMemberProfile(userId);
 }
 async function openGiftShopForProfile(userId,name,communityId=null){
@@ -1893,6 +2013,7 @@ function render(){
  if(hero)hero.hidden=!(state.page==="home"||state.page==="discover");
  if(state.activeThread&&$("backChats")&&(state.page==="chats"||state.page==="community"))return;
  const v=$("view");
+ if(Object.hasOwn(PROFILE_PAGES,state.page)){renderProfilePage(v);return;}
  if(state.page==="bugs"){renderBugReports();return;}
  if(state.page==="features"){renderFeatureRequests();return;}
  if(state.page==="home"){
@@ -1946,7 +2067,8 @@ function render(){
  if(state.page==="people"){renderPeople();return;}
  if(state.page==="profile"){
   const cover=state.profile?.cover_url||""; const avatar=state.profile?.avatar_url||"";
-  v.innerHTML=`<div class="section-head"><h2>My profile</h2></div><section class="card profile-summary-card profile-unified-card ${state.profile?.equipped_theme_item_id?"equipped-profile-theme":""} ${equippedCosmeticClass(state.profile?.equipped_theme_item_id,"theme")} ${state.profile?.equipped_theme_item_id==="d703a32c-2257-4bb6-b18c-9f87d0fdc3a6"?"black-rose-theme":""}">${state.user&&cover?`<div class="profile-cover" style="background-image:url(&quot;${escapeHTML(cover)}&quot;)"></div>`:state.user?`<div class="profile-cover"></div>`:""}<div class="profile-unified-content"><div class="profile-person"><div class="profile-summary-avatar ${state.profile?.equipped_frame_item_id?"equipped-neon-frame":""} ${equippedCosmeticClass(state.profile?.equipped_frame_item_id,"frame")} ${state.profile?.equipped_frame_item_id==="22c45a25-ffa2-4757-8ab7-501e0eec90c4"?"black-rose-frame":""} ${state.profile?.equipped_frame_item_id==="1a48d530-1e6b-4bde-9c99-c242bda3990c"?"orange-fruit-frame":""}">${avatar?`<img src="${escapeHTML(avatar)}" alt="Your profile photo">`:"W"}</div><div><h3 class="${state.profile?.equipped_nameplate_item_id?"equipped-nameplate":""} ${equippedCosmeticClass(state.profile?.equipped_nameplate_item_id,"nameplate")} ${state.profile?.equipped_nameplate_item_id==="706278b4-ad29-432c-8b91-1bfb713899bf"?"black-rose-nameplate":""} ${state.profile?.equipped_nameplate_item_id==="8028d5a4-d964-45e8-8241-fb00c652a42a"?"orange-fruit-nameplate":""} ${state.profile?.equipped_theme_item_id?"equipped-violet-theme":""}">${state.user?escapeHTML(state.profile?.username||state.user.email):"Welcome to WIRED"} ${state.profile?.id_verified?`<span class="pill">✓ Verified</span>`:""}</h3>${state.user?relationshipSubtitleMarkup(state.activeRelationship,true):""}${state.user?"":'<p class="muted">Log in or create an account to set up your profile.</p>'}</div></div>${state.user?profileSocialMarkup():""}${state.user?myRelationshipMarkup():""}${state.user?'<div class="profile-companion-grid">':""}${state.user?profileYokaiMarkup(state.profile?.companion):""}${state.user?`<section class="profile-companion-switch"><label for="profileCompanionSelect">Display companion on profile</label><div class="profile-companion-switch-row"><select id="profileCompanionSelect"><option value="">No companion</option>${(state.userPets||[]).map(p=>`<option value="${escapeHTML(p.id)}" ${state.profile?.companion?.id===p.id?"selected":""}>${escapeHTML(p.nickname||p.pet_species?.name||"Yokai")} (${escapeHTML(p.pet_species?.name||"Yokai")})</option>`).join("")}</select><button class="primary" id="saveProfileCompanion" type="button">Switch companion</button></div></section>`:""}${state.user?"</div>":""}${state.user?'<section class="profile-about profile-about-own"><h2>About me</h2><p class="profile-about-text">'+escapeHTML(state.profile?.bio||"Tell the WIRED community a little about yourself.")+'</p><form id="bioForm" class="profile-bio-form"><label class="field">Biography / About me<textarea id="profileBio" maxlength="1000" rows="4" placeholder="Share your interests, hobbies, and a little about yourself…">'+escapeHTML(state.profile?.bio||"")+'</textarea></label><div class="profile-bio-footer"><span class="hint">Up to 1,000 characters. Visible on your public profile.</span><button class="primary" type="submit">Save biography</button></div></form></section>':''}${state.user?'<button class="primary" id="profileAuth" type="button">Log out</button>':'<div class="profile-auth-actions"><button class="primary" id="profileLogin" type="button">Log in</button><button class="ghost" id="profileSignup" type="button">Sign up</button></div>'}<div class="profile-status-pills"><span class="pill">18+ COMMUNITY</span><span class="pill">OPTIONAL ID VERIFICATION</span></div><p class="hint">A verified badge only appears after a trusted identity provider confirms verification. That provider is not connected yet.</p>${state.user?`<div class="profile-upload-row"><label class="profile-upload">Change profile photo<input id="wiredAvatarUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><label class="profile-upload">Change cover image<input id="wiredCoverUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label></div>${profileCommentsMarkup(state.user.id,state.profileComments)}<div class="profile-account-settings"><button class="primary" id="editAccountBtn" type="button" aria-expanded="${state.editAccountOpen?"true":"false"}">${state.editAccountOpen?"Close account settings":"Edit account"}</button><div id="accountSettingsPanel" ${state.editAccountOpen?"":"hidden"}><div class="section-head"><h2>Account settings</h2></div><form id="usernameForm" class="settings-form"><label class="field">Username<input id="settingsUsername" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" value="${escapeHTML(state.profile?.username||"")}" autocomplete="username"></label><button class="primary">Save username</button></form><form id="emailForm" class="settings-form"><label class="field">Email address<input id="settingsEmail" type="email" required value="${escapeHTML(state.user.email||"")}" autocomplete="email"></label><button class="primary">Update email</button><p class="hint">Supabase will send a confirmation email before the new address takes effect.</p></form><form id="passwordForm" class="settings-form"><label class="field">New password<input id="settingsPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label><label class="field">Confirm new password<input id="settingsPasswordConfirm" type="password" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password"></label><button class="primary">Change password</button></form><p class="status" id="settingsStatus" aria-live="polite"></p></div></div>`:""}</div></section>`;
+  v.innerHTML=`<div class="section-head wired-profile-heading">${state.user?'<button type="button" class="ghost wired-profile-menu-button" id="profileMenuBtn" aria-label="Open profile menu"><span aria-hidden="true"></span></button>':""}<h2>My profile</h2></div><section class="card profile-summary-card profile-unified-card ${state.profile?.equipped_theme_item_id?"equipped-profile-theme":""} ${equippedCosmeticClass(state.profile?.equipped_theme_item_id,"theme")} ${state.profile?.equipped_theme_item_id==="d703a32c-2257-4bb6-b18c-9f87d0fdc3a6"?"black-rose-theme":""}">${state.user&&cover?`<div class="profile-cover" style="background-image:url(&quot;${escapeHTML(cover)}&quot;)"></div>`:state.user?`<div class="profile-cover"></div>`:""}<div class="profile-unified-content"><div class="profile-person"><div class="profile-summary-avatar ${state.profile?.equipped_frame_item_id?"equipped-neon-frame":""} ${equippedCosmeticClass(state.profile?.equipped_frame_item_id,"frame")} ${state.profile?.equipped_frame_item_id==="22c45a25-ffa2-4757-8ab7-501e0eec90c4"?"black-rose-frame":""} ${state.profile?.equipped_frame_item_id==="1a48d530-1e6b-4bde-9c99-c242bda3990c"?"orange-fruit-frame":""}">${avatar?`<img src="${escapeHTML(avatar)}" alt="Your profile photo">`:"W"}</div><div><h3 class="${state.profile?.equipped_nameplate_item_id?"equipped-nameplate":""} ${equippedCosmeticClass(state.profile?.equipped_nameplate_item_id,"nameplate")} ${state.profile?.equipped_nameplate_item_id==="706278b4-ad29-432c-8b91-1bfb713899bf"?"black-rose-nameplate":""} ${state.profile?.equipped_nameplate_item_id==="8028d5a4-d964-45e8-8241-fb00c652a42a"?"orange-fruit-nameplate":""} ${state.profile?.equipped_theme_item_id?"equipped-violet-theme":""}">${state.user?escapeHTML(state.profile?.username||state.user.email):"Welcome to WIRED"} ${state.profile?.id_verified?`<span class="pill">✓ Verified</span>`:""}</h3>${state.user?relationshipSubtitleMarkup(state.activeRelationship,true):""}${state.user?"":'<p class="muted">Log in or create an account to set up your profile.</p>'}</div></div>${state.user?profileSocialMarkup():""}${state.user?myRelationshipMarkup():""}${state.user?'<div class="profile-companion-grid">':""}${state.user?profileYokaiMarkup(state.profile?.companion):""}${state.user?`<section class="profile-companion-switch"><label for="profileCompanionSelect">Display companion on profile</label><div class="profile-companion-switch-row"><select id="profileCompanionSelect"><option value="">No companion</option>${(state.userPets||[]).map(p=>`<option value="${escapeHTML(p.id)}" ${state.profile?.companion?.id===p.id?"selected":""}>${escapeHTML(p.nickname||p.pet_species?.name||"Yokai")} (${escapeHTML(p.pet_species?.name||"Yokai")})</option>`).join("")}</select><button class="primary" id="saveProfileCompanion" type="button">Switch companion</button></div></section>`:""}${state.user?"</div>":""}${state.user?'<section class="profile-about profile-about-own"><h2>About me</h2><p class="profile-about-text">'+escapeHTML(state.profile?.bio||"Tell the WIRED community a little about yourself.")+'</p><form id="bioForm" class="profile-bio-form"><label class="field">Biography / About me<textarea id="profileBio" maxlength="1000" rows="4" placeholder="Share your interests, hobbies, and a little about yourself…">'+escapeHTML(state.profile?.bio||"")+'</textarea></label><div class="profile-bio-footer"><span class="hint">Up to 1,000 characters. Visible on your public profile.</span><button class="primary" type="submit">Save biography</button></div></form></section>':''}${state.user?'<button class="primary" id="profileAuth" type="button">Log out</button>':'<div class="profile-auth-actions"><button class="primary" id="profileLogin" type="button">Log in</button><button class="ghost" id="profileSignup" type="button">Sign up</button></div>'}<div class="profile-status-pills"><span class="pill">18+ COMMUNITY</span><span class="pill">OPTIONAL ID VERIFICATION</span></div><p class="hint">A verified badge only appears after a trusted identity provider confirms verification. That provider is not connected yet.</p>${state.user?`<div class="profile-upload-row"><label class="profile-upload">Change profile photo<input id="wiredAvatarUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><label class="profile-upload">Change cover image<input id="wiredCoverUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label></div>${profileCommentsMarkup(state.user.id,state.profileComments)}<div class="profile-account-settings"><button class="primary" id="editAccountBtn" type="button" aria-expanded="${state.editAccountOpen?"true":"false"}">${state.editAccountOpen?"Close account settings":"Edit account"}</button><div id="accountSettingsPanel" ${state.editAccountOpen?"":"hidden"}><div class="section-head"><h2>Account settings</h2></div>${profileAccountForms()}</div></div>`:""}</div></section>`;
+  $("profileMenuBtn")?.addEventListener("click",()=>openProfilePage("profile-menu"));
   $("saveProfileCompanion")?.addEventListener("click",async()=>{const btn=$("saveProfileCompanion"),petId=$("profileCompanionSelect")?.value||null;btn.disabled=true;try{const {error:switchError}=await sb.rpc("set_my_profile_companion",{p_pet_id:petId});if(switchError)throw switchError;await loadProfile();const actualId=state.profile?.companion?.id||null;if(actualId!==petId)throw new Error("Companion change did not persist. Please try again.");toast(petId?"Profile companion updated.":"Companion removed from profile.");render();}catch(e){toast(errorText(e));btn.disabled=false;}});
   $("bioForm")?.addEventListener("submit",saveBiography);
   $("relationshipEndOwnBtn")?.addEventListener("click",()=>{if(state.activeRelationship)relationshipAction(state.activeRelationship.id,"ended")});
@@ -3677,6 +3799,11 @@ async function restoreWiredRoute(route){
   state.page='profile-social';
   state.profileSocialTab=route.socialTab||'following';
   render();
+  return true;
+ }
+ if(Object.hasOwn(PROFILE_PAGES,route.page)){
+  if(!state.user)return false;
+  nav(route.page);
   return true;
  }
  if(route.page==='chats'){
