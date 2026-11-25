@@ -1,0 +1,33 @@
+--- a/index.ts
++++ b/index.ts
+@@ -493 +493 @@
+-  if(req.method==='GET'&&path==='/threads'){const {data:m,error:me}=await sb.from('thread_members').select('thread_id').eq('user_id',uid).is('hidden_at',null);if(me)throw me;const ids=(m||[]).map((x:any)=>x.thread_id);if(!ids.length)return items([]);const {data:ts,error}=await sb.from('threads').select('*').in('id',ids).order('created_at',{ascending:false});if(error)throw error;const result=[];for(const t of ts||[]){let title=t.kind==='community'?'Community chat':'Direct message';if(t.community_id){const {data:c}=await sb.from('communities').select('name').eq('id',t.community_id).maybeSingle();if(c?.name)title=c.name;}else{const {data:ms}=await sb.from('thread_members').select('user_id').eq('thread_id',t.id).neq('user_id',uid);const ids=(ms||[]).map((x:any)=>x.user_id);if(ids.length){const {data:prs}=await sb.from('profiles').select('username').in('id',ids);const names=(prs||[]).map((x:any)=>x.username).filter(Boolean);if(t.kind==='group')title=names.length?names.join(', '):'Group chat';else if(names[0])title=names[0];}}const {data:last}=await sb.from('messages').select('body').eq('thread_id',t.id).order('id',{ascending:false}).limit(1).maybeSingle();result.push({...t,title,last_body:last?.body||null});}return items(result);}
++  if(req.method==='GET'&&path==='/threads'){const {data:m,error:me}=await sb.from('thread_members').select('thread_id').eq('user_id',uid).is('hidden_at',null);if(me)throw me;const ids=(m||[]).map((x:any)=>x.thread_id);if(!ids.length)return items([]);const {data:ts,error}=await sb.from('threads').select('*').in('id',ids).order('created_at',{ascending:false});if(error)throw error;const result=[];for(const t of ts||[]){let title=t.kind==='community'?'Community chat':'Direct message';if(t.kind==='community'&&t.community_id){const {data:c}=await sb.from('communities').select('name').eq('id',t.community_id).maybeSingle();if(c?.name)title=c.name;}else{const {data:ms}=await sb.from('thread_members').select('user_id').eq('thread_id',t.id).neq('user_id',uid);const ids=(ms||[]).map((x:any)=>x.user_id);if(ids.length){const {data:prs}=await sb.from('profiles').select('username').in('id',ids);const names=(prs||[]).map((x:any)=>x.username).filter(Boolean);if(t.kind==='group')title=names.length?names.join(', '):'Group chat';else if(names[0])title=names[0];}}const {data:last}=await sb.from('messages').select('body').eq('thread_id',t.id).order('id',{ascending:false}).limit(1).maybeSingle();result.push({...t,title,last_body:last?.body||null});}return items(result);}
+@@ -498,4 +497,0 @@
+-   const username=String(b.username||'').trim();
+-   const {data:peer,error}=await sb.from('profiles').select('id').ilike('username',username).maybeSingle();
+-   if(error)throw error;
+-   if(!peer)return err('No WIRED user found with that username.');
+@@ -503 +499,15 @@
+-   const {data,error:requestError}=await admin.rpc('wired_request_direct_chat',{p_actor:uid,p_peer:peer.id});
++   const communityId=b.community_id||null;
++   let peerId;
++   if(communityId){
++    if(!b.user_id)return err('Choose a community member to invite.');
++    peerId=b.user_id;
++   }else{
++    const {data:peer,error}=await sb.from('profiles').select('id')
++      .ilike('username',String(b.username||'').trim()).maybeSingle();
++    if(error)throw error;
++    if(!peer)return err('No WIRED user found with that username.');
++    peerId=peer.id;
++   }
++   const {data,error:requestError}=await admin.rpc('wired_request_direct_chat',{
++    p_actor:uid,p_peer:peerId,p_thread:null,p_community:communityId
++   });
+@@ -526 +536 @@
+-   if(!thread.community_id&&(thread.kind==='dm'||(originalPair.includes(uid)&&originalPair.includes(invitee)))){
++   if(thread.kind==='dm'||(originalPair.includes(uid)&&originalPair.includes(invitee))){
+@@ -539 +549 @@
+-   const {error:requestError}=await admin.from('global_notifications').insert({recipient_id:invitee,actor_id:uid,thread_id:tid,notification_type:'global_chat_request',request_status:'pending'});
++   const {error:requestError}=await admin.from('global_notifications').insert({recipient_id:invitee,actor_id:uid,thread_id:tid,community_id:thread.community_id,notification_type:'global_chat_request',request_status:'pending'});

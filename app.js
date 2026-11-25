@@ -309,7 +309,7 @@ async function renderCommunityProfileComments(panel,cid,profileId){
  }catch(err){slot.innerHTML='<p class="hint">Comments unavailable: '+escapeHTML(errorText(err))+'</p>';}
 }
 function unreadCommunityNotifications(communityId){
- return (state.notifications||[]).filter(row=>row.isCommunity&&row.community_id===communityId&&!row.read_at);
+ return (state.notifications||[]).filter(row=>row.community_id===communityId&&!row.read_at);
 }
 async function checkAdminPopupNotice(){
  const uid=state.user?.id;
@@ -337,7 +337,7 @@ async function checkAdminPopupNotice(){
 async function loadGlobalNotifications(){
  void checkAdminPopupNotice();
  if(!state.user){state.notifications=[];state.notificationUnread=0;updateNotificationBell();return;}
- const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,thread_id,request_status,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
+ const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,thread_id,community_id,request_status,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
  if(error)throw error;
  const {data:communityRows,error:communityError}=await sb.from('community_notifications').select('id,community_id,recipient_id,actor_id,post_id,thread_id,comment_id,details,notification_type,created_at,read_at').eq('recipient_id',state.user.id).order('created_at',{ascending:false}).limit(100);
  if(communityError)throw communityError;
@@ -402,6 +402,7 @@ function subscribeGlobalNotifications(){
  const recipient="recipient_id=eq."+state.user.id;
  const refresh=payload=>loadGlobalNotifications().then(()=>{
   if(state.page==="chats"&&(!state.activeThread||payload?.new?.notification_type==="global_chat_leave"))loadThreads();
+  if(state.page==="community"&&state.communityTab==="chats"&&payload?.new?.community_id===state.activeCommunity?.id)loadThreads();
   if(state.page==='notifications')renderNotifications();
   else if(isCommunitySection(state.activeCommunity?.id,'notifications'))renderCommunityNotifications();
  }).catch(error=>console.warn('Notifications refresh failed',error));
@@ -416,12 +417,12 @@ async function openNotifications(){
  try{await loadGlobalNotifications();renderNotifications();}catch(e){toast(errorText(e));}
 }
 function renderNotifications(communityId=null,host=$("view")){
- const v=host,rows=communityId?unreadCommunityNotifications(communityId):(state.notifications||[]).filter(n=>!n.read_at||n.request_status==="pending");
+ const v=host,rows=communityId?(state.notifications||[]).filter(n=>n.community_id===communityId&&(!n.read_at||n.request_status==="pending")):(state.notifications||[]).filter(n=>!n.read_at||n.request_status==="pending");
  v.innerHTML='<div class="section-head"><h2>'+(communityId?'Community notifications':'Notifications')+'</h2><button class="ghost" id="markAllNotificationsRead" '+(rows.length?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
   const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
   const isChat=n.notification_type==="global_chat_request",isCommunity=!!n.isCommunity,isLeave=n.notification_type==="global_chat_leave"||(isCommunity&&n.notification_type==="community_chat"&&String(n.details||"").endsWith(" has left the chat."));
   const detail=isCommunity?'<p class="notification-excerpt">From '+escapeHTML(n.communityName)+(n.details?' · '+escapeHTML(n.details):'')+'</p>':isComment&&n.comment?.body?'<p class="notification-excerpt">'+escapeHTML(n.comment.body)+'</p>':'';
-  return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'" data-notification-community="'+escapeHTML(n.community_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isLeave?'has left the chat':isCommunity?({'community_chat':'sent a community chat message in ','community_reply':'replied to you in ','community_mention':'mentioned you in ','community_relationship':'sent a relationship update from ','community_moderation':'sent a moderation notice from ','community_post':'posted in '}[n.notification_type]||'updated ')+escapeHTML(n.communityName):isChat?'invited you to a global chat':n.notification_type==="global_chat_message"?'sent you a global chat message':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isLeave?'CHAT DEPARTURE':isCommunity?({'community_chat':'CHAT','community_reply':'REPLY','community_mention':'MENTION','community_relationship':'RELATIONSHIP','community_moderation':'MODERATION','community_post':'COMMUNITY'}[n.notification_type]||'COMMUNITY'):isChat?'CHAT REQUEST':n.notification_type==="global_chat_message"?'CHAT MESSAGE':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
+  return '<div class="notification-item '+(n.read_at?'':'unread')+'"><button type="button" class="notification-open" data-notification-id="'+escapeHTML(n.id)+'" data-notification-actor="'+escapeHTML(n.actor_id)+'" data-notification-type="'+escapeHTML(n.notification_type)+'" data-notification-comment="'+escapeHTML(n.profile_comment_id||'')+'" data-notification-community="'+escapeHTML(n.community_id||'')+'"><span class="notification-avatar">'+(n.actor?.avatar_url?'<img src="'+escapeHTML(n.actor.avatar_url)+'" alt="">':'W')+'</span><span class="notification-copy"><strong>'+who+'</strong> '+(isLeave?'has left the chat':isCommunity?({'community_chat':'sent a community chat message in ','community_reply':'replied to you in ','community_mention':'mentioned you in ','community_relationship':'sent a relationship update from ','community_moderation':'sent a moderation notice from ','community_post':'posted in '}[n.notification_type]||'updated ')+escapeHTML(n.communityName):isChat?(n.community_id?'invited you to a chat in '+escapeHTML(n.communityName):'invited you to a global chat'):n.notification_type==="global_chat_message"?'sent you a global chat message':isComment?'commented on your profile':'started following you')+detail+'<time>'+escapeHTML(new Date(n.created_at).toLocaleString())+'</time></span><span class="notification-kind">'+(isLeave?'CHAT DEPARTURE':isCommunity?({'community_chat':'CHAT','community_reply':'REPLY','community_mention':'MENTION','community_relationship':'RELATIONSHIP','community_moderation':'MODERATION','community_post':'COMMUNITY'}[n.notification_type]||'COMMUNITY'):isChat?'CHAT REQUEST':n.notification_type==="global_chat_message"?'CHAT MESSAGE':isComment?'COMMENT':'FOLLOW')+'</span>'+(n.read_at?'':'<i class="notification-unread-dot"></i>')+'</button>'+(isChat&&n.request_status==='pending'?'<div class="chat-request-actions"><button type="button" class="primary" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="accepted">Accept</button><button type="button" class="ghost" data-chat-request="'+escapeHTML(n.id)+'" data-thread="'+escapeHTML(n.thread_id)+'" data-status="declined">Decline</button></div>':isChat?'<span class="chat-request-status">'+escapeHTML(n.request_status||'closed')+'</span>':'')+'</div>';
  }).join(''):'<div class="empty">'+(communityId?'No unread notifications in this community.':'You’re all caught up.')+'</div>')+'</div>';
  v.querySelector("#markAllNotificationsRead")?.addEventListener("click",()=>communityId?markCommunityNotificationsRead(communityId):markAllNotificationsRead());
  v.querySelectorAll(".notification-open[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment,b.dataset.notificationCommunity)));
@@ -430,7 +431,21 @@ function renderNotifications(communityId=null,host=$("view")){
 async function respondToGlobalChatRequest(notificationId,threadId,status,button){
  if(!notificationId||!threadId||!['accepted','declined'].includes(status))return;
  if(button){button.disabled=true;button.textContent=status==='accepted'?'Accepting…':'Declining…';}
- try{await api('/threads/'+encodeURIComponent(threadId)+'/request','POST',{notification_id:notificationId,status});await loadGlobalNotifications();renderNotifications();if(status==='accepted'){state.deletedThreadIds?.delete(String(threadId));await loadThreads();state.page='chats';await openThread(threadId);toast('You joined the global chat.');}else toast('Chat request declined.');}
+ try{
+  const result=await api('/threads/'+encodeURIComponent(threadId)+'/request','POST',{notification_id:notificationId,status});
+  await loadGlobalNotifications();
+  if(status==='accepted'){
+   state.deletedThreadIds?.delete(String(threadId));
+   if(result.community_id){await openCommunity(result.community_id,'chats');}
+   else{state.page='chats';state.activeThread=null;}
+   await loadThreads();
+   if(state.threads.some(thread=>thread.id===threadId))await openThread(threadId);
+   toast('You joined the chat.');
+  }else{
+   if(state.page==='community')renderCommunityNotifications();else renderNotifications();
+   toast('Chat request declined.');
+  }
+ }
  catch(e){if(button){button.disabled=false;button.textContent=status==='accepted'?'Accept':'Decline';}toast(errorText(e));}
 }
 
@@ -443,6 +458,7 @@ async function markAllNotificationsRead(){
 }
 async function openNotification(id,actorId,type,commentId,communityId){
  const row=state.notifications.find(n=>n.id===id&&(!communityId||n.community_id===communityId));
+ if(row?.request_status==='pending')return;
  if(row&&!row.read_at){const {error}=await sb.from(row.isCommunity?"community_notifications":"global_notifications").update({read_at:new Date().toISOString()}).eq("id",id);if(error){toast(errorText(error));return;}await loadGlobalNotifications();}
  if(communityId){
   await openCommunity(communityId,row?.thread_id?'chats':'latest');
@@ -733,6 +749,19 @@ async function startDMByUsername(username){
   await loadThreads();
   await openThread(d.id);
  }catch(e){toast(errorText(e));}
+}
+async function startCommunityDM(memberId,communityId){
+ try{
+  const result=await api('/threads/dm','POST',{user_id:memberId,community_id:communityId});
+  if(result.request_sent){
+   toast(result.pending?'Chat request already pending.':'Community chat request sent.');
+   return;
+  }
+  if(state.activeCommunity?.id!==communityId)return;
+  await openCommunitySection('chats');
+  await loadThreads();
+  await openThread(result.id);
+ }catch(error){toast(errorText(error));}
 }
 async function searchGlobalPeople(query,scope="people"){
  const key=scope==="discover"?"discoverPeopleSearchRequest":"peopleSearchRequest";
@@ -2060,8 +2089,9 @@ function renderCommunityChatList(communityId){
  const host=$('communityChatList');
  if(!host)return;
  const threads=(state.threads||[]).filter(thread=>thread.kind!=='community'&&String(thread.community_id||thread.communityId||'')===String(communityId));
- host.innerHTML='<div class="section-head"><h2>Community chats</h2></div><button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:16px" id="openPublicCommunityChat"><span style="font-size:26px">☏</span><span><strong>Public chat</strong><br><small>Join the community conversation</small></span></button><h3 style="margin:20px 0 8px">My chats</h3>'+
- (threads.length?'<div class="community-chat-rows">'+threads.map(thread=>'<button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:12px" data-community-thread="'+escapeHTML(thread.id)+'"><span style="width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#38234e">☕</span><span style="min-width:0;flex:1"><strong>'+escapeHTML(thread.title||'Community conversation')+'</strong><br><small style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(thread.last_body||'No messages yet')+'</small></span><span>›</span></button>').join('')+'</div>':'<p class="hint">No community conversations yet.</p>');
+ host.innerHTML='<div class="section-head"><h2>Community chats</h2></div><button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:16px" id="openPublicCommunityChat"><span style="font-size:26px">☏</span><span><strong>Public chat</strong><br><small>Join the community conversation</small></span></button><h3 style="margin:20px 0 8px">My chats</h3><button type="button" class="ghost small" id="communityChatMembers">Find a member to chat with</button>'+
+ (threads.length?'<div class="community-chat-rows">'+threads.map(thread=>'<button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:12px" data-community-thread="'+escapeHTML(thread.id)+'"><span style="width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#38234e">☕</span><span style="min-width:0;flex:1"><strong>'+escapeHTML(thread.directPeer?.username||thread.title||'Community conversation')+'</strong><br><small style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(thread.last_body||'No messages yet')+'</small></span><span>›</span></button>').join('')+'</div>':'<p class="hint">No community conversations yet.</p>');
+ host.querySelector('#communityChatMembers').addEventListener('click',()=>openCommunitySection('members'));
  host.querySelector('#openPublicCommunityChat').addEventListener('click',()=>openCommunityChat(communityId));
  if(['owner','mod'].includes(state.activeCommunityRole)){
   const remove=document.createElement('button');remove.type='button';remove.className='chat-delete';remove.textContent='Delete Public Chat';remove.style.marginTop='10px';
@@ -2084,6 +2114,9 @@ async function markCommunityNotificationsRead(communityId){
   const {error}=await sb.from('community_notifications').update({read_at:new Date().toISOString()})
    .eq('recipient_id',state.user.id).eq('community_id',communityId).is('read_at',null);
   if(error)throw error;
+  const {error:requestError}=await sb.from('global_notifications').update({read_at:new Date().toISOString()})
+   .eq('recipient_id',state.user.id).eq('community_id',communityId).is('read_at',null);
+  if(requestError)throw requestError;
   await loadGlobalNotifications();
   if(isCommunitySection(communityId,'notifications'))renderCommunityNotifications();
  }catch(error){toast(errorText(error));}
@@ -2689,7 +2722,7 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
   const own=userId===uid;
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
-  panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><p class="hint">'+escapeHTML(community.name||'Community')+' profile</p><h2>'+escapeHTML(name)+'</h2></div></div>'+'<span class="community-local-avatar-wrap">'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'<span class="community-local-avatar community-local-avatar-fallback">W</span>')+communityAvatarLevelBadge({communityPoints:profileCommunityPoints})+'</span>'+'<div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(local?.show_global_companion?'<section class="community-companion-section">'+(companion?profileYokaiMarkup(companion):'<p class="hint">'+escapeHTML(companionMessage)+'</p>')+'</section>':'')+'<section class="community-profile-biography"><h3>About Me</h3><p id="communityProfileBio">'+escapeHTML(local?.bio||'No community biography yet.')+'</p></section>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
+  panel.innerHTML='<button type="button" class="link" id="closeLocalProfile">← Back to community</button><div class="profile-cover member-profile-cover"'+(local?.cover_url?' style="background-image:url(&quot;'+escapeHTML(local.cover_url)+'&quot;);background-size:cover;background-position:center"':'')+'></div><div class="profile-person"><div><p class="hint">'+escapeHTML(community.name||'Community')+' profile</p><h2>'+escapeHTML(name)+'</h2></div></div>'+'<span class="community-local-avatar-wrap">'+((local?.avatar_url||global?.avatar_url)?'<img class="community-local-avatar" src="'+escapeHTML(local?.avatar_url||global?.avatar_url)+'" alt="Community avatar">':'<span class="community-local-avatar community-local-avatar-fallback">W</span>')+communityAvatarLevelBadge({communityPoints:profileCommunityPoints})+'</span>'+'<div class="profile-social-actions community-social-counts">'+[['followers','Followers'],['following','Following'],['friends','Friends']].map(([key,label])=>'<button type="button" class="ghost" data-community-social="'+key+'"><strong>'+socialGroups[key].length+'</strong> '+label+'</button>').join('')+'</div>'+(local?.show_global_companion?'<section class="community-companion-section">'+(companion?profileYokaiMarkup(companion):'<p class="hint">'+escapeHTML(companionMessage)+'</p>')+'</section>':'')+'<section class="community-profile-biography"><h3>About Me</h3><p id="communityProfileBio">'+escapeHTML(local?.bio||'No community biography yet.')+'</p></section>'+(myPartner===userId?'<p class="hint">In a relationship with '+escapeHTML(name)+'</p>':'')+(own?'<section class="community-local-profile"><h3>Edit Community Profile</h3><div id="communityLocalProfile">Loading…</div></section>':'<div class="card-actions"><button type="button" class="ghost small" id="communityChatBtn">Chat</button><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>');
   if(['owner','mod'].includes(state.activeCommunityRole)){
    panel.classList.add('has-member-moderation');
    panel.insertAdjacentHTML('afterbegin','<button type="button" class="ghost member-moderation-trigger" id="communityMemberModeration" aria-label="Moderation tools for '+escapeHTML(name)+'" aria-haspopup="dialog">⋯</button>');
@@ -2718,6 +2751,7 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
    section.innerHTML='<h3>'+escapeHTML(group)+'</h3>'+ids.map(id=>{const p=profiles.get(id);return '<button type="button" class="profile-social-person" data-community-social-person="'+escapeHTML(id)+'">'+(p?.avatar_url?'<img class="profile-social-avatar" src="'+escapeHTML(p.avatar_url)+'" alt="">':'')+'<b>'+escapeHTML(p?.nickname||'Community member')+'</b><span>View profile →</span></button>';}).join('');
    section.querySelectorAll('[data-community-social-person]').forEach(b=>b.addEventListener('click',()=>openCommunityMemberProfile(b.dataset.communitySocialPerson)));
   }));
+  panel.querySelector('#communityChatBtn')?.addEventListener('click',()=>startCommunityDM(userId,cid));
   panel.querySelector('#communityFollowBtn')?.addEventListener('click',async()=>{
    try{
     const query=sb.from('community_profile_follows');
@@ -2877,7 +2911,7 @@ function directChatIdentity(t){
  if(!p)return '';
  return '<button type="button" data-chat-profile="'+escapeHTML(p.id)+'" style="display:flex;align-items:center;gap:10px;background:transparent;border:0;padding:0;color:inherit;text-align:left;font:inherit;cursor:pointer"><span style="width:42px;height:42px;flex-shrink:0;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#28183e">'+(p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="" style="width:100%;height:100%;object-fit:cover">':'W')+'</span><strong style="overflow-wrap:anywhere">'+escapeHTML(p.username)+'</strong></button>';
 }
-function bindChatProfiles(root){root.querySelectorAll('[data-chat-profile]').forEach(b=>b.onclick=()=>openMemberProfile(b.dataset.chatProfile));}
+function bindChatProfiles(root){root.querySelectorAll('[data-chat-profile]').forEach(b=>b.onclick=()=>state.page==='community'?openCommunityMemberProfile(b.dataset.chatProfile):openMemberProfile(b.dataset.chatProfile));}
 async function loadThreads(){
  if(!state.user){state.threads=[];return;}
  const sequence=++inboxRefreshSequence;
@@ -2909,8 +2943,13 @@ async function loadThreads(){
     if(sequence!==inboxRefreshSequence)return;
     const members=new Set((membership.data||[]).map(m=>m.thread_id+":"+m.user_id));
     const byId=new Map((profiles.data||[]).map(p=>[p.id,p]));
+    const scopes=[...new Set(paired.map(t=>t.community_id).filter(Boolean))];
+    const {data:locals}=scopes.length?await sb.from("community_profiles").select("community_id,user_id,nickname,avatar_url").in("community_id",scopes).in("user_id",ids):{data:[]};
+    if(sequence!==inboxRefreshSequence)return;
+    const byScope=new Map((locals||[]).map(p=>[p.community_id+":"+p.user_id,p]));
     for(const thread of paired){
-     const peer=byId.get(peerId(thread));
+     const id=peerId(thread),global=byId.get(id),local=byScope.get(thread.community_id+":"+id);
+     const peer=global&&{id,username:local?.nickname||global.username,avatar_url:local?.avatar_url||global.avatar_url};
      if(!isGlobalGroupThread(thread))thread.directPeer=peer;
      if(!thread.direct_archived&&!members.has(thread.id+":"+peerId(thread)))thread.rejoinPeer=peer;
     }
@@ -2919,6 +2958,7 @@ async function loadThreads(){
   if(sequence!==inboxRefreshSequence)return;
   if(state.activeThread)updateChatRejoinButton();
   else if(state.page==="chats")render();
+  else if(isCommunitySection(state.activeCommunity?.id,'chats'))renderCommunityChatList(state.activeCommunity.id);
  }catch(e){if(sequence!==inboxRefreshSequence)return;console.warn("Chat inbox refresh failed",e);toast(errorText(e));}
 }
 async function startDM(e){e.preventDefault();try{const d=await api("/threads/dm","POST",{username:$("dmUsername").value.trim()});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
