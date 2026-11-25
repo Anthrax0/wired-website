@@ -864,6 +864,7 @@ async function refreshUser(){
   if(!wiredRestoringRoute)render();
 }
 function updateCommunityNavigation(){
+ const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";const headerLogout=$("headerLogoutBtn");if(headerLogout)headerLogout.hidden=!state.user;updateNotificationBell();
  const inside=state.page==='community'&&!!state.activeCommunity;
  updateCommunitySidebar();
  const labels={home:inside?'Community Home':'Home',chats:inside?'Community Chats':'Chats',profile:inside?'Community Profile':'Me'};
@@ -1876,7 +1877,6 @@ async function loadFeatureRequests(){
 }
 function render(){
  updateCommunityNavigation();
- const accountButton=$("accountBtn");if(accountButton)accountButton.textContent=state.user?"My account":"Log in";const headerLogout=$("headerLogoutBtn");if(headerLogout)headerLogout.hidden=!state.user;updateNotificationBell();
  const hero=document.querySelector("#app > .hero");
  if(hero)hero.hidden=!(state.page==="home"||state.page==="discover");
  if(state.activeThread&&$("backChats")&&(state.page==="chats"||state.page==="community"))return;
@@ -3593,6 +3593,7 @@ function saveWiredRoute(){
   communityId:community?state.activeCommunity?.id:null,
   communitySection:community?state.communityTab:null,
   communityManagerOpen:community&&state.managerOpen,
+  communityLeaderboardOpen:community&&state.leaderboardOpen,
   communityProfileId,
   communityThreadId:community&&state.communityTab==='chats'&&!communityProfileId?state.activeThread:null,
   memberId:state.page==='member-profile'?state.viewingProfile?.id:null,
@@ -3649,6 +3650,7 @@ async function restoreWiredRoute(route){
     thread.id===route.communityThreadId&&(thread.community_id||thread.communityId)===route.communityId
    ))await openThread(route.communityThreadId);
   }
+  if(route.communityLeaderboardOpen&&!state.communityProfileId&&!state.activeThread)await openCommunityLeaderboard();
   return true;
  }
  if(route.page==='global-members'){
@@ -3689,6 +3691,7 @@ async function init(){
  const route=readWiredRoute();
  try{
   await refreshUser();
+  updateCommunityNavigation();
   if(!await restoreWiredRoute(route))nav('home');
  }catch(error){
   console.error('WIRED startup failed',error);
