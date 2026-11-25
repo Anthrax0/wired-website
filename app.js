@@ -2022,6 +2022,15 @@ function renderCommunityChatList(communityId){
  host.innerHTML='<div class="section-head"><h2>Community chats</h2></div><button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:16px" id="openPublicCommunityChat"><span style="font-size:26px">☏</span><span><strong>Public chat</strong><br><small>Join the community conversation</small></span></button><h3 style="margin:20px 0 8px">My chats</h3>'+
  (threads.length?'<div class="community-chat-rows">'+threads.map(thread=>'<button type="button" class="ghost" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:12px" data-community-thread="'+escapeHTML(thread.id)+'"><span style="width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#38234e">☕</span><span style="min-width:0;flex:1"><strong>'+escapeHTML(thread.title||'Community conversation')+'</strong><br><small style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(thread.last_body||'No messages yet')+'</small></span><span>›</span></button>').join('')+'</div>':'<p class="hint">No community conversations yet.</p>');
  host.querySelector('#openPublicCommunityChat').addEventListener('click',()=>openCommunityChat(communityId));
+ if(['owner','mod'].includes(state.activeCommunityRole)){
+  const remove=document.createElement('button');remove.type='button';remove.className='chat-delete';remove.textContent='Delete Public Chat';remove.style.marginTop='10px';
+  host.querySelector('#openPublicCommunityChat').after(remove);
+  remove.onclick=async()=>{
+   if(!await wiredDialog('Permanently delete the public chat and all its messages for everyone? A new empty public chat can be opened later.'))return;
+   remove.disabled=true;
+   try{const result=await api('/communities/'+encodeURIComponent(communityId)+'/delete-public-chat','POST',{});if(!result.ok)throw new Error('Deletion not confirmed.');const deleted=new Set(result.deleted||[]);state.threads=state.threads.filter(t=>!deleted.has(t.id));if(deleted.has(state.activeThread))state.activeThread=null;await loadThreads();if(String(state.activeCommunity?.id)===String(communityId))renderCommunityChatList(communityId);toast('Public chat deleted.');}catch(e){toast(errorText(e));}finally{remove.disabled=false;}
+  };
+ }
  host.querySelectorAll('[data-community-thread]').forEach(button=>button.addEventListener('click',()=>openThread(button.dataset.communityThread)));
 }
 function renderCommunityNotifications(){
