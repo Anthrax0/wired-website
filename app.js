@@ -3034,9 +3034,13 @@ async function playVoiceClip(button,log,thread){
   audio.preload='metadata';
   audio.setAttribute('aria-label','Voice clip');
   audio.dataset.voiceMessage=id;
-  audio.src=URL.createObjectURL(data);
+  const extension=message.voice_path.split('.').pop().toLowerCase();
+  const mime=Object.keys(VOICE_FORMATS).find(type=>VOICE_FORMATS[type]===extension);
+  audio.src=URL.createObjectURL(mime?new Blob([data],{type:mime}):data);
+  audio.muted=false;audio.volume=1;
+  audio.addEventListener('error',()=>{toast('This voice clip could not be decoded. Try recording a new clip.');},{once:true});
   target.replaceWith(audio);
-  await audio.play().catch(()=>{});
+  try{await audio.play();}catch(err){toast(err.name==='NotAllowedError'?'Tap play on the audio player to listen.':'Voice playback failed. Tap play to retry.');}
  }catch(error){
   if(button.isConnected){button.disabled=false;button.textContent='▶ Play voice clip';toast(errorText(error));}
  }
@@ -3046,6 +3050,7 @@ function attachVoiceRecorder(panel,log,thread){
  const status=panel.querySelector('[data-voice-status]');
  const preview=panel.querySelector('[data-voice-preview]');
  const player=preview.querySelector('audio');
+ player.addEventListener('error',()=>{status.textContent='Audio preview could not be played. Discard and record again.';});
  const send=preview.querySelector('[data-send-voice]');
  const discard=preview.querySelector('[data-discard-voice]');
  const user=state.user?.id;
@@ -3091,7 +3096,7 @@ function attachVoiceRecorder(panel,log,thread){
   try{
    stream=await navigator.mediaDevices.getUserMedia({audio:true});
    if(!connected()){releaseMic();return;}
-   const preferred=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported(type));
+   const preferred=['audio/mp4','audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported(type));
    recorder=new MediaRecorder(stream,preferred?{mimeType:preferred}:undefined);
    const chunks=[];
    let failed=false;
@@ -3114,8 +3119,10 @@ function attachVoiceRecorder(panel,log,thread){
      return;
     }
     draft={clip,preview:URL.createObjectURL(clip),path:thread+'/'+user+'/'+crypto.randomUUID()+'.'+extension,uploaded:false};
-    player.src=draft.preview;
+    player.muted=false;player.volume=1;
+    player.src=draft.preview;player.load();
     preview.hidden=false;
+    record.disabled=false;
     status.textContent='Preview your voice clip before sending.';
    },{once:true});
    recorder.start();
