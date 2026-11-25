@@ -1021,8 +1021,10 @@ function communityCards(items){
   return '<div class="amino-community-grid">'+items.map(c=>{
    const cover=c.cover_url||c.icon_url||'';
    const icon=c.icon_url||cover;
-   const status=c.is_banned?'Banned':c.joined?(c.owner_id===state.user?.id?'Owner':'Joined'):c.join_request_status==='pending'?'Request pending':c.join_request_status==='declined'?'Request declined':'';
-   return '<article class="amino-community-card" style="'+(cover?'--community-cover:url(&quot;'+escapeHTML(cover)+'&quot;)':'')+'"><div class="amino-card-shade"></div><div class="amino-community-icon">'+(icon?'<img src="'+escapeHTML(icon)+'" alt="">':'<span>W</span>')+'</div><span class="amino-category">'+escapeHTML(c.category||'Community')+'</span><div class="amino-card-content"><h3>'+escapeHTML(c.name)+'</h3><p>'+escapeHTML(c.description||'')+'</p><div class="amino-card-actions"><button class="amino-enter" data-open-community="'+escapeHTML(c.id)+'">Enter community</button>'+(status?'<span class="amino-status">'+escapeHTML(status)+'</span>':c.visibility==='private'?'<button class="amino-join" data-join-community="'+escapeHTML(c.id)+'">Request</button>':'<button class="amino-join" data-join-community="'+escapeHTML(c.id)+'">Join</button>')+'</div></div></article>';
+   const joined=!!(c.joined||c.role||(c.owner_id&&c.owner_id===state.user?.id))&&!c.is_banned;
+   const action=joined?'Enter Community':c.is_banned||c.join_request_status==='pending'?'View Community':c.visibility==='private'?'Request to Join':'Join Community';
+   const status=c.is_banned?'Banned':joined?(c.owner_id===state.user?.id?'Owner':'Joined'):c.join_request_status==='pending'?'Request pending':c.join_request_status==='declined'?'Request declined':'';
+   return '<article class="amino-community-card" style="'+(cover?'--community-cover:url(&quot;'+escapeHTML(cover)+'&quot;)':'')+'"><div class="amino-card-shade"></div><div class="amino-community-icon">'+(icon?'<img src="'+escapeHTML(icon)+'" alt="">':'<span>W</span>')+'</div><span class="amino-category">'+escapeHTML(c.category||'Community')+'</span><div class="amino-card-content"><h3>'+escapeHTML(c.name)+'</h3><p>'+escapeHTML(c.description||'')+'</p><div class="amino-card-actions"><button class="'+(joined?'amino-enter':'amino-join')+'" data-open-community="'+escapeHTML(c.id)+'">'+action+'</button>'+(status?'<span class="amino-status">'+escapeHTML(status)+'</span>':'')+'</div></div></article>';
   }).join('')+'</div>';
 }
 async function loadGlobalMemberDirectory(reset=false){
@@ -1130,14 +1132,14 @@ function renderDiscoveryResults(){
  const newest=[...publicItems].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
  const mine=state.communities.filter(c=>(c.joined||c.owner_id===state.user?.id||c.role)&&matches(c));
  const featured=[...publicItems].sort((a,b)=>Number(String(b.name||"").trim().toLowerCase()==="wired")-Number(String(a.name||"").trim().toLowerCase()==="wired")).filter(c=>String(c.name||"").trim().toLowerCase()==="wired"||!mine.some(m=>m.id===c.id)).slice(0,6);
- const fill=(id,items,empty)=>{const host=$(id);if(!host)return;host.innerHTML=items.length?communityCards(items):'<div class="empty">'+empty+'</div>';host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));};
+ const fill=(id,items,empty)=>{const host=$(id);if(!host)return;host.innerHTML=items.length?communityCards(items):'<div class="empty">'+empty+'</div>';host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));};
  fill("featuredCommunities",featured,"No featured communities yet. Check back soon.");
  fill("newCommunities",newest.slice(0,8),"No new communities yet.");
  fill("myCommunities",mine,"You haven't joined any communities yet. Explore above and join one!");
  let items=[...state.communities].filter(matches);
  if(state.discoverySort==="name")items.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));else items.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
  const count=$("discoveryCount");if(count)count.textContent=`${items.length} ${items.length===1?"community":"communities"} found`;
- const host=$("discoveryResults");if(host){host.innerHTML=communityCards(items);host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));}
+ const host=$("discoveryResults");if(host){host.innerHTML=communityCards(items);host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));}
 }
 async function loadGlobalStore(){
  if(!state.user){state.globalStoreItems=[];state.globalStorePurchases=[];state.globalStoreBalance=0;return;}
@@ -2027,7 +2029,7 @@ function render(){
   v.innerHTML='<section class="wired-all-communities"><div class="section-head"><h2>All Communities</h2><button class="ghost" id="backGlobalHome" type="button">← Global Home</button></div><p class="hint">Browse WIRED communities alphabetically (A–Z).</p><p class="hint">'+communities.length+' '+(communities.length===1?'community':'communities')+'</p>'+ (state.user?communityCards(communities):'<div class="empty">Log in to view WIRED communities.</div>')+'</section>';
   v.querySelector('#backGlobalHome')?.addEventListener('click',()=>nav('home'));
   v.querySelectorAll('[data-open-community]').forEach(b=>b.addEventListener('click',()=>openCommunity(b.dataset.openCommunity,"overview")));
-  v.querySelectorAll('[data-join-community]').forEach(b=>b.addEventListener('click',()=>joinCommunity(b.dataset.joinCommunity)));
+  
   return;
  }
  if(state.page==="communities"){
@@ -2086,7 +2088,7 @@ function render(){
  }
  v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
  v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));
- v.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));
+ 
  bindChatProfiles(v);
  v.querySelectorAll("[data-open-thread]").forEach(b=>b.addEventListener("click",()=>openThread(b.dataset.openThread)));
  v.querySelectorAll("[data-delete-thread]").forEach(b=>b.addEventListener("click",()=>deleteThread(b.dataset.deleteThread)));
@@ -2481,9 +2483,9 @@ function updateCommunityActivityDisplay(community){
 
 function renderCommunityOverview(community,view,joined){
  const action=community.is_banned?'You are banned from this community.'
-  :joined?'<button type="button" class="primary" id="communityOverviewEnter">Open community feed</button>'
+  :joined?'<button type="button" class="primary" id="communityOverviewEnter">Enter Community</button>'
   :community.join_request_status==='pending'?'Your join request is waiting for approval.'
-  :'<button type="button" class="primary" id="communityOverviewJoin">'+(community.visibility==='private'?'Request to join':'Join community')+'</button>';
+  :'<button type="button" class="primary" id="communityOverviewJoin">'+(community.visibility==='private'?'Request to Join':'Join Community')+'</button>';
  view.innerHTML='<section class="wired-community-overview">'+communityHeaderMarkup(community,joined,null)+
   '<div class="card wired-community-overview-stats"><div><span class="wired-online-dot" aria-hidden="true"></span><strong id="communityOnlineCount" role="status">Checking who is online…</strong></div>'+
   '<div><strong id="communityActivityLabel">Checking activity…</strong><meter id="communityActivityMeter" min="0" max="3" value="0" aria-label="Community activity level" hidden></meter></div></div>'+
