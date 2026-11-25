@@ -1767,7 +1767,7 @@ async function renderBugReports(){
  const v=$("view");if(!v)return;
  if(!wiredStaffAccess){nav("home");return;}
  if(!state.user){v.innerHTML='<section class="card"><h2>Report a Bug</h2><p>Log in to submit and track issues with WIRED.</p></section>';return;}
- v.innerHTML='<section class="bug-report-page"><h2>Report a Bug</h2><p class="hint">Found something broken? Tell us what happened so we can investigate.</p><form id="wiredBugForm" class="bug-report-form"><label class="field">Area<select name="category" required><option value="Profiles">Profiles</option><option value="Yokai">Yokai</option><option value="Communities">Communities</option><option value="Chats">Chats</option><option value="Store">Store</option><option value="Notifications">Notifications</option><option value="Other">Other</option></select></label><label class="field">Short summary<input name="title" required minlength="3" maxlength="140" placeholder="What is not working?"></label><label class="field">Describe the problem<textarea name="description" required minlength="10" maxlength="4000" rows="5" placeholder="What happened? What did you expect?"></textarea></label><label class="field">Steps to reproduce (optional)<textarea name="steps" maxlength="2000" rows="3" placeholder="1. Open… 2. Tap… 3. Error appears…"></textarea></label><button type="submit" class="primary">Submit bug report</button><p id="wiredBugFeedback" role="status"></p></form><h3>My Reports</h3><div id="wiredBugHistory" class="bug-report-history"><p class="hint">Loading reports…</p></div></section>';
+ v.innerHTML='<section class="bug-report-page"><h2>Report a Bug</h2><p class="hint">Found something broken? Tell us what happened so we can investigate.</p><form id="wiredBugForm" class="bug-report-form"><label class="field">Area<select name="category" required><option value="Profiles">Profiles</option><option value="Yokai">Yokai</option><option value="Communities">Communities</option><option value="Chats">Chats</option><option value="Store">Store</option><option value="Notifications">Notifications</option><option value="Other">Other</option></select></label><label class="field">Short summary<input name="title" required minlength="3" maxlength="140" placeholder="What is not working?"></label><label class="field">Describe the problem<textarea name="description" required minlength="10" maxlength="4000" rows="5" placeholder="What happened? What did you expect?"></textarea></label><label class="field">Steps to reproduce (optional)<textarea name="steps" maxlength="2000" rows="3" placeholder="1. Open… 2. Tap… 3. Error appears…"></textarea></label><button type="submit" class="primary">Submit bug report</button><p id="wiredBugFeedback" role="status"></p></form><h3>My Bug Reports</h3><div id="wiredBugHistory" class="bug-report-history"><p class="hint">Loading reports…</p></div></section>';
  const form=$("wiredBugForm");
  form.addEventListener("submit",async e=>{
   e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;button.textContent="Submitting…";
@@ -1780,9 +1780,24 @@ async function renderBugReports(){
 }
 async function loadBugHistory(){
  const host=$("wiredBugHistory");if(!host||!state.user)return;
- const {data,error}=await sb.from("bug_reports").select("id,title,category,status,created_at").eq("reporter_id",state.user.id).order("created_at",{ascending:false}).limit(30);
+ const uid=state.user.id;
+ const {data,error}=await sb.from("bug_reports").select("id,title,category,status,created_at,fix_attempted_at,reporter_verified_at").eq("reporter_id",uid).order("created_at",{ascending:false}).limit(30);
  if(error){host.textContent="Could not load reports: "+errorText(error);return;}
- host.innerHTML=(data||[]).length?data.map(r=>'<article class="bug-report-entry"><strong>'+escapeHTML(r.title)+'</strong><span>'+escapeHTML(r.category)+' · '+escapeHTML(r.status)+' · '+escapeHTML(new Date(r.created_at).toLocaleDateString())+'</span></article>').join(''):'<p class="hint">No bug reports submitted yet.</p>';
+ host.innerHTML=(data||[]).length?data.map(r=>{
+  const pending=r.status==='investigating'&&r.fix_attempted_at;
+  return '<article class="bug-report-entry"><strong>'+escapeHTML(r.title)+'</strong><span>'+escapeHTML(r.category)+' · '+escapeHTML(pending?'Awaiting your verification':r.status)+' · '+escapeHTML(new Date(r.created_at).toLocaleDateString())+'</span>'+(pending?'<p class="hint">Test the fix first, then tell us whether it worked.</p><div><button class="primary" data-bug-verify="'+escapeHTML(r.id)+'" data-result="resolved">✓ Issue resolved</button> <button class="ghost" data-bug-verify="'+escapeHTML(r.id)+'" data-result="open">✗ Issue persists</button></div>':'')+'</article>';
+ }).join(''):'<p class="hint">No bug reports submitted yet.</p>';
+ host.querySelectorAll('[data-bug-verify]').forEach(button=>button.addEventListener('click',async()=>{
+  if(state.user?.id!==uid)return;
+  const status=button.dataset.result;
+  button.disabled=true;
+  try{
+   const {data:updated,error}=await sb.from('bug_reports').update({status,reporter_verified_at:new Date().toISOString()}).eq('id',button.dataset.bugVerify).eq('reporter_id',uid).eq('status','investigating').select('id').single();
+   if(error||!updated)throw error||new Error('Verification not saved');
+   toast(status==='resolved'?'Thank you for confirming the fix!':'Report reopened for investigation.');
+   await loadBugHistory();
+  }catch(e){button.disabled=false;toast(errorText(e));}
+ }));
 }
 async function renderFeatureRequests(){
  const v=$("view");if(!v)return;
