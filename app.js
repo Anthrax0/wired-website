@@ -1255,8 +1255,20 @@ const WIRED_FRIEND_GIFTS=[
  ['pizza','🍕','Pizza',20],['burger','🍔','Burger',25],['sushi','🍣','Sushi',25],
  ['cocktail','🍹','Cocktail',25],['mocktail','🍸','Mocktail',25],['dinner','🍽️','Dinner',30],
  ['flowers','💐','Flower Bouquet',90],['roses','🌹','Roses',90],['chocolates','🍫','Chocolate Box',90],
- ['teddy','🧸','Teddy Bear',90],['heart','💝','Heart Gift',90],['champagne','🍾','Champagne',150]
-];
+ ['teddy','🧸','Teddy Bear',90],['heart','💝','Heart Gift',90],['champagne','🍾','Champagne',150],
+ ["doughnut","🍩","Doughnut",15],
+ ["ice_cream","🍦","Ice Cream",20],
+ ["cupcake","🧁","Cupcake",20],
+ ["bubble_tea","🧋","Bubble Tea",25],
+ ["ramen","🍜","Ramen",30],
+ ["red_wine","🍷","Red Wine",30],
+ ["withered_rose","🥀","Withered Rose",45],
+ ["gothic_candle","🕯️","Gothic Candle",60],
+ ["crystal_ball","🔮","Crystal Ball",120],
+ ["precious_gem","💎","Precious Gem",1000],
+ ["diamond_ring","💍","Diamond Ring",1500],
+ ["royal_crown","👑","Royal Crown",3500]
+].sort((a,b)=>a[3]-b[3]);
 let wiredGiftFriends=[],wiredGiftInventory=[],wiredGiftChannel=null,wiredGiftPopupActive=false,wiredGiftTarget=null;
 async function wiredBlockState(userId){
  if(!state.user||!userId||userId===state.user.id)return {blocked:false,blockedBy:false};
