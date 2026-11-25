@@ -400,8 +400,8 @@ function subscribeGlobalNotifications(){
  if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}
  if(!state.user)return;
  const recipient="recipient_id=eq."+state.user.id;
- const refresh=()=>loadGlobalNotifications().then(()=>{
-  if(state.page==="chats"&&!state.activeThread)loadThreads();
+ const refresh=payload=>loadGlobalNotifications().then(()=>{
+  if(state.page==="chats"&&(!state.activeThread||payload?.new?.notification_type==="global_chat_leave"))loadThreads();
   if(state.page==='notifications')renderNotifications();
   else if(isCommunitySection(state.activeCommunity?.id,'notifications'))renderCommunityNotifications();
  }).catch(error=>console.warn('Notifications refresh failed',error));
@@ -416,7 +416,7 @@ async function openNotifications(){
  try{await loadGlobalNotifications();renderNotifications();}catch(e){toast(errorText(e));}
 }
 function renderNotifications(communityId=null,host=$("view")){
- const v=host,rows=communityId?unreadCommunityNotifications(communityId):(state.notifications||[]).filter(n=>!n.read_at);
+ const v=host,rows=communityId?unreadCommunityNotifications(communityId):(state.notifications||[]).filter(n=>!n.read_at||n.request_status==="pending");
  v.innerHTML='<div class="section-head"><h2>'+(communityId?'Community notifications':'Notifications')+'</h2><button class="ghost" id="markAllNotificationsRead" '+(rows.length?'':'disabled')+'>Mark all read</button></div><div class="notification-list">'+(rows.length?rows.map(n=>{
   const who=escapeHTML(n.actor?.username||"WIRED member"),isComment=n.notification_type==="profile_comment";
   const isChat=n.notification_type==="global_chat_request",isCommunity=!!n.isCommunity,isLeave=n.notification_type==="global_chat_leave"||(isCommunity&&n.notification_type==="community_chat"&&String(n.details||"").endsWith(" has left the chat."));
@@ -430,7 +430,7 @@ function renderNotifications(communityId=null,host=$("view")){
 async function respondToGlobalChatRequest(notificationId,threadId,status,button){
  if(!notificationId||!threadId||!['accepted','declined'].includes(status))return;
  if(button){button.disabled=true;button.textContent=status==='accepted'?'Accepting…':'Declining…';}
- try{await api('/threads/'+encodeURIComponent(threadId)+'/request','POST',{notification_id:notificationId,status});await loadGlobalNotifications();renderNotifications();if(status==='accepted'){await loadThreads();state.page='chats';await openThread(threadId);toast('You joined the global chat.');}else toast('Chat request declined.');}
+ try{await api('/threads/'+encodeURIComponent(threadId)+'/request','POST',{notification_id:notificationId,status});await loadGlobalNotifications();renderNotifications();if(status==='accepted'){state.deletedThreadIds?.delete(String(threadId));await loadThreads();state.page='chats';await openThread(threadId);toast('You joined the global chat.');}else toast('Chat request declined.');}
  catch(e){if(button){button.disabled=false;button.textContent=status==='accepted'?'Accept':'Decline';}toast(errorText(e));}
 }
 
@@ -724,17 +724,16 @@ async function handleProfileFriend(p){
  await openMemberProfile(p.id);
  }catch(e){toast(errorText(e));}
 }
-async function startDMByUsername(username){try{
- const {data:target,error:targetError}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
- if(targetError)throw targetError;
- if(!target?.id)throw new Error('Profile not found.');
- const {data:follows,error:friendError}=await sb.from('profile_follows').select('follower_id,following_id').or('and(follower_id.eq.'+state.user.id+',following_id.eq.'+target.id+'),and(follower_id.eq.'+target.id+',following_id.eq.'+state.user.id+')');
- if(friendError)throw friendError;
- const {data:friendships,error:friendshipError}=await sb.from('friend_requests').select('id').eq('status','accepted').or('and(sender_id.eq.'+state.user.id+',recipient_id.eq.'+target.id+'),and(sender_id.eq.'+target.id+',recipient_id.eq.'+state.user.id+')').limit(1);
- if(friendshipError)throw friendshipError;
- if(!follows?.some(f=>f.follower_id===target.id&&f.following_id===state.user.id)&&!friendships?.length)throw new Error('You can only start a global chat with someone who follows you or is your friend.');
- const d=await api('/threads/dm','POST',{username});if(d.request_sent){toast(d.pending?'Chat request already pending.':'Chat request sent.');return;}
- state.page='chats';await loadThreads();await openThread(d.id);}catch(e){toast(errorText(e));}}
+async function startDMByUsername(username){
+ try{
+  const d=await api('/threads/dm','POST',{username});
+  if(d.request_sent){toast(d.pending?'Chat request already pending.':'Chat request sent.');return;}
+  state.deletedThreadIds?.delete(String(d.id));
+  state.page='chats';
+  await loadThreads();
+  await openThread(d.id);
+ }catch(e){toast(errorText(e));}
+}
 async function searchGlobalPeople(query,scope="people"){
  const key=scope==="discover"?"discoverPeopleSearchRequest":"peopleSearchRequest";
  const token=(state[key]||0)+1;state[key]=token;
@@ -1866,12 +1865,13 @@ function render(){
  if(state.page==="chats"){
   const globalThreads=state.threads.filter(isGlobalThread);
   const groupThreads=globalThreads.filter(isGlobalGroupThread);
-  const directThreads=globalThreads.filter(t=>!isGlobalGroupThread(t));
-  const chatCards=items=>items.map(t=>`<article class="card"><h3>${directChatIdentity(t)||escapeHTML(t.title||"Conversation")}${t.unreadCount?` <span style="display:inline-block;background:#a92dce;color:white;border-radius:999px;padding:3px 9px;font-size:12px" aria-label="${t.unreadCount} unread messages">${t.unreadCount}</span>`:""}</h3><p>${escapeHTML(t.last_body||"No messages yet")}</p><div class="chat-card-actions"><button class="primary" data-open-thread="${escapeHTML(t.id)}">Open chat</button><button class="chat-delete" type="button" data-delete-thread="${escapeHTML(t.id)}" aria-label="Delete chat">Delete</button></div></article>`).join("");
+  const directThreads=globalThreads.filter(t=>!isGlobalGroupThread(t)&&!t.direct_archived);
+  const archivedDirectThreads=globalThreads.filter(t=>t.direct_archived&&t.last_body);
+  const chatCards=items=>items.map(t=>`<article class="card"><h3>${directChatIdentity(t)||escapeHTML(t.title||"Conversation")}${t.unreadCount?` <span style="display:inline-block;background:#a92dce;color:white;border-radius:999px;padding:3px 9px;font-size:12px" aria-label="${t.unreadCount} unread messages">${t.unreadCount}</span>`:""}</h3><p>${escapeHTML(t.last_body||"No messages yet")}</p><div class="chat-card-actions"><button class="primary" data-open-thread="${escapeHTML(t.id)}">${t.direct_archived?'View history':'Open chat'}</button><button class="chat-delete" type="button" data-delete-thread="${escapeHTML(t.id)}" aria-label="Delete chat">Delete</button></div></article>`).join("");
   const mode=state.globalChatSection||'home';
   const hub=`<div class="global-chat-hub"><button type="button" class="global-chat-hub-panel" data-global-chat-section="direct"><span class="global-chat-hub-icon" aria-hidden="true">☕</span><strong>Global Direct Chats</strong><span>Private conversations with WIRED members</span><small>${directThreads.length} conversation${directThreads.length===1?'':'s'}</small></button><button type="button" class="global-chat-hub-panel" data-global-chat-section="groups"><span class="global-chat-hub-icon" aria-hidden="true">♧</span><strong>Global Group Chats</strong><span>Conversations with multiple members</span><small>${groupThreads.length} group${groupThreads.length===1?'':'s'}</small></button></div>`;
   const back=`<button type="button" class="ghost small" data-global-chat-section="home">← Back to Global Chats</button>`;
-  const direct=`<section class="global-chat-section"><div class="section-head"><h2>Global Direct Chats</h2>${back}</div><div class="grid">${chatCards(directThreads)||'<div class="empty">No direct chats yet.</div>'}</div><div class="card form-card"><h3>New direct chat</h3><label class="field">Invite a member<input id="dmMemberSearch" type="search" placeholder="Search your followers"></label><div id="dmMemberChoices" style="max-height:320px;overflow:auto">Loading followers…</div><p class="hint">Invite one member to a private chat. They must accept your request.</p></div></section>`;
+  const direct=`<section class="global-chat-section"><div class="section-head"><h2>Global Direct Chats</h2>${back}</div><div class="grid">${chatCards(directThreads)||'<div class="empty">No direct chats yet.</div>'}</div>${archivedDirectThreads.length?`<h3>Archived conversations</h3><div class="grid">${chatCards(archivedDirectThreads)}</div>`:''}<div class="card form-card"><h3>New direct chat</h3><label class="field">Invite a member<input id="dmMemberSearch" type="search" placeholder="Search your followers"></label><div id="dmMemberChoices" style="max-height:320px;overflow:auto">Loading followers…</div><p class="hint">Invite one member to a private chat. They must accept your request.</p></div></section>`;
   const groups=`<section class="global-chat-section"><div class="section-head"><h2>Global Group Chats</h2>${back}</div><div class="grid">${chatCards(groupThreads)||'<div class="empty">No global group chats yet.</div>'}</div><div class="card form-card"><form id="groupForm"><h3>New group chat</h3><label class="field">Invite members<input id="groupMemberSearch" type="search" placeholder="Search your followers"></label><div id="groupMemberChoices" style="max-height:320px;overflow:auto" aria-live="polite">Loading followers…</div><p id="groupSelectedCount" class="hint">0 selected · 998 available spaces</p><p class="hint">Members join after accepting your invitation.</p><button class="primary" id="groupSendInvites" disabled>Send chat requests</button></form></div></section>`;
   v.innerHTML=`<div class="section-head"><h2>Global Chats</h2></div>${state.user?(mode==='direct'?direct:mode==='groups'?groups:hub):'<div class="empty">Log in to use WIRED messages.</div>'}`;
  }
@@ -2895,24 +2895,34 @@ async function loadThreads(){
   const counts=new Map((unread.data||[]).map(x=>[String(x.thread_id),Number(x.unread_count)]));
   if(unread.error)console.warn("Unread counts unavailable",unread.error);
   for(const t of state.threads)t.unreadCount=counts.get(String(t.id))||0;
-  const direct=state.threads.filter(t=>!t.community_id&&!isGlobalGroupThread(t));
-  if(direct.length){
+  const paired=state.threads.filter(t=>t.direct_member_low===state.user.id||t.direct_member_high===state.user.id);
+  if(paired.length){
    try{
-    const {data:members,error}=await sb.from("thread_members").select("thread_id,user_id").in("thread_id",direct.map(t=>t.id)).neq("user_id",state.user.id);
-    if(error)throw error;
-    const ids=[...new Set((members||[]).map(m=>m.user_id))];
-    const {data:profiles,error:pe}=ids.length?await sb.from("profiles").select("id,username,avatar_url").in("id",ids):{data:[],error:null};
-    if(pe)throw pe;
+    const peerId=t=>t.direct_member_low===state.user.id?t.direct_member_high:t.direct_member_low;
+    const ids=[...new Set(paired.map(peerId))];
+    const [membership,profiles]=await Promise.all([
+     sb.from("thread_members").select("thread_id,user_id").in("thread_id",paired.filter(t=>!t.direct_archived).map(t=>t.id)).in("user_id",ids),
+     sb.from("profiles").select("id,username,avatar_url").in("id",ids)
+    ]);
+    if(membership.error)throw membership.error;
+    if(profiles.error)throw profiles.error;
     if(sequence!==inboxRefreshSequence)return;
-    for(const t of direct){const peers=(members||[]).filter(m=>m.thread_id===t.id);if(peers.length===1)t.directPeer=(profiles||[]).find(p=>p.id===peers[0].user_id);}
+    const members=new Set((membership.data||[]).map(m=>m.thread_id+":"+m.user_id));
+    const byId=new Map((profiles.data||[]).map(p=>[p.id,p]));
+    for(const thread of paired){
+     const peer=byId.get(peerId(thread));
+     if(!isGlobalGroupThread(thread))thread.directPeer=peer;
+     if(!thread.direct_archived&&!members.has(thread.id+":"+peerId(thread)))thread.rejoinPeer=peer;
+    }
    }catch(err){console.warn("Chat profile lookup failed",err);}
   }
   if(sequence!==inboxRefreshSequence)return;
-  if(state.page==="chats")render();
+  if(state.activeThread)updateChatRejoinButton();
+  else if(state.page==="chats")render();
  }catch(e){if(sequence!==inboxRefreshSequence)return;console.warn("Chat inbox refresh failed",e);toast(errorText(e));}
 }
 async function startDM(e){e.preventDefault();try{const d=await api("/threads/dm","POST",{username:$("dmUsername").value.trim()});await loadThreads();await openThread(d.id)}catch(err){toast(errorText(err))}}
-async function initDirectMemberPicker(){const list=$("dmMemberChoices"),search=$("dmMemberSearch");if(!list||!search||!state.user)return;try{const {data:f,error}=await sb.from("profile_follows").select("follower_id").eq("following_id",state.user.id);if(error)throw error;const ids=[...new Set((f||[]).map(x=>x.follower_id))].filter(x=>x!==state.user.id);let members=[];for(let i=0;i<ids.length;i+=100){const {data,error}=await sb.from("profiles").select("id,username,avatar_url").in("id",ids.slice(i,i+100));if(error)throw error;members.push(...(data||[]));}members.sort((a,b)=>String(a.username).localeCompare(String(b.username)));const sent=new Set();const draw=()=>{list.innerHTML=members.filter(m=>String(m.username).toLowerCase().includes(search.value.trim().toLowerCase())).map(m=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #38234e"><span style="width:40px;height:40px;flex-shrink:0;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#28183e">'+(m.avatar_url?'<img style="width:100%;height:100%;object-fit:cover" src="'+escapeHTML(m.avatar_url)+'" alt="">':'W')+'</span><strong style="flex:1;overflow-wrap:anywhere">'+escapeHTML(m.username)+'</strong><button type="button" class="primary small" data-dm-invite="'+escapeHTML(m.id)+'" '+(sent.has(m.id)?'disabled':'')+'>'+(sent.has(m.id)?'Invited':'Invite to chat')+'</button></div>').join('')||'<p class="hint">No matching followers.</p>';list.querySelectorAll('[data-dm-invite]').forEach(btn=>btn.onclick=async()=>{const m=members.find(x=>x.id===btn.dataset.dmInvite);btn.disabled=true;try{const d=await api('/threads/dm','POST',{username:m.username});if(d.id){await loadThreads();await openThread(d.id);return;}sent.add(m.id);draw();toast(d.pending?'Chat request already pending.':'Chat request sent.');}catch(e){btn.disabled=false;toast(errorText(e));}});};search.oninput=draw;draw();}catch(e){list.textContent=errorText(e);}}
+async function initDirectMemberPicker(){const list=$("dmMemberChoices"),search=$("dmMemberSearch");if(!list||!search||!state.user)return;try{const {data:f,error}=await sb.from("profile_follows").select("follower_id").eq("following_id",state.user.id);if(error)throw error;const ids=[...new Set((f||[]).map(x=>x.follower_id))].filter(x=>x!==state.user.id);let members=[];for(let i=0;i<ids.length;i+=100){const {data,error}=await sb.from("profiles").select("id,username,avatar_url").in("id",ids.slice(i,i+100));if(error)throw error;members.push(...(data||[]));}members.sort((a,b)=>String(a.username).localeCompare(String(b.username)));const sent=new Set();const draw=()=>{list.innerHTML=members.filter(m=>String(m.username).toLowerCase().includes(search.value.trim().toLowerCase())).map(m=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #38234e"><span style="width:40px;height:40px;flex-shrink:0;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#28183e">'+(m.avatar_url?'<img style="width:100%;height:100%;object-fit:cover" src="'+escapeHTML(m.avatar_url)+'" alt="">':'W')+'</span><strong style="flex:1;overflow-wrap:anywhere">'+escapeHTML(m.username)+'</strong><button type="button" class="primary small" data-dm-invite="'+escapeHTML(m.id)+'" '+(sent.has(m.id)?'disabled':'')+'>'+(sent.has(m.id)?'Invited':'Invite to chat')+'</button></div>').join('')||'<p class="hint">No matching followers.</p>';list.querySelectorAll('[data-dm-invite]').forEach(btn=>btn.onclick=async()=>{const m=members.find(x=>x.id===btn.dataset.dmInvite);btn.disabled=true;try{const d=await api('/threads/dm','POST',{username:m.username});if(d.id){state.deletedThreadIds?.delete(String(d.id));await loadThreads();await openThread(d.id);return;}sent.add(m.id);draw();toast(d.pending?'Chat request already pending.':'Chat request sent.');}catch(e){btn.disabled=false;toast(errorText(e));}});};search.oninput=draw;draw();}catch(e){list.textContent=errorText(e);}}
 async function initGroupMemberPicker(){
  const list=$("groupMemberChoices"),search=$("groupMemberSearch"),form=$("groupForm");if(!list||!search||!form||!state.user)return;
  const selected=new Map();form.groupSelected=selected;
@@ -3401,7 +3411,27 @@ function attachChatImages(panel,log,thread){
   }finally{pick.disabled=send.disabled=discard.disabled=false;}
  });
 }
-function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title">${directChatIdentity(thread)||`<span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div>`}</div><button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button><button type="button" class="ghost small" id="leaveChatBtn">Leave chat</button></header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section><div class="chat-log" id="chatLog"></div><form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form><div class="chat-image-tools" id="chatImageTools">
+function updateChatRejoinButton(){
+ const button=$("invitePeerBtn");
+ if(!button)return;
+ const thread=state.threads.find(t=>t.id===state.activeThread),peer=thread?.rejoinPeer;
+ button.hidden=!peer;
+ if(!peer){delete button.dataset.peerId;return;}
+ if(button.dataset.peerId===peer.id)return;
+ button.dataset.peerId=peer.id;
+ button.disabled=false;
+ button.textContent="Invite "+peer.username+" to chat";
+ button.onclick=async()=>{
+  button.disabled=true;
+  try{
+   const result=await api("/threads/"+encodeURIComponent(thread.id)+"/invite","POST",{user_id:peer.id});
+   toast(result.pending?"Chat request already pending.":"Invitation sent. They can rejoin after accepting.");
+  }catch(error){
+   toast(errorText(error));
+  }finally{button.disabled=false;}
+ };
+}
+function renderThread(){updateCommunitySidebar();const v=$("view");const thread=state.threads.find(t=>t.id===state.activeThread);v.innerHTML=`<section class="chat-window"><header class="chat-window-header"><button type="button" class="chat-back" id="backChats" aria-label="Back to messages">‹</button><div class="chat-window-title">${directChatIdentity(thread)||`<span class="chat-window-avatar">W</span><div><h2>${escapeHTML(thread?.title||"Conversation")}</h2><p>WIRED messages</p></div>`}</div>${thread?.direct_archived?'':`<button type="button" class="chat-invite-button" id="inviteFollowersBtn">Invite ${thread?.community_id?'community ':''}followers</button><button type="button" class="ghost small" id="leaveChatBtn">Leave chat</button>`}</header><section class="chat-invite-panel" id="inviteFollowersPanel" hidden></section>${thread?.direct_archived?'<p class="hint">Archived conversation · Read-only</p>':'<button type="button" class="chat-invite-button" id="invitePeerBtn" hidden>Invite to chat</button>'}<div class="chat-log" id="chatLog"></div>${thread?.direct_archived?'':`<form id="messageForm" class="chat-composer"><textarea id="messageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary" type="submit" aria-label="Send message">Send</button></form><div class="chat-image-tools" id="chatImageTools">
  <button type="button" class="ghost small" data-pick-chat-image>Photo / GIF</button>
  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
  <span class="hint" role="status"></span>
@@ -3414,8 +3444,8 @@ function renderThread(){updateCommunitySidebar();const v=$("view");const thread=
  <span class="hint" role="status" data-voice-status></span>
  <div class="voice-preview" data-voice-preview hidden><audio controls preload="metadata" aria-label="Voice clip preview"></audio>
  <button type="button" class="primary small" data-send-voice>Send voice clip</button>
- <button type="button" class="ghost small" data-discard-voice>Discard</button></div></div></section>`;bindChatProfiles(v);$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));$("inviteFollowersBtn").addEventListener("click",toggleFollowerInvitePanel);$("leaveChatBtn").addEventListener("click",async()=>{const tid=state.activeThread,cid=thread?.community_id;if(!confirm("Leave this chat? You will no longer receive its messages."))return;const btn=$("leaveChatBtn");btn.disabled=true;try{await api("/threads/"+encodeURIComponent(tid)+"/leave","POST",{});state.activeThread=null;try{sessionStorage.removeItem("wired:lastThread");}catch(e){}await loadThreads();if(cid&&state.activeCommunity)openCommunitySection("chats");else nav("chats",{chatSection:thread?.kind==="group"?"groups":"direct"});toast("You left the chat.");}catch(e){toast(errorText(e));btn.disabled=false;}});$("messageForm").addEventListener("submit",sendMessage);attachMessageActions($('chatLog'));attachVoiceRecorder($('chatVoiceTools'),$('chatLog'),state.activeThread);attachChatImages($('chatImageTools'),$('chatLog'),state.activeThread);renderThreadMessages();$("messageBody")?.focus()}
-async function toggleFollowerInvitePanel(){const panel=$("inviteFollowersPanel");if(!panel)return;if(!panel.hidden){panel.hidden=true;return;}panel.hidden=false;const tid=state.activeThread,communityChat=!!state.threads.find(t=>String(t.id)===String(tid))?.community_id;panel.textContent="Loading followers…";try{const d=await api("/threads/"+encodeURIComponent(tid)+"/followers");const people=d.items||[],selected=new Set();for(let i=0;i<people.length;i+=100){const {data}=await sb.from("profiles").select("id,avatar_url").in("id",people.slice(i,i+100).map(p=>p.id));for(const p of data||[]){const target=people.find(x=>x.id===p.id);if(target)target.avatar_url=p.avatar_url;}}panel.innerHTML='<div class="chat-invite-heading"><strong>Invite '+(communityChat?'community':'global')+' followers</strong><button type="button" class="chat-invite-close" id="closeFollowerInvite" aria-label="Close">×</button></div><input type="search" id="chatInviteSearch" placeholder="Search followers"><div id="chatInviteChoices" style="max-height:280px;overflow:auto"></div><p class="hint" id="chatInviteCount">0 selected</p><button type="button" class="primary" id="sendSelectedInvites" disabled>Send chat requests</button>';const sent=new Set(),draw=()=>{const q=$("chatInviteSearch").value.toLowerCase();$("chatInviteChoices").innerHTML=people.filter(p=>String(p.username).toLowerCase().includes(q)).map(p=>'<label style="display:flex;align-items:center;gap:12px;padding:10px 4px"><span style="width:36px;height:36px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#38234e">'+(p.avatar_url?'<img style="width:100%;height:100%;object-fit:cover" src="'+escapeHTML(p.avatar_url)+'" alt="">':'W')+'</span><strong style="flex:1">'+escapeHTML(p.username)+'</strong>'+(sent.has(p.id)?'Invited':'<input type="checkbox" style="width:20px;height:20px;accent-color:#a855f7" data-invite-choice="'+escapeHTML(p.id)+'" '+(selected.has(p.id)?'checked':'')+'>')+'</label>').join('')||'<p class="hint">No matching followers.</p>';panel.querySelectorAll('[data-invite-choice]').forEach(c=>c.onchange=()=>{if(c.checked)selected.add(c.dataset.inviteChoice);else selected.delete(c.dataset.inviteChoice);update();});};const update=()=>{$("chatInviteCount").textContent=selected.size+" selected";$("sendSelectedInvites").disabled=!selected.size;};$("closeFollowerInvite").onclick=()=>panel.hidden=true;$("chatInviteSearch").oninput=draw;$("sendSelectedInvites").onclick=async()=>{const btn=$("sendSelectedInvites");btn.disabled=true;let count=0;for(const id of [...selected]){try{await api("/threads/"+encodeURIComponent(tid)+"/invite","POST",{user_id:id});sent.add(id);selected.delete(id);count++;}catch(e){toast(errorText(e));}}if(state.activeThread!==tid||!$("chatInviteChoices"))return;draw();update();if(count)toast(count+" chat request(s) sent.");};draw();update();}catch(e){panel.textContent=errorText(e);}}
+ <button type="button" class="ghost small" data-discard-voice>Discard</button></div></div>`}</section>`;bindChatProfiles(v);$("backChats").addEventListener("click",()=>state.page==='community'?openCommunitySection('chats'):nav("chats"));updateChatRejoinButton();$("inviteFollowersBtn")?.addEventListener("click",toggleFollowerInvitePanel);$("leaveChatBtn")?.addEventListener("click",async()=>{const tid=state.activeThread,cid=thread?.community_id;if(!confirm("Leave this chat? You will no longer receive its messages."))return;const btn=$("leaveChatBtn");btn.disabled=true;try{await api("/threads/"+encodeURIComponent(tid)+"/leave","POST",{});state.activeThread=null;try{sessionStorage.removeItem("wired:lastThread");}catch(e){}await loadThreads();if(cid&&state.activeCommunity)openCommunitySection("chats");else nav("chats",{chatSection:thread?.kind==="group"?"groups":"direct"});toast("You left the chat.");}catch(e){toast(errorText(e));btn.disabled=false;}});if(!thread?.direct_archived){$("messageForm").addEventListener("submit",sendMessage);attachMessageActions($('chatLog'));attachVoiceRecorder($('chatVoiceTools'),$('chatLog'),state.activeThread);attachChatImages($('chatImageTools'),$('chatLog'),state.activeThread);}renderThreadMessages();$("messageBody")?.focus()}
+async function toggleFollowerInvitePanel(){const panel=$("inviteFollowersPanel");if(!panel)return;if(!panel.hidden){panel.hidden=true;return;}panel.hidden=false;const tid=state.activeThread,communityChat=!!state.threads.find(t=>String(t.id)===String(tid))?.community_id;panel.textContent="Loading followers…";try{const d=await api("/threads/"+encodeURIComponent(tid)+"/followers");const people=d.items||[],selected=new Set();for(let i=0;i<people.length;i+=100){const {data}=await sb.from("profiles").select("id,avatar_url").in("id",people.slice(i,i+100).map(p=>p.id));for(const p of data||[]){const target=people.find(x=>x.id===p.id);if(target)target.avatar_url=p.avatar_url;}}panel.innerHTML='<div class="chat-invite-heading"><strong>Invite '+(communityChat?'community':'global')+' followers</strong><button type="button" class="chat-invite-close" id="closeFollowerInvite" aria-label="Close">×</button></div><input type="search" id="chatInviteSearch" placeholder="Search followers"><div id="chatInviteChoices" style="max-height:280px;overflow:auto"></div><p class="hint" id="chatInviteCount">0 selected</p><button type="button" class="primary" id="sendSelectedInvites" disabled>Send chat requests</button>';const sent=new Set(),draw=()=>{const q=$("chatInviteSearch").value.toLowerCase();$("chatInviteChoices").innerHTML=people.filter(p=>String(p.username).toLowerCase().includes(q)).map(p=>'<label style="display:flex;align-items:center;gap:12px;padding:10px 4px"><span style="width:36px;height:36px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#38234e">'+(p.avatar_url?'<img style="width:100%;height:100%;object-fit:cover" src="'+escapeHTML(p.avatar_url)+'" alt="">':'W')+'</span><strong style="flex:1">'+escapeHTML(p.username)+'</strong>'+(sent.has(p.id)?'Invited':'<input type="checkbox" style="width:20px;height:20px;accent-color:#a855f7" data-invite-choice="'+escapeHTML(p.id)+'" '+(selected.has(p.id)?'checked':'')+'>')+'</label>').join('')||'<p class="hint">No matching followers.</p>';panel.querySelectorAll('[data-invite-choice]').forEach(c=>c.onchange=()=>{if(c.checked)selected.add(c.dataset.inviteChoice);else selected.delete(c.dataset.inviteChoice);update();});};const update=()=>{$("chatInviteCount").textContent=selected.size+" selected";$("sendSelectedInvites").disabled=!selected.size;};$("closeFollowerInvite").onclick=()=>panel.hidden=true;$("chatInviteSearch").oninput=draw;$("sendSelectedInvites").onclick=async()=>{const btn=$("sendSelectedInvites");btn.disabled=true;let count=0;for(const id of [...selected]){try{const result=await api("/threads/"+encodeURIComponent(tid)+"/invite","POST",{user_id:id});sent.add(id);selected.delete(id);if(result.pending)toast("Chat request already pending.");else count++;}catch(e){toast(errorText(e));}}if(state.activeThread!==tid||!$("chatInviteChoices"))return;draw();update();if(count)toast(count+" chat request(s) sent.");};draw();update();}catch(e){panel.textContent=errorText(e);}}
 async function inviteGlobalFollower(userId,button){if(!userId||!button)return;button.disabled=true;button.textContent="Inviting…";try{await api("/threads/"+encodeURIComponent(state.activeThread)+"/invite","POST",{user_id:userId});button.textContent="Invited";button.classList.add("invited");toast("Follower invited to chat.");}catch(e){button.disabled=false;button.textContent="Invite";toast(errorText(e));}}
 async function sendMessage(e){
  e.preventDefault();

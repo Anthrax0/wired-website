@@ -1,0 +1,48 @@
+--- a/index.ts
++++ b/index.ts
+@@ -497 +497,10 @@
+-  if(req.method==='POST'&&path==='/threads/dm'){const {data:pr,error:pe}=await sb.from('profiles').select('id').ilike('username',String(b.username||'').trim()).maybeSingle();if(pe)throw pe;if(!pr)return err('No WIRED user found with that username.');if(pr.id===uid)return err('You cannot message yourself.');const {data:follows,error:fe}=await sb.from('profile_follows').select('follower_id,following_id').or('and(follower_id.eq.'+uid+',following_id.eq.'+pr.id+'),and(follower_id.eq.'+pr.id+',following_id.eq.'+uid+')');if(fe)throw fe;const {data:friendships,error:friendshipError}=await sb.from('friend_requests').select('id').eq('status','accepted').or('and(sender_id.eq.'+uid+',recipient_id.eq.'+pr.id+'),and(sender_id.eq.'+pr.id+',recipient_id.eq.'+uid+')').limit(1);if(friendshipError)throw friendshipError;if((!follows||follows.length!==2)&&!friendships?.length)return err('You can only chat with confirmed friends or mutual global followers.',403);const {data:blocked,error:be}=await sb.from('blocks').select('blocker_id').or('and(blocker_id.eq.'+uid+',blocked_id.eq.'+pr.id+'),and(blocker_id.eq.'+pr.id+',blocked_id.eq.'+uid+')').limit(1);if(be)throw be;if(blocked?.length)return err('Messaging is unavailable for this connection.',403);if(!admin)return err('Chat service unavailable.',500);const {data:mine,error:me}=await admin.from('thread_members').select('thread_id').eq('user_id',uid);if(me)throw me;const tids=(mine||[]).map(x=>x.thread_id);if(tids.length){const {data:dm,error:de}=await admin.from('threads').select('id').in('id',tids).eq('kind','dm').is('community_id',null);if(de)throw de;const dids=(dm||[]).map(x=>x.id);if(dids.length){const {data:other,error:oe}=await admin.from('thread_members').select('thread_id').eq('user_id',pr.id).in('thread_id',dids).limit(1);if(oe)throw oe;if(other?.length){await admin.from('thread_members').update({hidden_at:null}).eq('thread_id',other[0].thread_id).eq('user_id',uid);return out({id:other[0].thread_id});}}}const {data:pending,error:ne}=await admin.from('global_notifications').select('thread_id').eq('actor_id',uid).eq('recipient_id',pr.id).eq('notification_type','global_chat_request').eq('request_status','pending');if(ne)throw ne;const pendingIds=(pending||[]).map(x=>x.thread_id).filter(Boolean);if(pendingIds.length){const {data:existing,error:ee}=await admin.from('threads').select('id').in('id',pendingIds).eq('kind','dm').limit(1);if(ee)throw ee;if(existing?.length)return out({request_sent:true,pending:true});}const {data:t,error:te}=await admin.from('threads').insert({kind:'dm',community_id:null,created_by:uid}).select('id').single();if(te)throw te;try{const {error:m}=await admin.from('thread_members').insert({thread_id:t.id,user_id:uid,added_by:uid,hidden_at:new Date().toISOString()});if(m)throw m;const {error:n}=await admin.from('global_notifications').insert({recipient_id:pr.id,actor_id:uid,thread_id:t.id,notification_type:'global_chat_request',request_status:'pending'});if(n)throw n;}catch(e){await admin.from('threads').delete().eq('id',t.id);throw e;}return out({request_sent:true},201);}
++  if(req.method==='POST' && path==='/threads/dm'){
++   const username=String(b.username||'').trim();
++   const {data:peer,error}=await sb.from('profiles').select('id').ilike('username',username).maybeSingle();
++   if(error)throw error;
++   if(!peer)return err('No WIRED user found with that username.');
++   if(!admin)return err('Chat service unavailable.',500);
++   const {data,error:requestError}=await admin.rpc('wired_request_direct_chat',{p_actor:uid,p_peer:peer.id});
++   if(requestError)return err(requestError.message);
++   return out(data,data.pending||data.id?200:201);
++  }
+@@ -513 +522 @@
+-   const {data:thread,error:te}=await sb.from('threads').select('id,kind,community_id').eq('id',tid).maybeSingle();if(te)throw te;if(!thread)return err('Chat not found.',404);
++   const {data:thread,error:te}=await sb.from('threads').select('id,kind,community_id,direct_member_low,direct_member_high,direct_archived').eq('id',tid).maybeSingle();if(te)throw te;if(!thread)return err('Chat not found.',404);
+@@ -514,0 +524,8 @@
++   if(thread.direct_archived)return err('This archived chat is read-only.');
++   const originalPair=[thread.direct_member_low,thread.direct_member_high];
++   if(!thread.community_id&&(thread.kind==='dm'||(originalPair.includes(uid)&&originalPair.includes(invitee)))){
++    if(!admin)return err('Chat service unavailable.',500);
++    const {data,error}=await admin.rpc('wired_request_direct_chat',{p_actor:uid,p_peer:invitee,p_thread:tid});
++    if(error)return err(error.message);
++    return out(data,data.pending?200:201);
++   }
+@@ -525,14 +542,7 @@
+-  if(p[0]==='threads'&&p.length>=3&&p[2]==='request'&&req.method==='POST'){
+-   const tid=p[1],status=String(b.status||'');if(!['accepted','declined'].includes(status))return err('Choose accept or decline.');
+-   const {data:request,error:re}=await admin.from('global_notifications').select('id,actor_id,thread_id').eq('id',String(b.notification_id||'')).eq('thread_id',tid).eq('recipient_id',uid).eq('notification_type','global_chat_request').eq('request_status','pending').maybeSingle();
+-   if(re)throw re;if(!request)return err('This chat request is no longer available.',404);
+-   const {data:thread,error:te}=await admin.from('threads').select('id,kind,community_id').eq('id',tid).maybeSingle();if(te)throw te;if(!thread)return err('Chat not found.',404);
+-   if(status==='accepted'){
+-    if(thread.community_id){const {data:cm,error:ce}=await admin.from('community_members').select('user_id,banned').eq('community_id',thread.community_id).in('user_id',[uid,request.actor_id]);if(ce)throw ce;if((cm||[]).filter((m:any)=>!m.banned).length!==2)return err('Both members must still belong to the community.',403);}
+-    const {data:actorMember,error:ae}=await admin.from('thread_members').select('user_id').eq('thread_id',tid).eq('user_id',request.actor_id).maybeSingle();if(ae)throw ae;if(!actorMember)return err('The person who invited you is no longer in this chat.',409);
+-    const {data:members,error:me}=await admin.from('thread_members').select('user_id').eq('thread_id',tid);if(me)throw me;if((members||[]).length>=(thread.community_id?50:999))return err('This chat has reached its member limit.');
+-    const {error:addError}=await admin.from('thread_members').upsert({thread_id:tid,user_id:uid,added_by:request.actor_id,hidden_at:null},{onConflict:'thread_id,user_id'});if(addError)throw addError;if(thread.kind==='dm'){const {error:restore}=await admin.from('thread_members').update({hidden_at:null}).eq('thread_id',tid).eq('user_id',request.actor_id);if(restore)throw restore;}
+-    if((members||[]).length>=2&&thread.kind!=='group'){const {error:ue}=await admin.from('threads').update({kind:'group'}).eq('id',tid);if(ue)throw ue;}
+-   }
+-   const {error:ue2}=await admin.from('global_notifications').update({request_status:status,read_at:new Date().toISOString()}).eq('id',request.id);if(ue2)throw ue2;
+-   return out({ok:true,status,thread_id:tid});
++  if(p[0]==='threads'&&p.length===3&&p[2]==='request'&&req.method==='POST'){
++   if(!admin)return err('Chat service unavailable.',500);
++   const {data,error}=await admin.rpc('wired_respond_chat_request',{
++    p_user:uid,p_thread:p[1],p_notification:String(b.notification_id||''),p_status:String(b.status||'')
++   });
++   if(error)return err(error.message);
++   return out(data);
