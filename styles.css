@@ -1862,3 +1862,7 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 #communityDock button[aria-current=page]{background:#513177;color:#fff}
 .wired-community-tools button:hover,.wired-community-feed-tabs button:hover,#communityDock button:hover{background:#a855f725}
 .wired-community-tools button:focus-visible,.wired-community-feed-tabs button:focus-visible,#communityDock button:focus-visible{outline:2px solid var(--bright);outline-offset:-2px}
+
+.wired-comment-attachment{margin-block:8px;overflow-wrap:anywhere}
+.wired-comment-attachment input{max-width:100%}
+.wired-comment-image{display:block;width:auto;height:auto;max-width:min(100%,440px);max-height:440px;object-fit:contain;border-radius:10px;margin-block:8px}
