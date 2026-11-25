@@ -1083,7 +1083,7 @@ function equippedCosmeticClass(itemId,kind){
  const type=item?storeCosmeticType(item):'';
  if(type==='moonlit-'+kind||type==='shinobi-'+kind||type==='shadow-ninja-'+kind||type==='frostbound-'+kind||type==='inferno-'+kind||type==='kitsune-'+kind)return 'equipped-'+type;
  if(type==='black-rose-'+kind)return 'black-rose-'+kind;
- if(type==='orange-'+kind)return 'orange-fruit-'+kind;
+ if((kind==='theme'&&type==='orange-fruit')||type==='orange-'+kind)return 'orange-fruit-'+kind;
  return '';
 }
 function storeCosmeticArt(type){
