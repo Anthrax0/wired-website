@@ -1997,3 +1997,47 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
     scroll-snap-align: start;
   }
 }
+
+.yokai-companion-picker {
+  min-inline-size: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 8px;
+}
+.yokai-companion-picker legend {
+  padding: 0 0 8px;
+  font-weight: 700;
+}
+.yokai-companion-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.yokai-companion-option:has(input:checked) {
+  border-color: var(--bright);
+  background: #a855f71c;
+}
+.yokai-companion-option input[type="radio"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #b66cff;
+}
+.yokai-companion-option img {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+.yokai-companion-option small {
+  display: block;
+  color: var(--muted);
+}
