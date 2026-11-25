@@ -1937,6 +1937,100 @@ setInterval(()=>{
   else if(until){delete state.yokaiSkillRecharges[id];button.disabled=false;button.textContent="✦ Invoke Skill · 1h cooldown";}
  });
 },1000);
+async function renderYokaiPound(panel, pets) {
+  const owner = state.user.id;
+  const status = panel.querySelector('[role="status"]');
+  const listings = panel.querySelector('.yokai-pound-listings');
+  const more = panel.querySelector('[data-pound-more]');
+  const points = value => Number(value).toLocaleString() + ' points';
+  let offset = 0;
+  let busy = false;
+
+  function listingCard(item) {
+    const free = item.opening_bid === 0;
+    const hasBid = item.bid_points != null;
+    const minBid = hasBid ? item.bid_points + 1 : item.opening_bid;
+    const id = escapeHTML(item.id);
+    const action = (name, label, price = '') =>
+      '<button type="button" class="ghost" data-pound-action="' + name + '" data-listing="' + id + '" data-points="' + price + '">' + label + '</button>';
+    let controls;
+    if (item.mine) {
+      controls = (hasBid ? action('settle', 'Accept highest bid', item.bid_points) : '') + action('cancel', 'Remove listing');
+    } else if (free) {
+      controls = action('adopt', 'Adopt for free');
+    } else {
+      controls = (item.is_high_bidder ? action('withdraw', 'Withdraw my bid') : '') +
+        (minBid <= 10000000 ? '<form data-pound-bid="' + id + '"><label class="field">Your bid <input name="points" type="number" inputmode="numeric" min="' + minBid + '" max="10000000" required></label><button class="primary">Place bid</button></form>' : '');
+    }
+    return '<article class="card yokai-pound-card"><img class="yokai-portrait-image" loading="lazy" alt="" src="' +
+      escapeHTML(yokaiPortraitUrl(item.species,item.slug,false)) + '"><div><h3>' + escapeHTML(item.nickname) +
+      '</h3><p>' + escapeHTML(item.species) + ' · Level ' + Number(item.level) + ' · Listed by ' +
+      escapeHTML(item.seller || 'WIRED member') + '</p><p>' + (free ? 'Free adoption' :
+        (hasBid ? 'Highest bid · ' + points(item.bid_points) + (item.is_high_bidder ? ' (yours)' : '') : 'Opening bid · ' + points(item.opening_bid))) +
+      '</p><div class="yokai-pound-actions">' + controls + '</div></div></article>';
+  }
+
+  async function load(reset) {
+    const start = reset ? 0 : offset;
+    more.disabled = true;
+    const {data, error} = await sb.rpc('list_yokai_pound', {p_offset:start});
+    more.disabled = false;
+    if (error) throw error;
+    if (!panel.isConnected || state.user?.id !== owner) return;
+    const rows = data || [];
+    if (reset) listings.innerHTML = '';
+    listings.insertAdjacentHTML('beforeend', rows.map(listingCard).join(''));
+    if (reset && !rows.length) listings.innerHTML = '<p class="empty">No yokai are listed right now.</p>';
+    offset = start + rows.length;
+    more.hidden = rows.length < 30;
+  }
+
+  async function manage(action, id, price) {
+    if (busy || state.user?.id !== owner) return;
+    if (action === 'settle' && !window.confirm('Accept the highest bid of ' + points(price) + ' and transfer this yokai?')) return;
+    busy = true;
+    status.textContent = 'Updating Yokai Pound…';
+    try {
+      const {error} = await sb.rpc('manage_yokai_pound', {p_action:action,p_id:id,p_points:price});
+      if (error) throw error;
+      const messages = {list:'Yokai listed.',bid:'Bid placed.',withdraw:'Bid withdrawn.',cancel:'Listing removed.',adopt:'Yokai adopted.',settle:'Auction completed.'};
+      toast(messages[action]);
+      if (action === 'adopt' || action === 'settle') {
+        const results = await Promise.allSettled([loadPetParadise(),loadProfile(),loadGlobalStore()]);
+        if (results.some(result => result.status === 'rejected')) toast('Transfer completed. Reload to refresh your account.');
+        if (state.page === 'pets' && state.yokaiSanctuaryView === 'pound') renderPetParadise();
+      } else {
+        await load(true);
+        status.textContent = messages[action];
+      }
+    } catch (error) {
+      try { await load(true); } catch {}
+      status.textContent = errorText(error);
+    } finally {
+      busy = false;
+    }
+  }
+  panel.addEventListener('submit', event => {
+    const form = event.target;
+    if (!form.matches('[data-pound-list], [data-pound-bid]')) return;
+    event.preventDefault();
+    const values = new FormData(form);
+    const listing = form.hasAttribute('data-pound-list');
+    void manage(listing ? 'list' : 'bid', listing ? values.get('pet') : form.dataset.poundBid, Number(values.get('points')));
+  });
+  panel.addEventListener('click', event => {
+    const button = event.target.closest('[data-pound-action]');
+    if (button) void manage(button.dataset.poundAction,button.dataset.listing,button.dataset.points ? Number(button.dataset.points) : null);
+  });
+  more.addEventListener('click', () => {
+    if (!busy) load(false).catch(error => { status.textContent = errorText(error); });
+  });
+  const picker = panel.querySelector('select[name="pet"]');
+  if (picker) picker.innerHTML = pets.map(pet => '<option value="' + escapeHTML(pet.id) + '">' + escapeHTML(pet.nickname) + '</option>').join('');
+  try { await load(true); status.textContent = ''; }
+  catch (error) { status.textContent = errorText(error); }
+}
+
 function renderPetParadise(){
   const v=$("view");
   if(!state.user){
@@ -1964,10 +2058,18 @@ function renderPetParadise(){
   const footer='<p class="pet-kindness">☾ The spirits do not perish, flee, or forget their power while you are gone. Beyond the veil, they wait in silence for your return.</p>';
   const owned='<section class="pet-section"><div class="section-head"><div><h2>My yokai</h2><p class="hint">Feed their hunger. Sharpen their power. Awaken what lurks within.</p></div></div>'+(pets.length?petCards:'<div class="pet-empty"><div>☾</div><h3>No spirits bound to you</h3><p>Enter the summoning chamber to adopt your first yokai.</p></div>')+'</section>';
   const summon='<section class="pet-section"><div class="section-head"><div><h2>Summon a yokai</h2><p class="hint">'+(atLimit?'You can own up to '+YOKAI_OWNERSHIP_LIMIT+' yokai companions. Free a spot before adopting another.':first?'Your first Common yokai is on us.':'Collect new companions with your WIRED points.')+'</p></div></div><div class="pet-adoption-grid">'+shop+'</div></section>';
-  const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button></div>';
+  const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button></div>';
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
-  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:choices)+footer;
-  v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{state.yokaiSanctuaryView=button.dataset.yokaiView;try{sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);}catch(e){}renderPetParadise();}));
+  const pound = `<section class="pet-section yokai-pound"><h2>Yokai Pound</h2>
+    <p class="hint">Owners end their auctions by accepting the highest bid. Points are charged when the auction closes. You can withdraw your bid while it leads.</p>
+    ${pets.length ? '<form class="card" data-pound-list><h3>List a companion</h3><label class="field">Companion<select name="pet" required></select></label><label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><button class="primary">List in Yokai Pound</button></form>' : ''}
+    <h3>Companions looking for a home</h3><p role="status">Loading listings…</p>
+    <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
+    <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
+  </section>`;
+  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:choices)+footer;
+  if (sanctuaryView === 'pound') void renderYokaiPound(v.querySelector('.yokai-pound'),pets);
+  v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{state.yokaiSanctuaryView=button.dataset.yokaiView;try{sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);}catch(e){}saveWiredRoute();renderPetParadise();}));
 
   v.querySelectorAll("[data-pet-adopt]").forEach(b=>b.addEventListener("click",()=>adoptPet(b.dataset.petAdopt)));
   v.querySelectorAll("[data-pet-care]").forEach(b=>b.addEventListener("click",()=>careForPet(b.dataset.petCare,b.dataset.action,b)));
@@ -4042,7 +4144,7 @@ async function restoreWiredRoute(route){
  nav(route.page,{
   discoveryMode:route.discoveryMode||'',
   storeSection:['profile','yokai','gifts'].includes(route.storeSection)?route.storeSection:'home',
-  sanctuaryView:['owned','summon'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
+  sanctuaryView:['owned','summon','pound'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
  });
  if(route.page==='store'&&wiredStoreSection==='gifts'&&route.giftTarget){
   wiredGiftTarget=route.giftTarget;
