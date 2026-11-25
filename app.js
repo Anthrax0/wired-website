@@ -311,7 +311,31 @@ async function renderCommunityProfileComments(panel,cid,profileId){
 function unreadCommunityNotifications(communityId){
  return (state.notifications||[]).filter(row=>row.isCommunity&&row.community_id===communityId&&!row.read_at);
 }
+async function checkAdminPopupNotice(){
+ const uid=state.user?.id;
+ if(!uid||state.adminNoticeLoading||document.getElementById('adminNoticeOverlay'))return;
+ state.adminNoticeLoading=true;
+ try{
+  const {data,error}=await sb.from('admin_popup_notices').select('id,title,body').eq('recipient_id',uid).is('acknowledged_at',null).order('created_at').limit(1).maybeSingle();
+  if(error)throw error;
+  if(!data||state.user?.id!==uid)return;
+  document.body.insertAdjacentHTML('beforeend','<div class="relationship-end-overlay" id="adminNoticeOverlay"><section class="relationship-end-dialog" role="alertdialog" aria-modal="true" aria-labelledby="adminNoticeTitle"><p class="relationship-end-kicker">WIRED ADMINISTRATION</p><h2 id="adminNoticeTitle">'+escapeHTML(data.title)+'</h2><p>'+escapeHTML(data.body)+'</p><button type="button" class="primary" id="adminNoticeAck">OK</button></section></div>');
+  const button=document.getElementById('adminNoticeAck');
+  button.addEventListener('click',async()=>{
+   if(state.user?.id!==uid){document.getElementById('adminNoticeOverlay')?.remove();return;}
+   button.disabled=true;
+   try{
+    const {data:ack,error}=await sb.from('admin_popup_notices').update({acknowledged_at:new Date().toISOString()}).eq('id',data.id).eq('recipient_id',uid).select('id').single();
+    if(error||!ack)throw error||new Error('Acknowledgment failed');
+    document.getElementById('adminNoticeOverlay')?.remove();
+    void checkAdminPopupNotice();
+   }catch(e){button.disabled=false;toast(errorText(e));}
+  });
+ }catch(e){console.warn('Admin notice unavailable',e);}
+ finally{state.adminNoticeLoading=false;}
+}
 async function loadGlobalNotifications(){
+ void checkAdminPopupNotice();
  if(!state.user){state.notifications=[];state.notificationUnread=0;updateNotificationBell();return;}
  const {data,error}=await sb.from("global_notifications").select("id,recipient_id,actor_id,notification_type,profile_comment_id,thread_id,request_status,created_at,read_at").eq("recipient_id",state.user.id).order("created_at",{ascending:false}).limit(100);
  if(error)throw error;
