@@ -1175,12 +1175,12 @@ async function loadGlobalStore(){
    .eq('category','Yokai Backgrounds').eq('active',true).order('sort_order')
  ]);
  if(inventoryResult.error)throw inventoryResult.error;
- const items=data.items||[];
+ const items=(data.items||[]).filter(item=>item.sku!=='kitsune-hoodie');
  state.globalStoreItems=backgroundCatalog.error?items:[
   ...items.filter(item=>item.category!=='Yokai Backgrounds'),
   ...(backgroundCatalog.data||[])
  ];
- state.globalStorePurchases=inventoryResult.data||[];
+ state.globalStorePurchases=(inventoryResult.data||[]).filter(purchase=>purchase.global_store_items?.sku!=='kitsune-hoodie'&&purchase.item_id!=='bcda12ba-0f3e-4a5d-9d94-e9989d9c4f64');
  state.globalStoreEquipped=data.equipped||{};
  // The transaction ledger is authoritative; /store can return a stale zero balance.
  const {data:ledger,error:ledgerError}=await sb.from('global_wallet_transactions').select('amount').eq('user_id',state.user.id);
