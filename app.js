@@ -1130,14 +1130,14 @@ function renderDiscoveryResults(){
  const newest=[...publicItems].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
  const mine=state.communities.filter(c=>(c.joined||c.owner_id===state.user?.id||c.role)&&matches(c));
  const featured=[...publicItems].sort((a,b)=>Number(String(b.name||"").trim().toLowerCase()==="wired")-Number(String(a.name||"").trim().toLowerCase()==="wired")).filter(c=>String(c.name||"").trim().toLowerCase()==="wired"||!mine.some(m=>m.id===c.id)).slice(0,6);
- const fill=(id,items,empty)=>{const host=$(id);if(!host)return;host.innerHTML=items.length?communityCards(items):'<div class="empty">'+empty+'</div>';host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));};
+ const fill=(id,items,empty)=>{const host=$(id);if(!host)return;host.innerHTML=items.length?communityCards(items):'<div class="empty">'+empty+'</div>';host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));};
  fill("featuredCommunities",featured,"No featured communities yet. Check back soon.");
  fill("newCommunities",newest.slice(0,8),"No new communities yet.");
  fill("myCommunities",mine,"You haven't joined any communities yet. Explore above and join one!");
  let items=[...state.communities].filter(matches);
  if(state.discoverySort==="name")items.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));else items.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
  const count=$("discoveryCount");if(count)count.textContent=`${items.length} ${items.length===1?"community":"communities"} found`;
- const host=$("discoveryResults");if(host){host.innerHTML=communityCards(items);host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));}
+ const host=$("discoveryResults");if(host){host.innerHTML=communityCards(items);host.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));host.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));}
 }
 async function loadGlobalStore(){
  if(!state.user){state.globalStoreItems=[];state.globalStorePurchases=[];state.globalStoreBalance=0;return;}
@@ -2026,7 +2026,7 @@ function render(){
   const communities=[...state.communities].filter(c=>c.visibility!=="private"||c.joined||c.owner_id===state.user?.id||c.role).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),undefined,{sensitivity:"base",numeric:true}));
   v.innerHTML='<section class="wired-all-communities"><div class="section-head"><h2>All Communities</h2><button class="ghost" id="backGlobalHome" type="button">← Global Home</button></div><p class="hint">Browse WIRED communities alphabetically (A–Z).</p><p class="hint">'+communities.length+' '+(communities.length===1?'community':'communities')+'</p>'+ (state.user?communityCards(communities):'<div class="empty">Log in to view WIRED communities.</div>')+'</section>';
   v.querySelector('#backGlobalHome')?.addEventListener('click',()=>nav('home'));
-  v.querySelectorAll('[data-open-community]').forEach(b=>b.addEventListener('click',()=>openCommunity(b.dataset.openCommunity)));
+  v.querySelectorAll('[data-open-community]').forEach(b=>b.addEventListener('click',()=>openCommunity(b.dataset.openCommunity,"overview")));
   v.querySelectorAll('[data-join-community]').forEach(b=>b.addEventListener('click',()=>joinCommunity(b.dataset.joinCommunity)));
   return;
  }
@@ -2036,7 +2036,7 @@ function render(){
   const card=(c,own=false)=>{const cover=c.cover_url||c.icon_url||'';const icon=c.icon_url||cover;return '<article class="wired-community-tile" style="'+(cover?'--tile-image:url(&quot;'+escapeHTML(cover)+'&quot;)':'')+'"><button class="wired-tile-open" data-open-community="'+escapeHTML(c.id)+'" aria-label="Open '+escapeHTML(c.name)+'"></button><div class="wired-tile-icon">'+(icon?'<img src="'+escapeHTML(icon)+'" alt="">':'<span>W</span>')+'</div><div class="wired-tile-bottom"><h3>'+escapeHTML(c.name)+'</h3><span>'+(own?'Joined':'Recommended')+'</span></div><button class="wired-tile-enter" data-open-community="'+escapeHTML(c.id)+'">Open</button></article>';};
   v.innerHTML='<div class="wired-community-top"><div class="wired-mini-avatar">'+(state.profile?.avatar_url?'<img src="'+escapeHTML(state.profile.avatar_url)+'" alt="">':'●')+'</div><input id="wiredCommunitySearch" type="search" placeholder="Search communities"><span class="wired-lang">EN⌄</span><button class="wired-notice" type="button" title="Notifications">♢</button></div><h2 class="wired-page-title">My Communities</h2><div class="wired-my-grid">'+mine.map(c=>card(c,true)).join('')+'<button class="wired-join-tile" data-go="discover"><span>＋</span><b>Join a<br>community</b></button></div><button class="wired-create-cta" data-go="create"><span>▣＋</span> Create Your Own</button><div class="wired-recommended-head"><span></span><h3>Recommended</h3><span></span></div><div class="wired-recommended-grid">'+(recommended.length?recommended.map(c=>card(c,false)).join(''):'<div class="empty">You have joined all available communities.</div>')+'</div>';
   const search=$("wiredCommunitySearch");search?.addEventListener("input",()=>{const q=search.value.trim().toLowerCase();v.querySelectorAll(".wired-community-tile").forEach(el=>{el.hidden=!el.textContent.toLowerCase().includes(q);});});
-  v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));
+  v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));
   v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
  }
  if(state.page==="store"){renderGlobalStore();}
@@ -2085,7 +2085,7 @@ function render(){
   attachProfileCommentHandlers(state.user.id);
  }
  v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.go)));
- v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity)));
+ v.querySelectorAll("[data-open-community]").forEach(b=>b.addEventListener("click",()=>openCommunity(b.dataset.openCommunity,"overview")));
  v.querySelectorAll("[data-join-community]").forEach(b=>b.addEventListener("click",()=>joinCommunity(b.dataset.joinCommunity)));
  bindChatProfiles(v);
  v.querySelectorAll("[data-open-thread]").forEach(b=>b.addEventListener("click",()=>openThread(b.dataset.openThread)));
@@ -2122,7 +2122,7 @@ async function createCommunity(e){
   await api("/communities","POST",{...item,cover_url:coverUrl});toast("Your community has been created!");coverFile=null;await loadCommunities();nav("discover");
  }catch(err){toast(errorText(err));}
 }
-async function joinCommunity(id){try{const result=await api(`/communities/${encodeURIComponent(id)}/join`,"POST",{});toast(result.pending?"Your join request has been sent.":"You joined the community.");await loadCommunities();if(state.page==="community"&&state.activeCommunity?.id===id){await openCommunity(id)}else{render()}}catch(e){toast(errorText(e))}}
+async function joinCommunity(id){try{const result=await api(`/communities/${encodeURIComponent(id)}/join`,"POST",{});toast(result.pending?"Your join request has been sent.":"You joined the community.");await loadCommunities();if(state.page==="community"&&state.activeCommunity?.id===id){await openCommunity(id,state.communityTab)}else{render()}}catch(e){toast(errorText(e))}}
 async function doCommunityCheckin(){
  if(!state.activeCommunity||!state.activeCommunityRole)return;
  const button=$('communityCheckinBtn');if(button)button.disabled=true;
@@ -2140,6 +2140,7 @@ async function openCommunityLeaderboard(){
  }catch(e){toast(errorText(e));}
 }
 const COMMUNITY_SECTIONS={
+ overview:['Overview','Community overview',''],
  latest:['Latest','Latest posts','Be the first to share something.'],
  featured:['Featured','Featured posts','Community staff can feature posts here.'],
  wiki:['Wikis','Community wikis','No wiki entries yet.'],
@@ -2163,7 +2164,7 @@ function communityHeaderMarkup(community,joined,fallbackCount){
  const name=escapeHTML(community.name||'Community');
  const cover=community.cover_url?'<img class="wired-community-cover-art" src="'+escapeHTML(community.cover_url)+'" alt="" decoding="async">':'';
  const icon=community.icon_url?'<img class="wired-community-header-icon" src="'+escapeHTML(community.icon_url)+'" alt="">':'<span class="wired-community-header-icon wired-community-header-fallback" aria-hidden="true">W</span>';
- const count=Number(community.member_count??fallbackCount);
+ const count=Number(community.member_count??fallbackCount??NaN);
  const memberLabel=Number.isSafeInteger(count)&&count>=0?count.toLocaleString()+' '+(count===1?'member':'members'):'';
  const details=[community.category,memberLabel,community.visibility==='private'?'Private community':''].filter(Boolean).map(value=>escapeHTML(value)).join(' · ');
  return '<header class="wired-community-header'+(cover?' has-community-cover':'')+'">'+cover+
@@ -2183,7 +2184,7 @@ function communitySidebarMarkup(community){
   '<strong>'+escapeHTML(community.name||'Community')+'</strong></div>'+
   '<nav class="community-side-links" aria-label="Community navigation">'+
   (state.activeCommunityRole?
-   '<div class="community-side-group">'+['latest','featured','wiki','activities','saved'].map(sectionButton).join('')+'</div>'+
+   '<div class="community-side-group">'+['overview','latest','featured','wiki','activities','saved'].map(sectionButton).join('')+'</div>'+
    '<div class="community-side-group">'+['chats','notifications','members','guidelines','profile'].map(sectionButton).join('')+'</div>'+
    '<div class="community-side-group">'+sectionButton('compose')+
     (manager?'<button type="button" data-community-destination="manager" '+(state.managerOpen?'aria-current="page"':'')+'>Community Manager</button>':'')+'</div>':'')+
@@ -2356,9 +2357,16 @@ async function openCommunity(id,section='latest'){
   state.moderationActions=[];
   state.moderationBans=[];
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  const role=await api('/communities/'+encodeURIComponent(id)+'/role');state.activeCommunityAppOwner=role.app_owner===true;c.is_banned=!!role.is_banned;state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;await loadCommunityRankTitles(id);if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
-  const isCurrent=()=>state.page==='community'&&state.activeCommunity===c&&state.communityPostCollections===collections;
   const collections=state.communityPostCollections;
+  const isCurrent=()=>state.page==='community'&&state.activeCommunity===c&&state.communityPostCollections===collections;
+  const role=await api('/communities/'+encodeURIComponent(id)+'/role');
+  if(!isCurrent())return;
+  state.activeCommunityAppOwner=role.app_owner===true;c.is_banned=!!role.is_banned;state.activeCommunityRole=role.role||((c.owner_id&&state.user?.id===c.owner_id)?'owner':null);state.communityCheckinState={checked_in_today:false,points:0,streak:0};state.communityLeaderboard=[];state.leaderboardOpen=false;
+  if(state.communityTab==='overview'){renderCommunity();window.scrollTo({top:0});}
+  void refreshCommunityActivity();
+  await loadCommunityRankTitles(id);if(!isCurrent())return;
+  if(state.activeCommunityRole){try{state.communityCheckinState=await api('/communities/'+encodeURIComponent(id)+'/checkin');}catch(checkinError){console.warn('Community check-in status unavailable',checkinError);}}
+  if(!isCurrent())return;
   if(state.activeCommunityRole){
    try{
     const posts=await loadCommunityFeed(id);
@@ -2430,10 +2438,71 @@ function renderPostCard(p){
   '<span class="post-author">'+identity+'</span>';
  return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="post-author-row">'+author+(p.id_verified?'<span class="hint">✓ Verified</span>':'')+'</div><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></div></article>';
 }
+let communityActivityRequest=null;
+let communityActivityResult=null;
+
+async function refreshCommunityActivity(){
+ const community=state.activeCommunity;
+ const userId=state.user?.id;
+ if(!userId||!community?.id||state.page!=='community'||document.hidden)return;
+ if(!state.activeCommunityRole&&state.communityTab!=='overview')return;
+ if(communityActivityRequest?.community===community&&communityActivityRequest.userId===userId)return;
+ const request={community,userId};
+ communityActivityRequest=request;
+ try{
+  const {data,error}=await sb.rpc('get_community_activity',{p_community_id:community.id});
+  if(communityActivityRequest!==request||state.page!=='community'||state.activeCommunity!==community||state.user?.id!==userId)return;
+  communityActivityResult={community,userId,data:error?null:data};
+  if(error)console.warn('Community activity unavailable',error);
+  updateCommunityActivityDisplay(community);
+ }finally{
+  if(communityActivityRequest===request)communityActivityRequest=null;
+ }
+}
+
+function updateCommunityActivityDisplay(community){
+ const online=$('communityOnlineCount'),activity=$('communityActivityLabel'),meter=$('communityActivityMeter');
+ if(!online||!activity||!meter)return;
+ const result=communityActivityResult?.community===community&&communityActivityResult.userId===state.user?.id?communityActivityResult:null;
+ if(!result)return;
+ if(!result.data){
+  online.textContent='Online count unavailable';
+  activity.textContent='Activity unavailable';
+  meter.hidden=true;
+  return;
+ }
+ const {online:count,active_today:active}=result.data;
+ const level=active>=15?3:active>=5?2:active>=1?1:0;
+ online.textContent=count.toLocaleString()+' '+(count===1?'member':'members')+' online';
+ activity.textContent=['Quiet','Low','Moderate','High'][level]+' activity · '+active.toLocaleString()+' active in the past 24 hours';
+ meter.value=level;
+ meter.hidden=false;
+}
+
+function renderCommunityOverview(community,view,joined){
+ const action=community.is_banned?'You are banned from this community.'
+  :joined?'<button type="button" class="primary" id="communityOverviewEnter">Open community feed</button>'
+  :community.join_request_status==='pending'?'Your join request is waiting for approval.'
+  :'<button type="button" class="primary" id="communityOverviewJoin">'+(community.visibility==='private'?'Request to join':'Join community')+'</button>';
+ view.innerHTML='<section class="wired-community-overview">'+communityHeaderMarkup(community,joined,null)+
+  '<div class="card wired-community-overview-stats"><div><span class="wired-online-dot" aria-hidden="true"></span><strong id="communityOnlineCount" role="status">Checking who is online…</strong></div>'+
+  '<div><strong id="communityActivityLabel">Checking activity…</strong><meter id="communityActivityMeter" min="0" max="3" value="0" aria-label="Community activity level" hidden></meter></div></div>'+
+  '<div class="wired-community-overview-action">'+action+'</div>'+
+  '<article class="card"><h2>Description</h2><p class="wired-community-description">'+escapeHTML(community.description?.trim()||'This community hasn’t added a description yet.')+'</p></article></section>';
+ $('backDiscover')?.addEventListener('click',()=>nav('discover'));
+ $('communityOverviewEnter')?.addEventListener('click',()=>openCommunitySection('latest'));
+ $('communityOverviewJoin')?.addEventListener('click',()=>joinCommunity(community.id));
+ updateCommunityActivityDisplay(community);
+}
+
+window.setInterval(()=>void refreshCommunityActivity(),30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshCommunityActivity();});
+
 function renderCommunity(){
  updateCommunitySidebar();
  const globalHero=document.querySelector('#app > .hero');if(globalHero)globalHero.hidden=true;
  const c=state.activeCommunity,v=$('view'),joined=!!state.activeCommunityRole,manager=['owner','mod'].includes(state.activeCommunityRole);
+ if(state.communityTab==='overview'){renderCommunityOverview(c,v,joined);return;}
  const activeTab=joined?state.communityTab||'latest':'latest';
  let html='';
 
