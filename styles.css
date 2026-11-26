@@ -884,13 +884,6 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
   .discovery-shelf .amino-enter,.discovery-shelf .amino-join{font-size:12px;padding:11px 14px}
 }
 
-/* Global profile companion selector */
-.profile-companion-switch{margin:16px 0;padding:16px;border:1px solid #7837b5;border-radius:16px;background:#1b1029}
-.profile-companion-switch label{display:block;font-weight:700;margin-bottom:10px;color:#f4eaff}
-.profile-companion-switch-row{display:flex;gap:10px;flex-wrap:wrap}
-.profile-companion-switch select{flex:1 1 180px;min-width:0;padding:12px;border:1px solid #8141bd;border-radius:10px;background:#10091b;color:#fff}
-.profile-companion-switch button{flex:0 0 auto}
-@media(max-width:480px){.profile-companion-switch-row button{width:100%}}
 
 /* Global shop category landing */
 .wired-store-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0 24px}
@@ -1201,15 +1194,6 @@ h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nam
 .profile-unified-content h3.orange-fruit-nameplate::before{content:"🍊"!important;display:inline!important;margin:0 7px 0 0!important;color:inherit!important;font:inherit!important;letter-spacing:normal!important}
 .profile-unified-content h3:not(.equipped-nameplate)::before{content:none!important}
 
-/* Companion display and switcher share one row; biography follows below. */
-.profile-companion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch;margin:18px 0}
-.profile-companion-grid>.profile-yokai-card,.profile-companion-grid>.profile-companion-switch{margin:0;min-width:0;height:100%;box-sizing:border-box}
-.profile-companion-grid .profile-yokai-card{gap:12px}
-.profile-companion-grid .profile-yokai-art{width:88px;height:88px;flex:0 0 88px}
-.profile-companion-grid .profile-companion-switch-row{display:flex;flex-direction:column;align-items:stretch}
-.profile-companion-grid .profile-companion-switch select{width:100%;flex:0 0 auto;box-sizing:border-box}
-.profile-companion-grid .profile-companion-switch button{width:100%}
-@media(max-width:600px){.profile-companion-grid{gap:8px}.profile-companion-grid>.profile-yokai-card,.profile-companion-grid>.profile-companion-switch{padding:10px;border-radius:13px}.profile-companion-grid .profile-yokai-card{flex-direction:column;align-items:flex-start}.profile-companion-grid .profile-yokai-art{width:76px;height:76px;flex:0 0 76px}.profile-companion-grid .profile-yokai-kicker{font-size:.6rem}.profile-companion-grid .profile-yokai-info h3{overflow-wrap:anywhere}.profile-companion-grid .profile-companion-switch label{font-size:.85rem}.profile-companion-grid .profile-companion-switch select{font-size:.85rem;padding:9px 6px}.profile-companion-grid .profile-companion-switch button{font-size:.85rem;padding:10px 6px}}
 
 /* Header: points above notifications, logout beneath My Account. */
 .header-notification-stack,.header-account-stack{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;min-width:0}
@@ -2064,3 +2048,28 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   outline: 2px solid #c996ff;
   outline-offset: 4px;
 }
+
+.yokai-card-controls{display:flex;align-items:center;gap:8px}
+.yokai-card-menu{position:relative;z-index:2}
+.yokai-card-menu summary{
+  display:grid;place-items:center;min-width:44px;min-height:44px;
+  list-style:none;cursor:pointer;color:#e1bdff;background:#120b1b;
+  border:1px solid #8e4bd1;border-radius:10px;
+}
+.yokai-card-menu summary::-webkit-details-marker{display:none}
+.yokai-card-menu summary span{
+  width:17px;height:2px;border-radius:2px;background:currentColor;
+  box-shadow:0 -5px currentColor,0 5px currentColor;
+}
+.yokai-card-menu-panel{
+  position:absolute;top:calc(100% + 6px);right:0;width:218px;
+  padding:4px;border:1px solid #9f56e5;border-radius:12px;
+  background:#100a17;box-shadow:0 8px 24px #000b,0 0 12px #a44aff44;
+}
+.yokai-card-menu-panel button{
+  display:block;width:100%;min-height:44px;padding:8px 10px;text-align:left;
+  border:0;border-radius:7px;background:transparent;color:#f3e5ff;font:inherit;
+}
+.yokai-card-menu-panel button:hover,.yokai-card-menu-panel button:focus-visible,
+.yokai-card-menu[open] summary{background:#2d1645}
+.yokai-card-menu-panel .yokai-card-menu-danger{color:#ff818f}
