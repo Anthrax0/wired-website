@@ -2239,8 +2239,12 @@ function renderPetParadise(){
   const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button></div>';
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
   const listingDuration = '<label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label>';
-  const exchange = `<section class="pet-section yokai-exchanges"><h2>Adoption Exchanges</h2>
-    <button type="button" class="ghost" data-yokai-view="pound">Back to Yokai Pound</button>
+  const poundHeader = `<h2>Yokai Pound</h2>
+    <nav class="yokai-pound-nav" aria-label="Yokai Pound">
+      <button type="button" class="${sanctuaryView === 'pound' ? 'primary' : 'ghost'}" data-yokai-view="pound" aria-current="${sanctuaryView === 'pound' ? 'page' : 'false'}">Adoptions</button>
+      <button type="button" class="${sanctuaryView === 'exchange' ? 'primary' : 'ghost'}" data-yokai-view="exchange" aria-current="${sanctuaryView === 'exchange' ? 'page' : 'false'}">Adoption Exchanges</button>
+    </nav>`;
+  const exchange = `<section class="pet-section yokai-pound yokai-exchanges">${poundHeader}
     <p class="hint">Trade companions directly. When another member chooses a companion that meets your request, both companions move to their new homes. No points are charged.</p>
     ${pets.length ? `<form class="card" data-list-exchange><h3>List an adoption exchange</h3>
       ${yokaiCompanionPicker(pets,{name:'pet',label:'Companion to exchange',selected:pets[0].id,showLevel:true})}
@@ -2255,15 +2259,14 @@ function renderPetParadise(){
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Adoption exchanges"></div>
     <button type="button" class="ghost" data-exchange-more hidden>Load more exchanges</button>
   </section>`;
-  const pound = `<section class="pet-section yokai-pound"><h2>Yokai Pound</h2>
-    <button type="button" class="ghost" data-yokai-view="exchange">Adoption Exchanges</button>
+  const pound = `<section class="pet-section yokai-pound">${poundHeader}
     <p class="hint">Help your companion find a new home. You can offer a free adoption or set up a timed adoption with offers in points. When time runs out, the highest offer is accepted if it meets your minimum and the adopter is eligible. Points are charged when the adoption is complete. If no offer meets your minimum, your companion stays with you.</p>
     ${pets.length ? '<form class="card" data-pound-list><h3>Find a new home for your companion</h3>'+yokaiCompanionPicker(pets,{name:'pet',label:'Companion',selected:pets[0].id,showLevel:true})+'<label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><label class="field">Minimum accepted winning bid in points (optional)<input name="reserve" type="number" min="1" max="10000000" placeholder="Use opening bid"></label>'+listingDuration+'<button class="primary">Put up for adoption</button></form>' : ''}
     <h3>Companions looking for a home</h3><p role="status">Loading listings…</p>
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
   </section>`;
-  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?exchange:choices)+footer;
+  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:choices)+footer;
   if (sanctuaryView === 'pound') void renderYokaiPound(v.querySelector('.yokai-pound'));
   if (sanctuaryView === 'exchange') void renderYokaiAdoptionExchanges(v.querySelector('.yokai-exchanges'));
   v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{state.yokaiSanctuaryView=button.dataset.yokaiView;try{sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);}catch(e){}saveWiredRoute();renderPetParadise();}));
