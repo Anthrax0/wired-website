@@ -1982,7 +1982,8 @@ async function renderYokaiPound(panel) {
     const hasBid = item.bid_points != null;
     const closingTime = item.ends_at ? new Date(item.ends_at) : null;
     const reserveStatus = item.reserve_bid == null ? '' :
-      ' · Minimum ' + points(item.reserve_bid) + (hasBid && item.bid_points >= item.reserve_bid ? ' (met)' : ' (unmet)');
+      ' · Minimum ' + points(item.reserve_bid) + (hasBid && item.bid_points < item.reserve_bid
+        ? ' <small style="color:#ff858b">reserve not met</small>' : '');
     const minBid = hasBid ? item.bid_points + 1 : item.opening_bid;
     const id = escapeHTML(item.id);
     const action = (name, label, price = '') =>
