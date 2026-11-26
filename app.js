@@ -1994,18 +1994,18 @@ async function renderYokaiPound(panel) {
       '<button type="button" class="ghost" data-pound-action="' + name + '" data-listing="' + id + '" data-points="' + price + '">' + label + '</button>';
     let controls;
     if (item.mine) {
-      controls = (hasBid && !closingTime ? action('settle', 'Accept highest bid', item.bid_points) : '') + action('cancel', 'Remove listing');
+      controls = (hasBid && !closingTime ? action('settle', 'Accept highest adoption offer', item.bid_points) : '') + action('cancel', 'Close adoption listing');
     } else if (free) {
       controls = action('adopt', 'Adopt for free');
     } else {
-      controls = (item.is_high_bidder ? action('withdraw', 'Withdraw my bid') : '') +
-        (minBid <= 10000000 ? '<form data-pound-bid="' + id + '"><label class="field">Your bid <input name="points" type="number" inputmode="numeric" min="' + minBid + '" max="10000000" required></label><button class="primary">Place bid</button></form>' : '');
+      controls = (item.is_high_bidder ? action('withdraw', 'Withdraw my offer') : '') +
+        (minBid <= 10000000 ? '<form data-pound-bid="' + id + '"><label class="field">Your offer in points <input name="points" type="number" inputmode="numeric" min="' + minBid + '" max="10000000" required></label><button class="primary">Make an adoption offer</button></form>' : '');
     }
     return '<article class="card yokai-pound-card"><img class="yokai-portrait-image" loading="lazy" alt="" src="' +
       escapeHTML(yokaiPortraitUrl(item.species,item.slug,false)) + '"><div><h3>' + escapeHTML(item.nickname) +
       '</h3><p>' + escapeHTML(item.species) + ' · Level ' + Number(item.level) + ' · Listed by ' +
       escapeHTML(item.seller || 'WIRED member') + '</p><p>' + (free ? 'Free adoption' :
-        (hasBid ? 'Highest bid · ' + points(item.bid_points) + (item.is_high_bidder ? ' (yours)' : '') : 'Opening bid · ' + points(item.opening_bid))) +
+        (hasBid ? 'Highest adoption offer · ' + points(item.bid_points) + (item.is_high_bidder ? ' (yours)' : '') : 'Opening bid · ' + points(item.opening_bid))) +
       reserveStatus + '</p>' + (closingTime ? '<p>Ends ' + escapeHTML(closingTime.toLocaleString()) + '</p>' : '') +
       '<div class="yokai-pound-actions">' + controls + '</div></div></article>';
   }
@@ -2027,7 +2027,7 @@ async function renderYokaiPound(panel) {
 
   async function manage(action, id, price, listingOptions) {
     if (busy || state.user?.id !== owner) return;
-    if (action === 'settle' && !window.confirm('Accept the highest bid of ' + points(price) + ' and transfer this yokai?')) return;
+    if (action === 'settle' && !window.confirm('Accept the highest adoption offer of ' + points(price) + ' and send this companion to their new home?')) return;
     busy = true;
     status.textContent = 'Updating Yokai Pound…';
     try {
@@ -2035,11 +2035,11 @@ async function renderYokaiPound(panel) {
         ? sb.rpc('create_timed_yokai_pound_listing', {p_id:id,p_points:price,...listingOptions})
         : sb.rpc('manage_yokai_pound', {p_action:action,p_id:id,p_points:price}));
       if (error) throw error;
-      const messages = {list:'Yokai listed.',bid:'Bid placed.',withdraw:'Bid withdrawn.',cancel:'Listing removed.',adopt:'Yokai adopted.',settle:'Auction completed.'};
+      const messages = {list:'Your companion is up for adoption.',bid:'Adoption offer sent.',withdraw:'Adoption offer withdrawn.',cancel:'Adoption listing closed.',adopt:'Yokai adopted.',settle:'Adoption completed.'};
       toast(messages[action]);
       if (action === 'adopt' || action === 'settle') {
         const results = await Promise.allSettled([loadPetParadise(),loadProfile(),loadGlobalStore()]);
-        if (results.some(result => result.status === 'rejected')) toast('Transfer completed. Reload to refresh your account.');
+        if (results.some(result => result.status === 'rejected')) toast('Adoption completed. Reload to refresh your account.');
         if (state.page === 'pets' && state.yokaiSanctuaryView === 'pound') renderPetParadise();
       } else {
         await load(true);
@@ -2122,8 +2122,8 @@ function renderPetParadise(){
   const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button></div>';
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
   const pound = `<section class="pet-section yokai-pound"><h2>Yokai Pound</h2>
-    <p class="hint">Timed auctions close automatically. The highest bid wins if it meets the minimum and the bidder can complete the purchase. Free adoptions are available until claimed or the listing ends.</p>
-    ${pets.length ? '<form class="card" data-pound-list><h3>List a companion</h3>'+yokaiCompanionPicker(pets,{name:'pet',label:'Companion',selected:pets[0].id,showLevel:true})+'<label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><label class="field">Minimum accepted winning bid in points (optional)<input name="reserve" type="number" min="1" max="10000000" placeholder="Use opening bid"></label><label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label><button class="primary">List in Yokai Pound</button></form>' : ''}
+    <p class="hint">Help your companion find a new home. You can offer a free adoption or set up a timed adoption with offers in points. When time runs out, the highest offer is accepted if it meets your minimum and the adopter is eligible. Points are charged when the adoption is complete. If no offer meets your minimum, your companion stays with you.</p>
+    ${pets.length ? '<form class="card" data-pound-list><h3>Find a new home for your companion</h3>'+yokaiCompanionPicker(pets,{name:'pet',label:'Companion',selected:pets[0].id,showLevel:true})+'<label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><label class="field">Minimum accepted winning bid in points (optional)<input name="reserve" type="number" min="1" max="10000000" placeholder="Use opening bid"></label><label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label><button class="primary">Put up for adoption</button></form>' : ''}
     <h3>Companions looking for a home</h3><p role="status">Loading listings…</p>
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
