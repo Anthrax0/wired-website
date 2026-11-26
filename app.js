@@ -823,10 +823,16 @@ async function openMemberProfile(userId){
   state.viewingProfile={...data,comments:(comments||[]).map(x=>({...x,author:authorMap.get(x.author_id)||{username:'WIRED member'}})),isFollowing:!!follow,followsMe:!!reverseFollow,friendRequest:friend||null,relationshipRequest:relationship||null,currentRelationship:currentRelationship||null,displayRelationship};state.page='member-profile';try{sessionStorage.setItem('wired:openedMember',userId);sessionStorage.setItem('wired:lastPage','member-profile');}catch(e){}saveWiredRoute();renderMemberProfile();
  }catch(e){toast(errorText(e));}
 }
+function yokaiTypeName(name){
+ return name?.replace(/-(\p{L})/gu, (_, letter) => "-"+letter.toUpperCase());
+}
+function yokaiCompanionName(nickname, species){
+ return nickname && nickname !== species ? nickname : yokaiTypeName(species);
+}
 function profileYokaiMarkup(companion){
  if(!companion)return "";
- const species=companion.display_name||"Yokai";
- const name=companion.nickname||species;
+ const species=yokaiTypeName(companion.display_name)||"Yokai";
+ const name=yokaiCompanionName(companion.nickname,companion.display_name)||species;
  const portrait=yokaiPortraitUrl(species,companion.pet_key,false);
  const speciesClass=String(companion.pet_key||species).toLowerCase().replace(/[^a-z0-9-]/g,"");
  return '<section class="profile-yokai-card yokai-motion yokai-'+escapeHTML(speciesClass)+'"><div class="profile-yokai-art'+yokaiBackgroundClass(companion.background_sku)+'"'+yokaiBackgroundStyle(companion.background_sku)+'><img class="yokai-portrait-image" src="'+portrait+'" alt="'+escapeHTML(species)+' companion">'+yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>String(x.pet_id)===String(companion.id)),companion)+'</div><div class="profile-yokai-info"><span class="profile-yokai-kicker">✦ BONDED COMPANION</span><h3>'+escapeHTML(name)+'</h3><p>'+escapeHTML(species)+' · Level '+Number(companion.level||1)+'</p><span class="profile-yokai-rarity">'+escapeHTML(companion.rarity||"Common")+'</span></div></section>';
@@ -1337,8 +1343,10 @@ function yokaiBackgroundStyle(sku){
 }
 function yokaiBackgroundCard(item,owned){
  const art=yokaiBackgroundUrl(item.sku);
+ const description=(item.description||'').replace(/((?:Inspired by|Designed for) )([^.!?]+)([.!?]?)$/i,
+  (_, prefix, name, punctuation) => prefix+yokaiTypeName(name)+punctuation);
  const image='<img src="'+art+'" alt="'+escapeHTML(item.name)+'" loading="lazy">';
- return '<article class="card store-item"><a class="yokai-background-preview" href="'+art+'" target="_blank" rel="noopener" aria-label="Preview '+escapeHTML(item.name)+'">'+image+'</a><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(item.description||'')+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points).toLocaleString()+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(owned||Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>'+(owned?'Owned':'Purchase')+'</button></div></article>';
+ return '<article class="card store-item"><a class="yokai-background-preview" href="'+art+'" target="_blank" rel="noopener" aria-label="Preview '+escapeHTML(item.name)+'">'+image+'</a><h3>'+escapeHTML(item.name)+'</h3><p>'+escapeHTML(description)+'</p><div class="store-item-buy"><b>◉ '+Number(item.price_points).toLocaleString()+' points</b><button class="primary" data-store-buy="'+escapeHTML(item.id)+'" '+(owned||Number(state.globalStoreBalance)<Number(item.price_points)?'disabled':'')+'>'+(owned?'Owned':'Purchase')+'</button></div></article>';
 }
 let yokaiBackgroundTarget='';
 async function setYokaiBackground(petId,itemId,expectedItemId=null){
@@ -1689,7 +1697,7 @@ async function loadPetParadise(){
 function renameOwnedYokai(id){
  const pet=(state.userPets||[]).find(p=>String(p.id)===String(id));
  if(!pet||!state.user)return;
- const species=pet.pet_species||{}, original=species.name||"Yokai";
+ const species=pet.pet_species||{}, original=yokaiTypeName(species.name)||"Yokai";
  document.getElementById("yokaiAcquisitionOverlay")?.remove();
  const overlay=document.createElement("div");overlay.id="yokaiAcquisitionOverlay";overlay.className="yokai-acquisition-overlay";
  overlay.innerHTML='<div class="yokai-acquisition-box" role="dialog" aria-modal="true" aria-label="Rename companion"><h2>Rename Companion</h2><form><label>Companion name<input maxlength="24" required autocomplete="off"></label><div class="yokai-acquisition-actions"><button type="button" class="ghost" data-cancel>Cancel</button><button type="button" class="ghost" data-reset>Restore original name</button><button type="submit" class="primary">Save name</button></div></form></div>';
@@ -1711,7 +1719,7 @@ function renameOwnedYokai(id){
 function yokaiAcquisitionDialog(species,petId){
  document.getElementById("yokaiAcquisitionOverlay")?.remove();
  const overlay=document.createElement("div");overlay.id="yokaiAcquisitionOverlay";overlay.className="yokai-acquisition-overlay";
- const title=escapeHTML(species.name||"Yokai");
+ const title=escapeHTML(yokaiTypeName(species.name)||"Yokai");
  const close=()=>overlay.remove();
  const showName=()=>{
   overlay.querySelector(".yokai-acquisition-box").innerHTML='<h2>Name your new companion</h2><p>What would you like to call your '+title+'?</p><form id="yokaiNewNameForm"><input id="yokaiNewNameInput" maxlength="24" required placeholder="Companion name" autocomplete="off"><div class="yokai-acquisition-actions"><button type="button" class="ghost" id="yokaiSkipName">Maybe later</button><button class="primary" type="submit">Save name</button></div></form>';
@@ -1824,7 +1832,7 @@ async function invokeYokaiSkill(id,button){
 async function releasePet(id,button){
   const pet=(state.userPets||[]).find(x=>String(x.id)===String(id));
   const species=pet?.pet_species||{};
-  const label=pet?.nickname||species.name||"this yokai";
+  const label=yokaiCompanionName(pet?.nickname,species.name)||"this yokai";
   if(!await wiredDialog("Release "+label+"? This permanently removes the companion from your collection. No WIRED points will be refunded."))return;
   if(button){button.disabled=true;button.textContent="Releasing…";}
   try{
@@ -1906,9 +1914,9 @@ function yokaiCompanionPicker(pets, {name, label, selected = '', allowNone = fal
   const group = escapeHTML(name);
   const choices = pets.map(pet => {
     const species = pet.pet_species || {};
-    const nickname = pet.nickname || species.name || 'Yokai';
+    const nickname = yokaiCompanionName(pet.nickname,species.name) || 'Yokai';
     const details = [
-      species.name && species.name !== nickname ? escapeHTML(species.name) : '',
+      species.name && yokaiTypeName(species.name) !== nickname ? escapeHTML(yokaiTypeName(species.name)) : '',
       showLevel ? 'Level ' + escapeHTML(pet.level ?? 1) : ''
     ].filter(Boolean).join(' · ');
     const portrait = yokaiPortraitUrl(species.name,species.slug,Number(pet.level) >= Number(species.evolution_level || 15));
@@ -2002,8 +2010,8 @@ async function renderYokaiPound(panel) {
         (minBid <= 10000000 ? '<form data-pound-bid="' + id + '"><label class="field">Your offer in points <input name="points" type="number" inputmode="numeric" min="' + minBid + '" max="10000000" required></label><button class="primary">Make an adoption offer</button></form>' : '');
     }
     return '<article class="card yokai-pound-card"><img class="yokai-portrait-image" loading="lazy" alt="" src="' +
-      escapeHTML(yokaiPortraitUrl(item.species,item.slug,false)) + '"><div><h3>' + escapeHTML(item.nickname) +
-      '</h3><p>' + escapeHTML(item.species) + ' · Level ' + Number(item.level) + ' · Listed by ' +
+      escapeHTML(yokaiPortraitUrl(item.species,item.slug,false)) + '"><div><h3>' + escapeHTML(yokaiCompanionName(item.nickname,item.species)) +
+      '</h3><p>' + escapeHTML(yokaiTypeName(item.species)) + ' · Level ' + Number(item.level) + ' · Listed by ' +
       escapeHTML(item.seller || 'WIRED member') + '</p><p>' + (free ? 'Free adoption' :
         (hasBid ? 'Highest adoption offer · ' + points(item.bid_points) + (item.is_high_bidder ? ' (yours)' : '') : 'Opening bid · ' + points(item.opening_bid))) +
       reserveStatus + '</p>' + (closingTime ? '<p>Ends ' + escapeHTML(closingTime.toLocaleString()) + '</p>' : '') +
@@ -2101,14 +2109,14 @@ async function renderYokaiAdoptionExchanges(panel) {
   let busy = false;
 
   function exchangeCard(item) {
-    const requested = [item.requested_species || 'Any yokai type',
+    const requested = [yokaiTypeName(item.requested_species) || 'Any yokai type',
       item.requested_rarity, 'Level ' + item.minimum_level + '+'].filter(Boolean).join(' · ');
     const matches = (state.userPets || []).filter(pet =>
       Number(pet.level) >= item.minimum_level &&
       (!item.requested_species_id || (pet.species_id || pet.pet_species?.id) === item.requested_species_id) &&
       (!item.requested_rarity || pet.pet_species?.rarity === item.requested_rarity));
     const id = escapeHTML(item.id);
-    const nickname = escapeHTML(item.nickname || item.species);
+    const nickname = escapeHTML(yokaiCompanionName(item.nickname,item.species));
     const controls = item.mine
       ? '<button type="button" class="ghost" data-close-exchange="' + id + '">Close exchange listing</button>'
       : matches.length
@@ -2118,7 +2126,7 @@ async function renderYokaiAdoptionExchanges(panel) {
         : '<p class="hint">You don’t have a matching companion.</p>';
     return '<article class="card yokai-pound-card"><img class="yokai-portrait-image" loading="lazy" alt="" src="' +
       escapeHTML(yokaiPortraitUrl(item.species,item.slug,false)) + '"><div><h3>' + nickname +
-      '</h3><p>' + escapeHTML(item.species) + ' · Level ' + Number(item.level) + ' · Listed by ' +
+      '</h3><p>' + escapeHTML(yokaiTypeName(item.species)) + ' · Level ' + Number(item.level) + ' · Listed by ' +
       escapeHTML(item.owner_name || 'WIRED member') + '</p><p>Looking for ' + escapeHTML(requested) +
       '</p><p>Ends ' + escapeHTML(new Date(item.ends_at).toLocaleString()) +
       '</p><div class="yokai-pound-actions">' + controls + '</div></div></article>';
@@ -2190,7 +2198,7 @@ async function renderYokaiAdoptionExchanges(panel) {
       return;
     }
     const pet = (state.userPets || []).find(pet => String(pet.id) === values.get('offered-pet'));
-    if (!pet || !window.confirm('Exchange ' + (pet.nickname || pet.pet_species?.name || 'your companion') +
+    if (!pet || !window.confirm('Exchange ' + (yokaiCompanionName(pet.nickname,pet.pet_species?.name) || 'your companion') +
       ' for ' + form.dataset.companionName + '? Both companions will move to their new homes immediately.')) return;
     void manage('accept_yokai_adoption_exchange',{p_listing:form.dataset.acceptExchange,p_pet:pet.id},'Companions exchanged.',true);
   });
@@ -2225,11 +2233,11 @@ function renderPetParadise(){
     const displayName=eternal?(species.fourth_evolved_name||("Eternal "+(species.third_evolved_name||species.name||"Yokai"))):ascendant?(species.third_evolved_name||("Ascendant "+(species.evolved_name||species.name||"Yokai"))):evolved?(species.evolved_name||("Awakened "+(species.name||"Yokai"))):(species.name||"WIRED spirit");
     const portraitUrl=yokaiPortraitUrl(species.name,species.slug,evolved);
     const backgroundSku=state.yokaiBackgrounds?.[p.id]?.sku;
-    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span><span class="pet-level">LVL '+level+'</span></div><div class="pet-creature yokai-owned-art yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+yokaiBackgroundClass(backgroundSku)+'"'+yokaiBackgroundStyle(backgroundSku)+'><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(displayName)+' gothic anime portrait">' + yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>x.pet_id===p.id),p) + '</div><h3>'+escapeHTML(p.nickname)+'</h3><p class="pet-species">'+escapeHTML(displayName)+(eternal?' <span class="yokai-evolved-tag">✵ ETERNAL</span>':ascendant?' <span class="yokai-evolved-tag">✺ ASCENDANT</span>':evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p><div class="pet-xp"><div><span>Experience</span><b>'+progress+'/100 XP</b></div><i><span style="width:'+progress+'%"></span></i></div><div class="yokai-ability"><b>✧ '+escapeHTML(species.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(species.ability_description||"A unique gift that grows with your bond.")+'</span></div>'+(eternal?'<p class="yokai-evolution-note">✵ '+escapeHTML(species.fourth_evolution_description||"Your yokai has transcended!")+'</p>':ascendant?'<p class="yokai-evolution-note">✺ '+escapeHTML(species.third_evolution_description||"Your yokai has ascended!")+' Next transcendence: level 90.</p>':evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+' Next ascension: level 45. Transcendence at level 90.</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(species.evolved_name||"Awakened form")+' at level '+Number(species.evolution_level||15)+'. Ascension at level 45, transcendence at level 90.</p>')+'<p class="yokai-evolution-note">As your yokai grows, each awakening unlocks one additional skill.</p>'+petStat("Happiness",p.happiness,"🖤")+petStat("Fullness",p.hunger,"🥩")+petStat("Energy",p.energy,"⚡")+'<div class="yokai-whisper" aria-live="polite"><b>☾ Spirit whisper</b><p>'+escapeHTML(yokaiSpeech.get(String(p.id))||((YOKAI_WHISPERS[species.name]||[])[0]||"The veil stirs around us."))+'</p></div><button class="pet-action yokai-skill-action" type="button" data-yokai-skill="'+escapeHTML(p.id)+'">✦ Invoke Skill · 1h cooldown</button>'+(evolved?'<div class="yokai-ability"><b>☾ '+escapeHTML(species.evolved_name||displayName)+' — Awakened Dominion</b><span>Unleash your evolved yokai’s greater power. Earn extra XP and points, and restore happiness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-evolved-skill="'+escapeHTML(p.id)+'">☾ Invoke Awakened Skill · 3h cooldown</button>':'')+(ascendant?'<div class="yokai-ability"><b>✺ '+escapeHTML(species.third_evolved_name||displayName)+' — Sovereign Eclipse</b><span>Ascendant power: extra XP, points, happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-ascendant-skill="'+escapeHTML(p.id)+'">✺ Invoke Ascendant Skill · 5h cooldown</button>':'')+(eternal?'<div class="yokai-ability"><b>✵ '+escapeHTML(species.fourth_evolved_name||displayName)+' — Veilbreaker</b><span>Eternal power: earn greater XP and points, restoring happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-eternal-skill="'+escapeHTML(p.id)+'">✵ Invoke Eternal Skill · 7h cooldown</button>':'')+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🥩 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">⚔️ Train</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><button class="pet-action" type="button" data-pet-rename="'+escapeHTML(p.id)+'">✎ Rename Companion</button><button class="pet-action pet-release-action" type="button" data-pet-release="'+escapeHTML(p.id)+'">↗ Release Companion</button><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
+    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span><span class="pet-level">LVL '+level+'</span></div><div class="pet-creature yokai-owned-art yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+yokaiBackgroundClass(backgroundSku)+'"'+yokaiBackgroundStyle(backgroundSku)+'><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(yokaiTypeName(displayName))+' gothic anime portrait">' + yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>x.pet_id===p.id),p) + '</div><h3>'+escapeHTML(yokaiCompanionName(p.nickname,species.name))+'</h3><p class="pet-species">'+escapeHTML(yokaiTypeName(displayName))+(eternal?' <span class="yokai-evolved-tag">✵ ETERNAL</span>':ascendant?' <span class="yokai-evolved-tag">✺ ASCENDANT</span>':evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p><div class="pet-xp"><div><span>Experience</span><b>'+progress+'/100 XP</b></div><i><span style="width:'+progress+'%"></span></i></div><div class="yokai-ability"><b>✧ '+escapeHTML(species.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(species.ability_description||"A unique gift that grows with your bond.")+'</span></div>'+(eternal?'<p class="yokai-evolution-note">✵ '+escapeHTML(species.fourth_evolution_description||"Your yokai has transcended!")+'</p>':ascendant?'<p class="yokai-evolution-note">✺ '+escapeHTML(species.third_evolution_description||"Your yokai has ascended!")+' Next transcendence: level 90.</p>':evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+' Next ascension: level 45. Transcendence at level 90.</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(yokaiTypeName(species.evolved_name||"Awakened form"))+' at level '+Number(species.evolution_level||15)+'. Ascension at level 45, transcendence at level 90.</p>')+'<p class="yokai-evolution-note">As your yokai grows, each awakening unlocks one additional skill.</p>'+petStat("Happiness",p.happiness,"🖤")+petStat("Fullness",p.hunger,"🥩")+petStat("Energy",p.energy,"⚡")+'<div class="yokai-whisper" aria-live="polite"><b>☾ Spirit whisper</b><p>'+escapeHTML(yokaiSpeech.get(String(p.id))||((YOKAI_WHISPERS[species.name]||[])[0]||"The veil stirs around us."))+'</p></div><button class="pet-action yokai-skill-action" type="button" data-yokai-skill="'+escapeHTML(p.id)+'">✦ Invoke Skill · 1h cooldown</button>'+(evolved?'<div class="yokai-ability"><b>☾ '+escapeHTML(yokaiTypeName(species.evolved_name||displayName))+' — Awakened Dominion</b><span>Unleash your evolved yokai’s greater power. Earn extra XP and points, and restore happiness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-evolved-skill="'+escapeHTML(p.id)+'">☾ Invoke Awakened Skill · 3h cooldown</button>':'')+(ascendant?'<div class="yokai-ability"><b>✺ '+escapeHTML(yokaiTypeName(species.third_evolved_name||displayName))+' — Sovereign Eclipse</b><span>Ascendant power: extra XP, points, happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-ascendant-skill="'+escapeHTML(p.id)+'">✺ Invoke Ascendant Skill · 5h cooldown</button>':'')+(eternal?'<div class="yokai-ability"><b>✵ '+escapeHTML(yokaiTypeName(species.fourth_evolved_name||displayName))+' — Veilbreaker</b><span>Eternal power: earn greater XP and points, restoring happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-eternal-skill="'+escapeHTML(p.id)+'">✵ Invoke Eternal Skill · 7h cooldown</button>':'')+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🥩 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">⚔️ Train</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><button class="pet-action" type="button" data-pet-rename="'+escapeHTML(p.id)+'">✎ Rename Companion</button><button class="pet-action pet-release-action" type="button" data-pet-release="'+escapeHTML(p.id)+'">↗ Release Companion</button><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
   },"pet-collection");
   const shop=rarityGroup(state.petSpecies,p=>{
     const freeCommon=first&&p.rarity==="common";
-    return '<article class="pet-adopt-card pet-rarity-'+escapeHTML(p.rarity)+'"><div class="pet-adopt-art yokai-motion yokai-'+escapeHTML(p.slug||"spirit")+'"><img class="yokai-portrait-image" src="'+yokaiPortraitUrl(p.name,p.slug,false)+'" alt="'+escapeHTML(p.name)+' gothic anime portrait"></div><span class="pet-rarity">'+rarityLabel(p.rarity)+'</span><h3>'+escapeHTML(p.name)+'</h3><p>'+escapeHTML(p.description)+'</p><div class="yokai-personality">☠ '+escapeHTML(p.personality||"A one-of-a-kind spirit.")+'</div><div class="yokai-ability"><b>✧ '+escapeHTML(p.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(p.ability_description||"A unique yokai gift.")+'</span></div><small class="yokai-evolution-note">Awakens into '+escapeHTML(p.evolved_name||"an elder spirit")+' at level '+Number(p.evolution_level||5)+'.</small><button class="primary" data-pet-adopt="'+escapeHTML(p.slug)+'"'+(atLimit?' disabled':'')+'>'+(atLimit?"Companion limit reached":freeCommon?"Adopt for free":Number(p.adoption_cost)?"Adopt · "+Number(p.adoption_cost)+" pts":"Adopt for free")+'</button></article>';
+    return '<article class="pet-adopt-card pet-rarity-'+escapeHTML(p.rarity)+'"><div class="pet-adopt-art yokai-motion yokai-'+escapeHTML(p.slug||"spirit")+'"><img class="yokai-portrait-image" src="'+yokaiPortraitUrl(p.name,p.slug,false)+'" alt="'+escapeHTML(yokaiTypeName(p.name))+' gothic anime portrait"></div><span class="pet-rarity">'+rarityLabel(p.rarity)+'</span><h3>'+escapeHTML(yokaiTypeName(p.name))+'</h3><p>'+escapeHTML(p.description)+'</p><div class="yokai-personality">☠ '+escapeHTML(p.personality||"A one-of-a-kind spirit.")+'</div><div class="yokai-ability"><b>✧ '+escapeHTML(p.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(p.ability_description||"A unique yokai gift.")+'</span></div><small class="yokai-evolution-note">Awakens into '+escapeHTML(yokaiTypeName(p.evolved_name||"an elder spirit"))+' at level '+Number(p.evolution_level||5)+'.</small><button class="primary" data-pet-adopt="'+escapeHTML(p.slug)+'"'+(atLimit?' disabled':'')+'>'+(atLimit?"Companion limit reached":freeCommon?"Adopt for free":Number(p.adoption_cost)?"Adopt · "+Number(p.adoption_cost)+" pts":"Adopt for free")+'</button></article>';
   },"pet-adoption-grid");
   const sanctuaryView=state.yokaiSanctuaryView||'home';
   const hero='<section class="pet-hero"><div><span class="pet-kicker">WHERE MORTALS DARE NOT TREAD</span><h2>Yokai Hollow <span>☾</span></h2><p>Beyond the veil, unnatural creatures gather. Enter their domain and bind your fate to theirs.</p></div><button type="button" class="pet-hero-count" data-yokai-view="owned" aria-label="My yokai, '+pets.length+' of '+YOKAI_OWNERSHIP_LIMIT+' companions"><b>'+pets.length+' / '+YOKAI_OWNERSHIP_LIMIT+'</b><span>companions</span></button></section>';
@@ -2249,7 +2257,7 @@ function renderPetParadise(){
     ${pets.length ? `<form class="card" data-list-exchange><h3>List an adoption exchange</h3>
       ${yokaiCompanionPicker(pets,{name:'pet',label:'Companion to exchange',selected:pets[0].id,showLevel:true})}
       <label class="field">Requested yokai type<select name="species"><option value="">Any type</option>
-      ${(state.petSpecies || []).map(species => '<option value="' + escapeHTML(species.id) + '" data-rarity="' + escapeHTML(species.rarity) + '">' + escapeHTML(species.name) + '</option>').join('')}</select></label>
+      ${(state.petSpecies || []).map(species => '<option value="' + escapeHTML(species.id) + '" data-rarity="' + escapeHTML(species.rarity) + '">' + escapeHTML(yokaiTypeName(species.name)) + '</option>').join('')}</select></label>
       <label class="field">Requested rarity<select name="rarity"><option value="">Any rarity</option>
       ${rarityLevels.map(rarity => '<option value="' + rarity + '">' + rarityLabel(rarity) + '</option>').join('')}</select></label>
       <label class="field">Minimum level<input name="level" type="number" min="1" max="99" value="1" required></label>
