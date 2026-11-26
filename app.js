@@ -2092,6 +2092,110 @@ async function renderYokaiPound(panel) {
   catch (error) { status.textContent = errorText(error); }
 }
 
+async function renderYokaiAdoptionExchanges(panel) {
+  const member = state.user.id;
+  const status = panel.querySelector('[role="status"]');
+  const listings = panel.querySelector('.yokai-pound-listings');
+  const more = panel.querySelector('[data-exchange-more]');
+  let offset = 0;
+  let busy = false;
+
+  function exchangeCard(item) {
+    const requested = [item.requested_species || 'Any yokai type',
+      item.requested_rarity, 'Level ' + item.minimum_level + '+'].filter(Boolean).join(' · ');
+    const matches = (state.userPets || []).filter(pet =>
+      Number(pet.level) >= item.minimum_level &&
+      (!item.requested_species_id || (pet.species_id || pet.pet_species?.id) === item.requested_species_id) &&
+      (!item.requested_rarity || pet.pet_species?.rarity === item.requested_rarity));
+    const id = escapeHTML(item.id);
+    const nickname = escapeHTML(item.nickname || item.species);
+    const controls = item.mine
+      ? '<button type="button" class="ghost" data-close-exchange="' + id + '">Close exchange listing</button>'
+      : matches.length
+        ? '<form data-accept-exchange="' + id + '" data-companion-name="' + nickname + '">' +
+          yokaiCompanionPicker(matches,{name:'offered-pet',label:'Your matching companions',selected:matches[0].id,showLevel:true}) +
+          '<button class="primary">Exchange companions</button></form>'
+        : '<p class="hint">You don’t have a matching companion.</p>';
+    return '<article class="card yokai-pound-card"><img class="yokai-portrait-image" loading="lazy" alt="" src="' +
+      escapeHTML(yokaiPortraitUrl(item.species,item.slug,false)) + '"><div><h3>' + nickname +
+      '</h3><p>' + escapeHTML(item.species) + ' · Level ' + Number(item.level) + ' · Listed by ' +
+      escapeHTML(item.owner_name || 'WIRED member') + '</p><p>Looking for ' + escapeHTML(requested) +
+      '</p><p>Ends ' + escapeHTML(new Date(item.ends_at).toLocaleString()) +
+      '</p><div class="yokai-pound-actions">' + controls + '</div></div></article>';
+  }
+
+  async function load(reset) {
+    more.disabled = true;
+    try {
+      const start = reset ? 0 : offset;
+      const {data,error} = await sb.rpc('list_yokai_adoption_exchanges',{p_offset:start});
+      if (error) throw error;
+      if (!panel.isConnected || state.user?.id !== member) return;
+      const rows = data || [];
+      if (reset) listings.innerHTML = '';
+      listings.insertAdjacentHTML('beforeend',rows.map(exchangeCard).join(''));
+      if (reset && !rows.length) listings.innerHTML = '<p class="empty">No adoption exchanges are open right now.</p>';
+      offset = start + rows.length;
+      more.hidden = rows.length < 30;
+    } finally {
+      more.disabled = false;
+    }
+  }
+
+  async function manage(rpc, params, message, swapped = false) {
+    if (busy || state.user?.id !== member) return;
+    busy = true;
+    status.textContent = 'Updating adoption exchanges…';
+    try {
+      const {error} = await sb.rpc(rpc,params);
+      if (error) throw error;
+      toast(message);
+      if (swapped) {
+        await Promise.all([loadPetParadise(),loadProfile()]);
+        if (panel.isConnected && state.user?.id === member) renderPetParadise();
+      } else {
+        await load(true);
+        status.textContent = message;
+      }
+    } catch (error) {
+      status.textContent = errorText(error);
+    } finally {
+      busy = false;
+    }
+  }
+
+  panel.addEventListener('submit',event => {
+    const form = event.target;
+    if (!form.matches('[data-list-exchange], [data-accept-exchange]')) return;
+    event.preventDefault();
+    const values = new FormData(form);
+    if (form.hasAttribute('data-list-exchange')) {
+      void manage('create_yokai_adoption_exchange',{
+        p_pet:values.get('pet'),p_species:values.get('species') || null,
+        p_rarity:values.get('rarity') || null,p_level:Number(values.get('level')),p_hours:Number(values.get('hours'))
+      },'Your adoption exchange is listed.');
+      return;
+    }
+    const pet = (state.userPets || []).find(pet => String(pet.id) === values.get('offered-pet'));
+    if (!pet || !window.confirm('Exchange ' + (pet.nickname || pet.pet_species?.name || 'your companion') +
+      ' for ' + form.dataset.companionName + '? Both companions will move to their new homes immediately.')) return;
+    void manage('accept_yokai_adoption_exchange',{p_listing:form.dataset.acceptExchange,p_pet:pet.id},'Companions exchanged.',true);
+  });
+  panel.addEventListener('click',event => {
+    const close = event.target.closest('[data-close-exchange]');
+    if (close) void manage('manage_yokai_pound',{p_action:'cancel',p_id:close.dataset.closeExchange},'Exchange listing closed.');
+  });
+  more.addEventListener('click',() => {
+    if (!busy) load(false).catch(error => { status.textContent = errorText(error); });
+  });
+  try {
+    await load(true);
+    status.textContent = '';
+  } catch (error) {
+    status.textContent = errorText(error);
+  }
+}
+
 function renderPetParadise(){
   const v=$("view");
   if(!state.user){
@@ -2121,15 +2225,34 @@ function renderPetParadise(){
   const summon='<section class="pet-section"><div class="section-head"><div><h2>Summon a yokai</h2><p class="hint">'+(atLimit?'You can own up to '+YOKAI_OWNERSHIP_LIMIT+' yokai companions. Free a spot before adopting another.':first?'Your first Common yokai is on us.':'Collect new companions with your WIRED points.')+'</p></div></div><div class="pet-adoption-grid">'+shop+'</div></section>';
   const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button></div>';
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
+  const listingDuration = '<label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label>';
+  const exchange = `<section class="pet-section yokai-exchanges"><h2>Adoption Exchanges</h2>
+    <button type="button" class="ghost" data-yokai-view="pound">Back to Yokai Pound</button>
+    <p class="hint">Trade companions directly. When another member chooses a companion that meets your request, both companions move to their new homes. No points are charged.</p>
+    ${pets.length ? `<form class="card" data-list-exchange><h3>List an adoption exchange</h3>
+      ${yokaiCompanionPicker(pets,{name:'pet',label:'Companion to exchange',selected:pets[0].id,showLevel:true})}
+      <label class="field">Requested yokai type<select name="species"><option value="">Any type</option>
+      ${(state.petSpecies || []).map(species => '<option value="' + escapeHTML(species.id) + '">' + escapeHTML(species.name) + '</option>').join('')}</select></label>
+      <label class="field">Requested rarity<select name="rarity"><option value="">Any rarity</option>
+      ${rarityLevels.map(rarity => '<option value="' + rarity + '">' + rarityLabel(rarity) + '</option>').join('')}</select></label>
+      <label class="field">Minimum level<input name="level" type="number" min="1" max="99" value="1" required></label>
+      ${listingDuration}<button class="primary">List exchange</button>
+    </form>` : ''}
+    <h3>Open adoption exchanges</h3><p role="status">Loading exchanges…</p>
+    <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Adoption exchanges"></div>
+    <button type="button" class="ghost" data-exchange-more hidden>Load more exchanges</button>
+  </section>`;
   const pound = `<section class="pet-section yokai-pound"><h2>Yokai Pound</h2>
+    <button type="button" class="ghost" data-yokai-view="exchange">Adoption Exchanges</button>
     <p class="hint">Help your companion find a new home. You can offer a free adoption or set up a timed adoption with offers in points. When time runs out, the highest offer is accepted if it meets your minimum and the adopter is eligible. Points are charged when the adoption is complete. If no offer meets your minimum, your companion stays with you.</p>
-    ${pets.length ? '<form class="card" data-pound-list><h3>Find a new home for your companion</h3>'+yokaiCompanionPicker(pets,{name:'pet',label:'Companion',selected:pets[0].id,showLevel:true})+'<label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><label class="field">Minimum accepted winning bid in points (optional)<input name="reserve" type="number" min="1" max="10000000" placeholder="Use opening bid"></label><label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label><button class="primary">Put up for adoption</button></form>' : ''}
+    ${pets.length ? '<form class="card" data-pound-list><h3>Find a new home for your companion</h3>'+yokaiCompanionPicker(pets,{name:'pet',label:'Companion',selected:pets[0].id,showLevel:true})+'<label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><label class="field">Minimum accepted winning bid in points (optional)<input name="reserve" type="number" min="1" max="10000000" placeholder="Use opening bid"></label>'+listingDuration+'<button class="primary">Put up for adoption</button></form>' : ''}
     <h3>Companions looking for a home</h3><p role="status">Loading listings…</p>
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
   </section>`;
-  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:choices)+footer;
+  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?exchange:choices)+footer;
   if (sanctuaryView === 'pound') void renderYokaiPound(v.querySelector('.yokai-pound'));
+  if (sanctuaryView === 'exchange') void renderYokaiAdoptionExchanges(v.querySelector('.yokai-exchanges'));
   v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{state.yokaiSanctuaryView=button.dataset.yokaiView;try{sessionStorage.setItem('wired:sanctuaryView',state.yokaiSanctuaryView);}catch(e){}saveWiredRoute();renderPetParadise();}));
 
   v.querySelectorAll("[data-pet-adopt]").forEach(b=>b.addEventListener("click",()=>adoptPet(b.dataset.petAdopt)));
@@ -4205,7 +4328,7 @@ async function restoreWiredRoute(route){
  nav(route.page,{
   discoveryMode:route.discoveryMode||'',
   storeSection:['profile','yokai','gifts'].includes(route.storeSection)?route.storeSection:'home',
-  sanctuaryView:['owned','summon','pound'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
+  sanctuaryView:['owned','summon','pound','exchange'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
  });
  if(route.page==='store'&&wiredStoreSection==='gifts'&&route.giftTarget){
   wiredGiftTarget=route.giftTarget;
