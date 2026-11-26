@@ -1902,17 +1902,21 @@ function yokaiPortraitUrl(name,slug,evolved){
   }
   return "";
 }
-function yokaiCompanionPicker(pets, {name, label, selected = '', allowNone = false, attributes = ''}) {
+function yokaiCompanionPicker(pets, {name, label, selected = '', allowNone = false, attributes = '', showLevel = false}) {
   const group = escapeHTML(name);
   const choices = pets.map(pet => {
     const species = pet.pet_species || {};
     const nickname = pet.nickname || species.name || 'Yokai';
+    const details = [
+      species.name && species.name !== nickname ? escapeHTML(species.name) : '',
+      showLevel ? 'Level ' + escapeHTML(pet.level ?? 1) : ''
+    ].filter(Boolean).join(' · ');
     const portrait = yokaiPortraitUrl(species.name,species.slug,Number(pet.level) >= Number(species.evolution_level || 15));
     return '<label class="yokai-companion-option"><input type="radio" name="' + group + '" value="' +
       escapeHTML(pet.id) + '"' + (String(pet.id) === String(selected) ? ' checked' : '') + '>' +
       (portrait ? '<img src="' + escapeHTML(portrait) + '" alt="" loading="lazy">' : '<span aria-hidden="true">☾</span>') +
       '<span><strong>' + escapeHTML(nickname) + '</strong>' +
-      (species.name && species.name !== nickname ? '<small>' + escapeHTML(species.name) + '</small>' : '') + '</span></label>';
+      (details ? '<small>' + details + '</small>' : '') + '</span></label>';
   });
   if (allowNone) choices.unshift('<label class="yokai-companion-option"><input type="radio" name="' +
     group + '" value=""' + (selected ? '' : ' checked') + '><span>No companion</span></label>');
@@ -2119,7 +2123,7 @@ function renderPetParadise(){
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
   const pound = `<section class="pet-section yokai-pound"><h2>Yokai Pound</h2>
     <p class="hint">Timed auctions close automatically. The highest bid wins if it meets the minimum and the bidder can complete the purchase. Free adoptions are available until claimed or the listing ends.</p>
-    ${pets.length ? '<form class="card" data-pound-list><h3>List a companion</h3>'+yokaiCompanionPicker(pets,{name:'pet',label:'Companion',selected:pets[0].id})+'<label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><label class="field">Minimum accepted winning bid in points (optional)<input name="reserve" type="number" min="1" max="10000000" placeholder="Use opening bid"></label><label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label><button class="primary">List in Yokai Pound</button></form>' : ''}
+    ${pets.length ? '<form class="card" data-pound-list><h3>List a companion</h3>'+yokaiCompanionPicker(pets,{name:'pet',label:'Companion',selected:pets[0].id,showLevel:true})+'<label class="field">Opening bid in points (0 for free adoption)<input name="points" type="number" min="0" max="10000000" value="0" required></label><label class="field">Minimum accepted winning bid in points (optional)<input name="reserve" type="number" min="1" max="10000000" placeholder="Use opening bid"></label><label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label><button class="primary">List in Yokai Pound</button></form>' : ''}
     <h3>Companions looking for a home</h3><p role="status">Loading listings…</p>
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
