@@ -2041,3 +2041,15 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   display: block;
   color: var(--muted);
 }
+
+.yokai-pound-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.yokai-pound-nav button {
+  min-width: 0;
+  padding-inline: 0.5rem;
+  overflow-wrap: anywhere;
+}
