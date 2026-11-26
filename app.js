@@ -2241,7 +2241,7 @@ function renderPetParadise(){
   const listingDuration = '<label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label>';
   const poundHeader = `<h2>Yokai Pound</h2>
     <nav class="yokai-pound-nav" aria-label="Yokai Pound">
-      <button type="button" class="${sanctuaryView === 'pound' ? 'primary' : 'ghost'}" data-yokai-view="pound" aria-current="${sanctuaryView === 'pound' ? 'page' : 'false'}">list an adoption</button>
+      <button type="button" class="${sanctuaryView === 'pound' ? 'primary' : 'ghost'}" data-yokai-view="pound" aria-current="${sanctuaryView === 'pound' ? 'page' : 'false'}">Adoptions</button>
       <button type="button" class="${sanctuaryView === 'exchange' ? 'primary' : 'ghost'}" data-yokai-view="exchange" aria-current="${sanctuaryView === 'exchange' ? 'page' : 'false'}">Adoption Exchanges</button>
     </nav>`;
   const exchange = `<section class="pet-section yokai-pound yokai-exchanges">${poundHeader}
