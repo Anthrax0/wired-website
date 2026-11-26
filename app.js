@@ -2164,6 +2164,19 @@ async function renderYokaiAdoptionExchanges(panel) {
     }
   }
 
+  const listingForm = panel.querySelector('[data-list-exchange]');
+  if (listingForm) {
+    const {species,rarity} = listingForm.elements;
+    let anyTypeRarity = rarity.value;
+    function syncRequestedRarity() {
+      if (!rarity.disabled) anyTypeRarity = rarity.value;
+      rarity.disabled = Boolean(species.value);
+      rarity.value = rarity.disabled ? species.selectedOptions[0].dataset.rarity : anyTypeRarity;
+    }
+    species.addEventListener('change',syncRequestedRarity);
+    syncRequestedRarity();
+  }
+
   panel.addEventListener('submit',event => {
     const form = event.target;
     if (!form.matches('[data-list-exchange], [data-accept-exchange]')) return;
@@ -2172,7 +2185,7 @@ async function renderYokaiAdoptionExchanges(panel) {
     if (form.hasAttribute('data-list-exchange')) {
       void manage('create_yokai_adoption_exchange',{
         p_pet:values.get('pet'),p_species:values.get('species') || null,
-        p_rarity:values.get('rarity') || null,p_level:Number(values.get('level')),p_hours:Number(values.get('hours'))
+        p_rarity:form.elements.rarity.value || null,p_level:Number(values.get('level')),p_hours:Number(values.get('hours'))
       },'Your adoption exchange is listed.');
       return;
     }
@@ -2232,7 +2245,7 @@ function renderPetParadise(){
     ${pets.length ? `<form class="card" data-list-exchange><h3>List an adoption exchange</h3>
       ${yokaiCompanionPicker(pets,{name:'pet',label:'Companion to exchange',selected:pets[0].id,showLevel:true})}
       <label class="field">Requested yokai type<select name="species"><option value="">Any type</option>
-      ${(state.petSpecies || []).map(species => '<option value="' + escapeHTML(species.id) + '">' + escapeHTML(species.name) + '</option>').join('')}</select></label>
+      ${(state.petSpecies || []).map(species => '<option value="' + escapeHTML(species.id) + '" data-rarity="' + escapeHTML(species.rarity) + '">' + escapeHTML(species.name) + '</option>').join('')}</select></label>
       <label class="field">Requested rarity<select name="rarity"><option value="">Any rarity</option>
       ${rarityLevels.map(rarity => '<option value="' + rarity + '">' + rarityLabel(rarity) + '</option>').join('')}</select></label>
       <label class="field">Minimum level<input name="level" type="number" min="1" max="99" value="1" required></label>
