@@ -2882,6 +2882,7 @@ function renderPetParadise(){
         <li>Both limits reset at midnight UTC. A started duel still counts if you forfeit, time out, or draw.</li>
         <li><strong>Draws</strong> · If both Yokai are knocked out in the same round or the match reaches the round limit without a winner, each member earns half the usual knockout reward. Member draws award 10 base XP and 5 points each. Bot draws award half the rarity-adjusted base XP and 2 points, rounded down from 2.5.</li>
         <li>Your Yokai’s rarity XP bonus also applies to draws. XP goes to the companion that fought if you still own it. Forfeits and timeouts award no rewards.</li>
+        <li><strong>Skill cooldowns</strong> · You can’t use the same skill two rounds in a row. After using Skill 1, 2, 3, or 4, wait 1, 2, 3, or 4 rounds respectively before using it again. You can still use Attack or any other ready move during that wait.</li>
         <li>Guard prevents all damage for one round. You can’t use it two rounds in a row.</li>
       </ul>
     </section>
