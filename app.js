@@ -2435,6 +2435,7 @@ document.addEventListener('click',event=>{
 const duelInvitesSeen = new Set();
 const duelRewardsSeen = new Set();
 const duelMoves = ['Guard', 'Attack', 'Skill 1', 'Skill 2', 'Skill 3', 'Skill 4'];
+const duelMoveDisplayOrder = [1, 2, 3, 4, 5, 0];
 const yokaiBasicAttacks = {
   "betobeto-san": ["Heel Tap", "stalk", "step", "#b8a2ed"],
   "kappa": ["Pond Hook", "low", "water", "#69dcad"],
@@ -2643,7 +2644,7 @@ function yokaiDuelCard(duel, actor) {
   } else if (duel.status === 'active') {
     controls = `<p>Round ${duel.turn}${duel.deadline ? ` · <span data-duel-deadline="${escapeHTML(duel.deadline)}"></span>` : ""}</p>
       <p>${duel.my_move !== null ? 'Move locked in.' : 'Choose a move.'} ${duel.opponent_locked ? 'Opponent ready.' : ''}</p>
-      <div class="yokai-duel-moves">${duelMoves.slice(0, pet.tier + 2).map((_, index) => {
+      <div class="yokai-duel-moves">${duelMoveDisplayOrder.filter(index => index <= pet.tier + 1).map(index => {
         const cooldown = index >= 2 ? Math.max(0, duel.ready[index - 2] - duel.turn) : Number(index === 0 && guardCoolingDown);
         const name = yokaiDuelMoveName(pet, index);
         return `<button class="ghost" type="button" data-duel-move="${index}" ${duel.my_move !== null || cooldown ? 'disabled' : ''}>
