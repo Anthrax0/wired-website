@@ -1970,7 +1970,7 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 }
 .yokai-card-classification {
   display: grid;
-  justify-items: start;
+  justify-items: center;
 }
 .pet-card-top:has(.yokai-test-subject) { align-items: start; }
 .yokai-card-classification .yokai-test-subject {
@@ -1988,6 +1988,8 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 }
 .yokai-card-classification .yokai-test-subject-icon {
   position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
   z-index: -1;
   color: #ed3157;
   font-size: 2.9rem;
