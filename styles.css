@@ -2526,3 +2526,70 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .comment-disclosure > .comment-form {
   margin-top: 10px;
 }
+
+.comment-section {
+  position: relative;
+  padding-top: 12px;
+}
+.comment-section > .comment-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0 108px 4px 0;
+  font-size: .95rem;
+}
+.comment-section > .comment-disclosure {
+  margin-top: 0;
+}
+.comment-section > .comment-disclosure > summary {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 0;
+  min-height: 44px;
+  padding-block: 10px;
+  font-size: .875rem;
+}
+.comment-section .profile-comment-list {
+  gap: 0;
+}
+.comment-section :is(.profile-comment,.comment) {
+  margin-block: 0;
+  padding: 9px 0;
+  border: 0;
+  border-top: 1px solid rgba(185,103,255,.17);
+  border-radius: 0;
+  background: transparent;
+}
+.comment-section .profile-comment-reply-item {
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid rgba(185,103,255,.32);
+}
+.comment-section .profile-comment-top {
+  justify-content: space-between;
+  gap: 4px 10px;
+  font-size: .875rem;
+  overflow-wrap: anywhere;
+}
+.comment-section [data-editable-body] {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.comment-section .profile-comment-reply {
+  min-height: 36px;
+  margin-top: 0;
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+}
+.comment-section :is(.profile-comment-form,.profile-reply-form) {
+  margin: 0 0 10px;
+}
+.comment-section .profile-comment-footer {
+  flex-direction: row;
+  justify-content: flex-end;
+}
+.comment-section .profile-comment-footer button {
+  width: auto;
+}

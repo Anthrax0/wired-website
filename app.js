@@ -267,8 +267,17 @@ async function submitProfileComment(form,profileId,communityId=null){
   toast(errorText(error));
  }finally{button.disabled=false;}
 }
+function commentHeading(count,level){
+ return '<'+level+' class="comment-heading">Comments <span class="hint">'+count+'</span></'+level+'>';
+}
+function commentAuthorMarkup(name,createdAt){
+ const date=createdAt?new Date(createdAt):null;
+ const time=date&&!Number.isNaN(date.getTime())?
+  '<time datetime="'+date.toISOString()+'" title="'+escapeHTML(date.toLocaleString())+'">'+escapeHTML(date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))+'</time>':'';
+ return '<div class="profile-comment-top"><strong>'+escapeHTML(name||'WIRED member')+'</strong>'+time+'</div>';
+}
 function profileCommentsMarkup(profileId,comments,kind='profile'){
- const rows=comments||[],roots=rows.filter(x=>!x.parent_comment_id),replyCount=rows.filter(x=>x.parent_comment_id).length;
+ const rows=comments||[],roots=rows.filter(x=>!x.parent_comment_id);
  const byParent=new Map(),byId=new Map(rows.map(x=>[String(x.id),x]));
  for(const item of rows){const parent=item.parent_comment_id?String(item.parent_comment_id):null;if(!byParent.has(parent))byParent.set(parent,[]);byParent.get(parent).push(item);}
  const ordered=[],seen=new Set();
@@ -283,9 +292,9 @@ function profileCommentsMarkup(profileId,comments,kind='profile'){
   const id=escapeHTML(x.id),canDelete=state.user&&(state.user.id===x.author_id||state.user.id===profileId);
   const parent=depth&&x.parent_comment_id?byId.get(String(x.parent_comment_id)):null;
   const replyLabel=depth?'<div class="profile-reply-context">↳ Reply to '+escapeHTML(parent?.author?.username||'comment')+'</div>':'';
-  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" style="'+(depth?'margin-left:'+Math.min(depth*14,56)+'px;border-left:3px solid #a25bdf;':'')+'" id="profile-comment-'+id+'"'+commentActionAttributes(kind,x.id,!!state.user&&state.user.id===x.author_id,canDelete)+'>'+replyLabel+'<div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+'</div>'+editableTextMarkup(x)+(x.has_image?'<img class="wired-comment-image" data-comment-image="'+escapeHTML(profileCommentImagePath(kind,x.author_id,x.id))+'" alt="Comment attachment" loading="lazy">':'')+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" aria-label="Write a reply" placeholder="Write a reply…"></textarea>'+profileCommentImagePicker()+'<div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>';
+  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" style="'+(depth?'margin-left:'+Math.min(depth*12,36)+'px;':'')+'" id="profile-comment-'+id+'"'+commentActionAttributes(kind,x.id,!!state.user&&state.user.id===x.author_id,canDelete)+'>'+replyLabel+commentAuthorMarkup(x.author?.username,x.created_at)+editableTextMarkup(x)+(x.has_image?'<img class="wired-comment-image" data-comment-image="'+escapeHTML(profileCommentImagePath(kind,x.author_id,x.id))+'" alt="Comment attachment" loading="lazy">':'')+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" aria-label="Write a reply" placeholder="Write a reply…"></textarea>'+profileCommentImagePicker()+'<div class="profile-comment-footer"><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>';
  };
- return '<section class="profile-comments" aria-label="Profile comments"><div class="section-head"><h3>Comments</h3><span class="hint">'+roots.length+' '+(roots.length===1?'comment':'comments')+' · '+replyCount+' '+(replyCount===1?'reply':'replies')+'</span></div>'+(state.user?'<details class="comment-disclosure"><summary>Comment</summary><form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" placeholder="Write a comment on this profile…"></textarea></label>'+profileCommentImagePicker()+'<div class="profile-comment-footer"><span class="hint">Be respectful. Up to 1,000 characters.</span><button class="primary" type="submit">Post comment</button></div></form></details>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(ordered.length?ordered.map(({item,depth})=>renderOne(item,depth)).join(''):'<p class="empty">No comments yet. Start the conversation.</p>')+'</div></section>';
+ return '<section class="profile-comments comment-section" aria-label="Profile comments">'+commentHeading(rows.length,'h3')+(state.user?'<details class="comment-disclosure"><summary>Comment</summary><form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" placeholder="Write a comment on this profile…"></textarea></label>'+profileCommentImagePicker()+'<div class="profile-comment-footer"><button class="primary small" type="submit">Post comment</button></div></form></details>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(ordered.length?ordered.map(({item,depth})=>renderOne(item,depth)).join(''):'<p class="empty">No comments yet.</p>')+'</div></section>';
 }
 function attachProfileCommentHandlers(profileId){
  void loadProfileCommentImages(document.querySelector(".profile-comments"));
@@ -3580,7 +3589,7 @@ function renderPostCard(p){
  }
  const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};
  const reactions=Object.keys(icons).map(r=>'<button type="button" aria-label="React '+r+'" class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
- const comments=(p.comments||[]).map(z=>'<div class="comment"'+commentActionAttributes('post',z.id,!!state.user&&state.user.id===z.author_id)+'><b>'+escapeHTML(z.username||'WIRED member')+'</b>'+editableTextMarkup(z)+'</div>').join('');
+ const comments=(p.comments||[]).map(z=>'<div class="comment"'+commentActionAttributes('post',z.id,!!state.user&&state.user.id===z.author_id)+'>'+commentAuthorMarkup(z.username,z.created_at)+editableTextMarkup(z)+'</div>').join('');
  const collections=state.communityPostCollections;
  const actions=collections&&!collections.loading&&!collections.error?'<div class="community-post-actions">'+
   '<button type="button" class="ghost small" data-post-collection="saved" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.saved.has(p.id)+'">'+(collections.saved.has(p.id)?'Unsave':'Save post')+'</button>'+
@@ -3593,7 +3602,7 @@ function renderPostCard(p){
  const author=p.author_id?
   '<button type="button" class="post-author" data-profile-id="'+escapeHTML(p.author_id)+'">'+identity+'</button>':
   '<span class="post-author">'+identity+'</span>';
- return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="post-author-row">'+author+(p.id_verified?'<span class="hint">✓ Verified</span>':'')+'</div><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments"><h4>Comments ('+(p.comments||[]).length+')</h4>'+comments+'<details class="comment-disclosure"><summary>Comment</summary><form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></details></div></article>';
+ return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="post-author-row">'+author+(p.id_verified?'<span class="hint">✓ Verified</span>':'')+'</div><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments comment-section">'+commentHeading((p.comments||[]).length,'h4')+'<details class="comment-disclosure"><summary>Comment</summary><form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" aria-label="Write a comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></details><div class="post-comment-list">'+comments+'</div></div></article>';
 }
 let communityActivityRequest=null;
 let communityActivityResult=null;
