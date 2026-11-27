@@ -2217,6 +2217,9 @@ async function renderYokaiAdoptionExchanges(panel) {
   }
 }
 
+function yokaiActionIcon(path){
+  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"></path></svg>`;
+}
 function ownedYokaiActions(pet){
   const id=escapeHTML(pet.id);
   const name=escapeHTML(yokaiCompanionName(pet.nickname,pet.pet_species?.name)||'Yokai');
@@ -2224,11 +2227,11 @@ function ownedYokaiActions(pet){
   return `<details class="yokai-card-menu">
     <summary aria-label="Companion actions for ${name}"><span aria-hidden="true"></span></summary>
     <div class="yokai-card-menu-panel">
-      <button type="button" data-pet-rename="${id}">Rename Companion</button>
-      <button type="button" data-pet-bond="${id}" data-remove-bond="${bonded}">${bonded?'Remove Companion from Profile':'Make Profile Companion'}</button>
-      <button type="button" data-yokai-view="pound" data-listing-companion="${id}">List for Adoption</button>
-      <button type="button" data-yokai-view="exchange" data-listing-companion="${id}">Adoption Exchange</button>
-      <button type="button" class="yokai-card-menu-danger" data-pet-release="${id}">Release Companion</button>
+      <button type="button" data-pet-rename="${id}">${yokaiActionIcon("m4 16-1 5 5-1L21 7l-4-4L4 16Zm10-10 4 4")}<span>Rename Companion</span></button>
+      <button type="button" data-pet-bond="${id}" data-remove-bond="${bonded}">${yokaiActionIcon("M16 21H4v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2ZM14 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm2 5 2 2 4-4")}<span>${bonded?'Remove Companion from Profile':'Make Profile Companion'}${!bonded&&state.profile?.companion?.id?'<small>Replaces your current companion</small>':''}</span></button>
+      <button type="button" data-yokai-view="pound" data-listing-companion="${id}">${yokaiActionIcon("M12 13c-2 0-3 2-5 4-2 3 2 5 5 3 3 2 7 0 5-3-2-2-3-4-5-4ZM4 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm5-4a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm5 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z")}<span>List for Adoption</span></button>
+      <button type="button" data-yokai-view="exchange" data-listing-companion="${id}">${yokaiActionIcon("M3 7h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4")}<span>Adoption Exchange</span></button>
+      <button type="button" class="yokai-card-menu-danger" data-pet-release="${id}">${yokaiActionIcon("M3 6h18M9 6V3h6v3m4 0-1 15H6L5 6m5 4v7m4-7v7")}<span>Release Companion</span></button>
     </div>
   </details>`;
 }

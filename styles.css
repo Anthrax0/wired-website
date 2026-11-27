@@ -2049,27 +2049,98 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   outline-offset: 4px;
 }
 
-.yokai-card-controls{display:flex;align-items:center;gap:8px}
-.yokai-card-menu{position:relative;z-index:2}
-.yokai-card-menu summary{
-  display:grid;place-items:center;min-width:44px;min-height:44px;
-  list-style:none;cursor:pointer;color:#e1bdff;background:#120b1b;
-  border:1px solid #8e4bd1;border-radius:10px;
+.yokai-card-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.yokai-card-menu summary::-webkit-details-marker{display:none}
-.yokai-card-menu summary span{
-  width:17px;height:2px;border-radius:2px;background:currentColor;
-  box-shadow:0 -5px currentColor,0 5px currentColor;
+
+.yokai-card-menu { position: relative; z-index: 2; }
+
+.yokai-card-menu summary {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+  color: #f7caff;
+  border-radius: 8px;
 }
-.yokai-card-menu-panel{
-  position:absolute;top:calc(100% + 6px);right:0;width:218px;
-  padding:4px;border:1px solid #9f56e5;border-radius:12px;
-  background:#100a17;box-shadow:0 8px 24px #000b,0 0 12px #a44aff44;
+
+.yokai-card-menu summary::-webkit-details-marker { display: none; }
+
+.yokai-card-menu summary span {
+  width: 19px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 -6px currentColor, 0 6px currentColor;
+  filter: drop-shadow(0 0 4px #e96bff);
 }
-.yokai-card-menu-panel button{
-  display:block;width:100%;min-height:44px;padding:8px 10px;text-align:left;
-  border:0;border-radius:7px;background:transparent;color:#f3e5ff;font:inherit;
+
+.yokai-card-menu-panel {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  width: 214px;
+  padding: 5px 9px;
+  border: 1px solid #e58bff;
+  border-radius: 13px;
+  background: linear-gradient(140deg, #1b0924, #100716 65%);
+  box-shadow: 0 8px 20px #000b, 0 0 12px #d747ff9c, inset 0 0 9px #ae3bd459;
 }
-.yokai-card-menu-panel button:hover,.yokai-card-menu-panel button:focus-visible,
-.yokai-card-menu[open] summary{background:#2d1645}
-.yokai-card-menu-panel .yokai-card-menu-danger{color:#ff818f}
+
+.yokai-card-menu-panel::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 16px;
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  border-top: 1px solid #e58bff;
+  border-left: 1px solid #e58bff;
+  background: #16091e;
+}
+
+.yokai-card-menu-panel button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 4px;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #f5e8ff;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.yokai-card-menu-panel button + button { border-top: 1px solid #5c316a; }
+
+.yokai-card-menu-panel svg {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  color: #f6b7ff;
+  filter: drop-shadow(0 0 4px #d854ee);
+}
+
+.yokai-card-menu-panel small {
+  display: block;
+  margin-top: 2px;
+  color: #d7b5e1;
+  font-size: 10px;
+}
+
+.yokai-card-menu-panel button:hover,
+.yokai-card-menu-panel button:focus-visible { background: #2d1645; }
+
+.yokai-card-menu-panel .yokai-card-menu-danger,
+.yokai-card-menu-danger svg { color: #ff5d76; }
+.yokai-card-menu-danger svg { filter: drop-shadow(0 0 4px #ec2849); }
