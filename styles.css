@@ -734,18 +734,54 @@ footer{border-color:#4b2864}
 .profile-yokai-rarity{display:inline-block;margin-top:8px;padding:3px 9px;border:1px solid rgba(190,130,255,.35);border-radius:999px;font-size:.72rem;color:#e4c5ff}
 @media(max-width:480px){.profile-yokai-card{gap:12px;padding:12px}.profile-yokai-art{width:88px;height:88px;flex-basis:88px}}
 
-/* Black Rose gothic profile collection */
-.profile-custom-card.black-rose-theme,.profile-card.black-rose-theme,.store-preview-profile.black-rose-theme{background:radial-gradient(ellipse at top right,rgba(100,9,34,.55),transparent 60%),linear-gradient(145deg,#080609,#1c0b14 65%,#080609)!important;border:1px solid #67283b!important;box-shadow:inset 0 0 32px rgba(110,10,42,.24),0 10px 32px rgba(0,0,0,.45)}
-.black-rose-theme .profile-cover,.black-rose-theme .store-preview-cover{background:radial-gradient(circle at 80% 25%,#74243c,transparent 45%),linear-gradient(130deg,#050406,#280d1a,#090609)!important}
-.profile-avatar.black-rose-frame,.store-preview-avatar.black-rose-frame{border:3px solid #8e304b!important;box-shadow:0 0 0 3px #14070d,0 0 0 5px #5b172b,0 0 22px rgba(165,31,65,.55)!important;position:relative}
-.profile-avatar.black-rose-frame:after,.store-preview-avatar.black-rose-frame:after{content:"🥀";position:absolute;right:-10px;bottom:-9px;font-size:22px;filter:drop-shadow(0 2px 3px #000);pointer-events:none}
-.black-rose-nameplate{color:#f3d2dd!important;text-shadow:0 0 10px rgba(188,41,83,.75)!important;letter-spacing:.045em}
-h2.black-rose-nameplate:before,h3.black-rose-nameplate:before,.store-preview-nameplate.black-rose-nameplate:before{content:"🥀 ";font-size:.8em}
-.store-art-black-rose-theme,.store-art-black-rose-frame,.store-art-black-rose-nameplate{background:linear-gradient(135deg,#09060a,#401022)!important}
-
-.profile-summary-card.black-rose-theme{background:radial-gradient(ellipse at 80% 10%,rgba(112,14,45,.55),transparent 60%),linear-gradient(145deg,#09060a,#260d19 70%,#080608)!important;border:1px solid #713047!important;box-shadow:inset 0 0 35px rgba(95,13,36,.24)}
-.profile-summary-avatar.black-rose-frame{position:relative;border:3px solid #a13b58!important;box-shadow:0 0 0 3px #16070c,0 0 0 5px #641a32,0 0 23px rgba(166,35,77,.5)!important}
-.profile-summary-avatar.black-rose-frame:after{content:"🥀";position:absolute;bottom:-10px;right:-9px;font-size:22px;pointer-events:none}
+/* Black Rose profile collection */
+:is(.profile-custom-card,.profile-summary-card,.profile-card,.store-preview-profile).black-rose-theme {
+  background: radial-gradient(ellipse at 88% 0%, #36141f, transparent 58%), #100d13 !important;
+  border-color: #623245 !important;
+  box-shadow: inset 0 1px #b5728638, 0 12px 30px #0006;
+}
+.black-rose-theme .profile-cover,
+.black-rose-theme .store-preview-cover,
+.black-rose-cover {
+  background: linear-gradient(90deg, #110a15b0, #110a1520 45%, #110a1566),
+    url("assets/yokai-backgrounds/garden-of-thorns.webp") center 32% / cover no-repeat !important;
+  border-bottom: 1px solid #805369 !important;
+}
+.black-rose-theme .store-preview-cover {
+  height: 78px;
+}
+.store-art-black-rose-theme,
+.store-art-black-rose-frame,
+.store-art-black-rose-nameplate {
+  background: radial-gradient(ellipse at 50% 0%, #3a1726, transparent 74%), #100d13 !important;
+}
+:is(.profile-avatar,.profile-summary-avatar,.store-preview-avatar,.store-preview-mini-avatar).black-rose-frame {
+  border: 3px solid #b4778d !important;
+  box-shadow: 0 0 0 2px #1a0b14, 0 0 0 4px #653449, 0 0 18px #9c365958 !important;
+}
+.black-rose-frame.store-preview-avatar,
+.black-rose-frame.store-preview-mini-avatar {
+  background: radial-gradient(circle at 36% 28%, #4b2231, #171019 70%);
+}
+.black-rose-nameplate {
+  color: #ffe6ed !important;
+  text-shadow: 0 2px 5px #090408, 0 0 12px #b45b7870 !important;
+  letter-spacing: .025em;
+}
+:is(h2,h3,.store-preview-nameplate).black-rose-nameplate::before {
+  content: "";
+  display: inline-block;
+  width: .48em;
+  height: .48em;
+  margin: 0 .4em .09em .1em;
+  border: 1px solid #e1a4b7;
+  background: #813755;
+  box-shadow: 0 0 8px #b45b7877;
+  transform: rotate(45deg);
+}
+.store-preview-nameplate.black-rose-nameplate {
+  column-gap: .22em;
+}
 
 
 /* Keep owned profile-cosmetic previews contained within inventory rows. */
