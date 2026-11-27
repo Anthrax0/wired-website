@@ -2075,14 +2075,15 @@ function yokaiPortraitUrl(name,slug,evolved){
   }
   return "";
 }
-function yokaiCompanionPicker(pets, {name, label, selected = '', allowNone = false, attributes = '', showLevel = false}) {
+function yokaiCompanionPicker(pets, {name, label, selected = '', allowNone = false, attributes = '', showLevel = false, showRarity = false}) {
   const group = escapeHTML(name);
   const choices = pets.map(pet => {
     const species = pet.pet_species || {};
     const nickname = yokaiCompanionName(pet.nickname,species.name) || 'Yokai';
     const details = [
       species.name && yokaiTypeName(species.name) !== nickname ? escapeHTML(yokaiTypeName(species.name)) : '',
-      showLevel ? 'Level ' + escapeHTML(pet.level ?? 1) : ''
+      showLevel ? 'Level ' + escapeHTML(pet.level ?? 1) : '',
+      showRarity && species.rarity ? escapeHTML(species.rarity.toLowerCase().replace(/^./, letter => letter.toUpperCase())) : ''
     ].filter(Boolean).join(' · ');
     const portrait = yokaiPortraitUrl(species.name,species.slug,Number(pet.level) >= Number(species.evolution_level || 15));
     return '<label class="yokai-companion-option"><input type="radio" name="' + group + '" value="' +
@@ -2586,7 +2587,7 @@ function openYokaiDuelChallenge(member) {
   dialog.className = 'card yokai-duel-dialog';
   dialog.setAttribute('aria-labelledby', 'duelChallengeTitle');
   dialog.innerHTML = `<h2 id="duelChallengeTitle">Challenge ${escapeHTML(member.username || 'this member')}</h2>
-    <form>${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true})}
+    <form>${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true, showRarity:true})}
     <p role="status"></p><button class="primary" type="submit">Send Challenge</button>
     <button class="ghost" type="button" data-cancel>Cancel</button></form>`;
   const form = dialog.querySelector('form');
@@ -2632,7 +2633,7 @@ function yokaiDuelCard(duel, actor) {
   let controls = '';
   if (duel.status === 'pending') {
     controls = sender ? '<p>Waiting for your opponent to accept.</p>' :
-      pets.length ? `<form>${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true})}
+      pets.length ? `<form>${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true, showRarity:true})}
         <button class="primary" type="submit">Accept Challenge</button></form>` : '<p>Adopt a Yokai to accept this challenge.</p>';
     controls += `<button class="ghost" type="button" data-duel-leave>${sender ? 'Cancel Invitation' : 'Decline'}</button>`;
   } else if (duel.status === 'active') {
@@ -2674,7 +2675,7 @@ function yokaiBotChallengeMarkup(pets, species) {
     <p class="hint">Choose any Yokai species. The bot matches your companion’s level.</p>
     ${!pets.length ? '<p>Adopt a Yokai to start practicing.</p>' : !choices ? '<p>No bot opponents are available.</p>' :
     `<form>
-      ${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true})}
+      ${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true, showRarity:true})}
       <label class="field">Bot opponent<select name="species" required><option value="">Choose a species</option>${choices}</select></label>
       <button class="primary" type="submit">Start Bot Duel</button>
       <p data-bot-status role="status"></p>
