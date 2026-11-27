@@ -2112,24 +2112,67 @@ function yokaiRechargeLabel(readyAt){
  if(!remaining)return null;
  return String(Math.floor(remaining/3600)).padStart(2,"0")+":"+String(Math.floor(remaining%3600/60)).padStart(2,"0")+":"+String(remaining%60).padStart(2,"0");
 }
+const yokaiEvolutionSkillDescriptions = {
+  "betobeto-san": ["A second pair of footsteps joins its own, tracking whoever dares look back.", "The whole road goes quiet except for a single step that lands just behind you.", "It folds the road into an endless procession of footsteps, then walks out alone."],
+  "kappa": ["It stirs the pond into a tight whirlpool and reels the current in with its webbed hands.", "The river bends to its will, sweeping past the banks it guards.", "It opens a path into the riverbed and sends the drowned current surging back through it."],
+  "kasa-obake": ["It spins on its one foot and whips up a gust beneath its open canopy.", "It calls down a shower of phantom umbrellas that snap shut in unison.", "Its canopy opens onto a midnight storm, and every raindrop echoes with laughter."],
+  "keukegen": ["Its tangled fur releases a drifting cloud that creeps into the cracks around it.", "It blankets the room in a living mat of hair that ripples with every footstep.", "It sheds its blight into the shadows, and the shadows crawl back wearing its fur."],
+  "kodama": ["It calls thorny roots from the ground to close around a trespasser’s tracks.", "The forest answers its whisper, sending branches to bar every path out.", "It draws the forest through the veil in one breath, and an ancient grove rises in its wake."],
+  "nurikabe": ["It raises another wall behind itself, closing a route that looked open a moment ago.", "It turns the path into a courtyard of shifting walls that answer to its will.", "It seals the horizon behind one impossible wall, then tears it open to reveal the void."],
+  "yanari": ["It hammers the rafters until the whole room rattles in rhythm.", "It stamps once, and every floorboard rises in a wave from one end of the room to the other.", "It shakes the house so fiercely that the echo survives after the walls fall silent."],
+  "zashiki-warashi": ["It winds up a toy that runs on stolen good luck and refuses to stop laughing.", "It turns the house into a game where the doors only open when it wins.", "It cracks its favorite toy and spills a lifetime of hoarded fortune into the room."],
+  "dodomeki": ["The eyes along its arms open together and spot every hidden trinket.", "It floods the room with phantom eyes, watching every hand that moves.", "It opens its last hidden eye and sees through every disguise the living have ever worn."],
+  "kejoro": ["Her hair unfurls in measured strands, tracing every movement in the room.", "She weaves her tresses into a curtain that closes around whatever she chooses to keep.", "She draws one long strand through the veil and pulls a storm of spectral hair after it."],
+  "nuppeppo": ["It leaves a clinging trail of grave-cold mist as it lumbers closer.", "It gathers the mist into a swollen shape that mimics its outstretched embrace.", "It reaches through the veil and gathers the last warmth from the other side into its arms."],
+  "nure-onna": ["She coils beneath the river, letting a false reflection draw eyes away from her tail.", "She winds the current into a ring and lets her reflection speak from every side.", "She parts the river’s surface like a veil, revealing a depth with no bottom."],
+  "amabie": ["Its scales catch the moonlight and briefly show the shape of the next wave.", "It sings a warning that rises from every pool before the first drop falls.", "It parts a wall of black water to reveal a prophecy written in pale scales."],
+  "bakeneko": ["It borrows a familiar voice and sends it purring from an empty corner.", "It casts a roomful of feline shadows, each speaking with a different borrowed voice.", "It tears open the silence and releases every voice it has ever stolen at once."],
+  "kamaitachi": ["It snaps a wing-arm outward, carving two crossing trails into the wind.", "It spins into a howling vortex that flings crescent gusts in every direction.", "It strikes the air so quickly that the storm splits around a moment of perfect silence."],
+  "kitsune": ["It scatters foxfire into a trail of false footprints that lead back to its den.", "It raises a ring of foxfire doubles, each one wearing a different expression.", "It burns through its own mirage and steps from the flames while the false world falls away."],
+  "komainu": ["It stamps the shrine threshold and wakes the guardian light beneath the stones.", "It calls spectral shrine guardians to stand watch at every approach.", "It opens the oldest shrine gate and draws its sleeping ward into the courtyard."],
+  "nekomata": ["Its two tails draw separate trails of blue gravefire that meet in midair.", "It circles the graveyard once, dancing between lanterns lit by its twin tails.", "It lifts both tails and pulls a blue blaze through the veil, lighting the graves from beneath."],
+  "tengu": ["It beats its wings sharply and shapes the gust into a clean downward cut.", "It circles high above the shrine, gathering the storm before dropping through its center.", "It drives a final gale through the clouds, leaving a blade-thin opening from sky to earth."],
+  "futakuchi-onna": ["Her hair lifts strand by strand as the hidden mouth whispers for another bite.", "The hidden mouth draws the room’s shadows toward it while her face remains still.", "She lets her hair fall, and the unseen mouth swallows the last echo in the room."],
+  "oni": ["It drives a fist into the ground, waking a line of embers across its territory.", "Its roar calls a ring of flame that surges with every step it takes.", "It breaks the seal beneath its feet and lets the heat of its domain roar into the open."],
+  "rokurokubi": ["Her neck slips around a corner while her body sits perfectly still.", "She threads her neck through the rafters and watches the room from above.", "She stretches past the last visible doorway and draws back a laugh from beyond the veil."],
+  "ushi-oni": ["It scrapes its horns through the shallows, drawing dark water into its wake.", "It bellows across the shore, raising a tide that follows its charge.", "It drives its horns into the tide and tears a path through a wall of black seawater."],
+  "yuki-onna": ["Her breath crystallizes in the air, leaving a trail of pale frost across the floor.", "She draws snowfall into a silent spiral and walks through its frozen center.", "She exhales once, and a passage of still white winter opens through the veil."],
+  "gashadokuro": ["It snaps scattered bones into a towering hand and curls the fingers around its shadow.", "It calls a procession of skeletons from the earth, each one answering its hunger.", "It tears a gap in the grave mist and hauls an entire giant skeleton through it."],
+  "jorogumo": ["She pulls a single silk thread, drawing hidden strands tight across the room.", "She weaves a labyrinth overhead and feels every step through the silk.", "She plucks the thread that anchors her web to the veil, and the whole lattice pulls taut."],
+  "nurarihyon": ["He strolls through a closed doorway and makes the household shadows greet him as their master.", "He settles into the best seat and commands the rooms to rearrange themselves around him.", "He dismisses the boundary between worlds with a flick of his wrist and walks through as though invited."],
+  "onryo": ["She presses her grudge into a shadow that follows its target from room to room.", "She calls the echoes of old grievances until they gather behind her in a silent procession.", "She pulls her oldest grudge through the veil, and every echo falls silent before it."],
+  "shinigami": ["It traces a pale crescent and watches the last light drain from its edge.", "It opens a procession of cold lanterns, counting the final steps beneath its breath.", "It draws one final line across the veil, and the lanterns go dark in order."],
+  "yatagarasu": ["Its three talons leave glowing marks that point toward the next omen.", "It circles above the clouds, tracing three rings that close over the same spot.", "It tears a three-pointed opening in the clouds and reveals the omen beyond them."],
+  "sasquatch": ["It strikes a pine trunk with an open palm, sending a warning through the roots of its territory.", "It vanishes into the treeline, then calls a wall of pine-shadow and rolling thunder around itself.", "It tears through the mist at the edge of the forest, with splintered bark and violet embers in its wake."],
+  "yeti": ["It slams both fists into the snow and sends frost branching through the ground.", "It disappears into a whiteout, then returns beneath a crown of spinning ice.", "It breaks the frozen veil with a single blow and steps through the storm behind it."]
+};
+const yokaiEvolutionSkillPoints = {
+  common:[4,6,10], uncommon:[4,6,10], rare:[5,8,12],
+  epic:[7,10,15], legendary:[9,13,20], mythical:[12,18,25]
+};
+
 const yokaiCareSkills = [
   {name:'Spirit Bond', hours:1, recharges:'yokaiSkillRecharges', invoke:invokeYokaiSkill},
   {name:'Awakened Dominion', hours:3, recharges:'evolvedYokaiSkillRecharges', invoke:invokeEvolvedYokaiSkill,
-    description:'Earn extra XP and points, and restore happiness and energy.'},
+    xp:24, criticalXp:10, restoration:'+16 happiness and +12 energy'},
   {name:'Sovereign Eclipse', hours:5, recharges:'ascendantYokaiSkillRecharges', invoke:invokeAscendantYokaiSkill,
-    description:'Earn extra XP and points, and restore happiness, fullness, and energy.'},
+    xp:42, criticalXp:15, restoration:'+22 happiness, +12 fullness, and +22 energy'},
   {name:'Veilbreaker', hours:7, recharges:'eternalYokaiSkillRecharges', invoke:invokeEternalYokaiSkill,
-    description:'Earn greater XP and points, and restore happiness, fullness, and energy.'}
+    xp:65, criticalXp:20, restoration:'+30 happiness, +20 fullness, and +30 energy'}
 ];
 
 function yokaiCareSkillDetails(pet, index) {
   const skill = yokaiCareSkills[index];
   const species = pet.pet_species || {};
   const unlock = [1, Number(species.evolution_level || 15), 45, 90][index];
+  const speciesKey = yokaiSpeciesKey(species.name || species.slug || '');
+  const descriptions = Object.hasOwn(yokaiEvolutionSkillDescriptions, speciesKey) ? yokaiEvolutionSkillDescriptions[speciesKey] : [];
+  const rarity = species.rarity?.toLowerCase();
+  const points = Object.hasOwn(yokaiEvolutionSkillPoints, rarity) ? yokaiEvolutionSkillPoints[rarity][index - 1] : undefined;
   return {
-    ...skill, unlock,
+    ...skill, unlock, points,
     name: index === 0 ? species.ability_name || skill.name : skill.name,
-    description: index === 0 ? species.ability_description || 'A unique gift that grows with your bond.' : skill.description,
+    description: index === 0 ? species.ability_description || 'A unique gift that grows with your bond.' : descriptions[index - 1],
     form: [species.name, species.evolved_name, species.third_evolved_name, species.fourth_evolved_name][index]
   };
 }
@@ -2155,13 +2198,18 @@ function yokaiCareSkillsMarkup(pet, count) {
 }
 
 function showYokaiCareSkillDetails(pet, index) {
-  const {name, form, description, hours, unlock} = yokaiCareSkillDetails(pet, index);
+  const {name, form, description, hours, unlock, xp, criticalXp, points, restoration} = yokaiCareSkillDetails(pet, index);
   const dialog = document.createElement('dialog');
   dialog.className = 'card yokai-duel-dialog';
   dialog.setAttribute('aria-labelledby', 'yokai-care-skill-title');
   dialog.innerHTML = `<h2 id="yokai-care-skill-title">${escapeHTML(name)}</h2>
     ${form ? `<p class="hint">${escapeHTML(yokaiTypeName(form))}</p>` : ''}
-    <p>${escapeHTML(description)}</p>
+    ${description ? `<p>${escapeHTML(description)}</p>` : ''}
+    ${xp ? `<ul>
+      <li><strong>${xp} base XP</strong>${points === undefined ? ' plus points based on rarity' : ' and <strong>' + points + ' WIRED points</strong>'}.</li>
+      <li>20% chance to earn ${criticalXp} extra base XP. Your Yokai’s rarity XP bonus applies afterward.</li>
+      <li>Restores ${restoration}, up to 100% per stat.</li>
+    </ul>` : ''}
     <p>Unlocks at level ${unlock} · ${hours}-hour cooldown</p>
     <form method="dialog"><button class="primary">Close</button></form>`;
   dialog.addEventListener('close', () => dialog.remove(), {once:true});
@@ -2561,8 +2609,12 @@ const yokaiAttackMotion = {
 };
 const yokaiProjectileEffects = new Set(['twig', 'toy', 'quill', 'spark', 'fire', 'jab']);
 
+function yokaiSpeciesKey(name) {
+  return name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
 function yokaiBasicAttack(fighter) {
-  const key = (fighter.species || fighter.slug || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const key = yokaiSpeciesKey(fighter.species || fighter.slug || '');
   return Object.hasOwn(yokaiBasicAttacks, key) ? yokaiBasicAttacks[key] : ['Attack', 'charge', 'swipe', '#c56bff'];
 }
 
