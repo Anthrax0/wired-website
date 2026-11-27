@@ -1002,7 +1002,7 @@ function openMemberProfileReports(community = null) {
 }
 
 function orangeGroveBanner(coverClass){
- return `<div class="${coverClass} orange-grove-banner"><span class="orange-grove-fruit" aria-hidden="true">🍊</span><span class="orange-grove-title">Orange Grove Edition</span><span class="orange-grove-fruit" aria-hidden="true">🍊</span></div>`;
+ return `<div class="${coverClass} orange-grove-banner"><span class="orange-grove-fruit" aria-hidden="true">🍊</span><span class="orange-grove-fruit" aria-hidden="true">🍊</span></div>`;
 }
 
 function renderMemberProfile(){
@@ -1472,7 +1472,7 @@ function storeCosmeticArt(type){
  if(type==='frame')return '<div class="store-preview-avatar equipped-neon-frame"></div>';
  if(type==='orange-nameplate')return '<div class="store-preview-nameplate orange-fruit-nameplate"><span>🍃</span> WIRED <small>@anthrax</small><span>🍊</span></div>';
  if(type==='nameplate')return '<div class="store-preview-nameplate equipped-nameplate">WIRED <small>@anthrax</small></div>';
- if(type==='orange-fruit')return '<div class="store-preview-profile equipped-profile-theme orange-fruit-preview">'+orangeGroveBanner("store-preview-cover")+'<div class="store-preview-profile-head"><span class="store-preview-mini-avatar">🍊</span><div><b>WIRED MEMBER</b><small>Global profile · Citrus edition</small></div></div><div class="store-preview-bio"><i></i><i></i></div></div>';
+ if(type==='orange-fruit')return '<div class="store-preview-profile equipped-profile-theme orange-fruit-preview">'+orangeGroveBanner("store-preview-cover")+'<div class="store-preview-profile-head"><span class="store-preview-mini-avatar">🍊</span><div><b>WIRED MEMBER</b><small>Global profile</small></div></div><div class="store-preview-bio"><i></i><i></i></div></div>';
   if(type==='theme')return '<div class="store-preview-profile equipped-profile-theme"><div class="store-preview-cover"></div><div class="store-preview-profile-head"><span class="store-preview-mini-avatar">A</span><div><b class="equipped-violet-theme">anthrax</b><small>Global profile</small></div></div><div class="store-preview-bio"><i></i><i></i></div></div>';
  return '<span class="cosmetic-preview-generic">✦</span>';
 }

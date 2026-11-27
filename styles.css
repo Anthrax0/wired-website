@@ -2221,7 +2221,7 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   text-align: center;
   overflow: hidden;
@@ -2244,26 +2244,12 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .orange-grove-banner::before { inset: -30% auto auto -5%; }
 .orange-grove-banner::after { inset: auto -5% -35% auto; }
 .profile-cover.orange-grove-banner { border-bottom: 2px solid #b45611; }
-.orange-grove-title {
-  max-width: 55vw;
-  padding: .5em .85em;
-  border: 1px solid #ffd58c;
-  border-radius: 999px;
-  background: #4b200d;
-  color: #fff5db;
-  font-size: clamp(.85rem, 2.7vw, 1.45rem);
-  font-weight: 850;
-  line-height: 1.15;
-  letter-spacing: .035em;
-}
 .orange-grove-fruit {
   font-size: clamp(1.55rem, 6vw, 4rem);
   line-height: 1;
   filter: drop-shadow(0 2px 4px #652b1a);
 }
-.store-preview-cover .orange-grove-title { font-size: .64rem; }
 .store-preview-cover .orange-grove-fruit { font-size: 1.1rem; }
-.store-purchase-icon .orange-grove-title { padding: 0 .25em; font-size: 5px; }
 .store-purchase-icon .orange-grove-fruit { font-size: 7px; }
 
 :is(.profile-unified-card,.profile-custom-card).equipped-profile-theme.orange-fruit-theme {
