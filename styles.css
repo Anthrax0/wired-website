@@ -2175,3 +2175,71 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .yokai-duel-fighter progress { width: 100%; accent-color: #c56bff; }
 .yokai-duel-moves { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 8px; }
 .yokai-duel-card button, .yokai-duel-dialog button { min-height: 44px; }
+
+.wired-global-profile-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.wired-profile-actions {
+  position: relative;
+  z-index: 3;
+}
+.wired-profile-actions summary {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  list-style: none;
+  min-width: 44px;
+  min-height: 44px;
+  color: #f5c4ff;
+}
+.wired-profile-actions summary::-webkit-details-marker { display: none; }
+.wired-profile-lines {
+  width: 17px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 -5px currentColor, 0 5px currentColor;
+}
+.wired-profile-dots { font-size: 1.55rem; line-height: 1; }
+.wired-profile-action-panel {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  width: min(220px, 75vw);
+  padding: 5px 10px;
+  border: 1px solid #d879fa;
+  border-radius: 12px;
+  background: #160c20;
+  box-shadow: 0 6px 18px #000b, 0 0 10px #b53be073;
+}
+.wired-profile-action-panel button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  color: #f5e8ff;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.wired-profile-action-panel button + button { border-top: 1px solid #5c316a; }
+.wired-profile-action-panel button:hover,
+.wired-profile-action-panel button:focus-visible { background: #2d1645; }
+.wired-profile-action-panel [data-profile-action="block"] { color: #ff7588; }
+.wired-local-profile-hero:has(.wired-profile-actions) { z-index: 2; }
+.community-local-profile-detail:has(.wired-profile-actions[open]) { overflow: visible; }
+.wired-profile-report-dialog {
+  width: min(540px, calc(100% - 24px));
+  max-height: 85vh;
+  overflow: auto;
+  color: #f5e8ff;
+  border-color: #9e52d5;
+  background: #170e23;
+}
+.wired-profile-report-dialog::backdrop { background: #090411bf; }
+.wired-profile-report-dialog textarea { width: 100%; resize: vertical; }
+.wired-profile-report-dialog [data-profile-report-close] { margin-top: 12px; }
+.wired-profile-report-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
