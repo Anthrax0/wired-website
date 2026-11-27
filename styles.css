@@ -2115,21 +2115,120 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .yokai-duel-dialog::backdrop { background: #090411bf; }
 .yokai-duel-card { margin-block: 12px; }
 .yokai-duel-fighters {
+  --duel-stage-height: clamp(126px, 41vw, 310px);
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  overflow: hidden;
+}
+.yokai-duel-fighters::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 auto;
+  height: var(--duel-stage-height);
+  box-sizing: border-box;
+  border: 1px solid #795164;
+  border-radius: 14px;
+  background: linear-gradient(0deg, #12091240, transparent 55%),
+    #211424 url("assets/yokai-duel-shrine.webp") center 67% / cover no-repeat;
 }
 .yokai-duel-fighter {
   display: grid;
+  grid-template-rows: var(--duel-stage-height);
   gap: 4px;
   align-content: start;
   overflow-wrap: anywhere;
 }
-.yokai-duel-fighter img {
-  width: 100%;
-  height: clamp(75px, 22vw, 160px);
-  object-fit: contain;
+.yokai-duel-sprite {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 8px calc(var(--duel-stage-height) * .13);
+  box-sizing: border-box;
+  transform-origin: 50% 77%;
 }
+.yokai-duel-sprite img {
+  width: 100%;
+  height: 78%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 5px 8px #050308);
+}
+.yokai-duel-strike {
+  position: absolute;
+  top: calc(var(--duel-stage-height) * .57);
+  z-index: 2;
+  width: clamp(32px, 11vw, 90px);
+  aspect-ratio: 1;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 5px currentColor);
+  background: currentColor;
+  clip-path: polygon(50% 0, 58% 38%, 95% 17%, 67% 49%, 100% 58%, 63% 65%, 74% 100%, 48% 73%, 16% 95%, 33% 62%, 0 44%, 40% 42%);
+}
+.yokai-duel-strike:is([data-effect="swipe"], [data-effect="arc"], [data-effect="lash"], [data-effect="thread"]) {
+  background: none;
+  border: solid transparent;
+  border-width: 3px 5px;
+  border-inline-end-color: currentColor;
+  border-radius: 50%;
+  clip-path: none;
+}
+.yokai-duel-strike:is([data-effect="swipe"], [data-effect="lash"])::after {
+  content: "";
+  position: absolute;
+  inset: 7px 9px 3px 0;
+  border-inline-end: 3px solid currentColor;
+  border-radius: 50%;
+}
+.yokai-duel-strike[data-effect="thread"] { width: clamp(75px, 26vw, 220px); aspect-ratio: 5; }
+.yokai-duel-strike:is([data-effect="twig"], [data-effect="quill"], [data-effect="jab"]) {
+  width: clamp(22px, 7vw, 52px);
+  aspect-ratio: 4;
+  clip-path: polygon(0 45%, 100% 0, 84% 85%, 0 100%);
+}
+.yokai-duel-strike:is([data-effect="toy"], [data-effect="spark"], [data-effect="fire"]) {
+  width: clamp(16px, 5vw, 40px);
+  clip-path: none;
+  border-radius: 45%;
+  background: radial-gradient(circle, #fff1d2, currentColor 65%, transparent 72%);
+}
+.yokai-duel-strike[data-effect="toy"] {
+  border-radius: 25%;
+  background: repeating-linear-gradient(45deg, currentColor 0 5px, #fce0ea 5px 8px);
+}
+.yokai-duel-strike:is([data-effect="wall"], [data-effect="board"]) {
+  clip-path: polygon(33% 6%, 73% 0, 67% 93%, 24% 100%);
+  background: repeating-linear-gradient(0deg, currentColor 0 9px, #3e2b40 9px 12px);
+}
+.yokai-duel-strike:is([data-effect="water"], [data-effect="dust"], [data-effect="slam"], [data-effect="frost"]) {
+  top: calc(var(--duel-stage-height) * .73);
+  background: none;
+  border: 3px solid currentColor;
+  aspect-ratio: 2.4;
+  border-radius: 50%;
+  box-shadow: inset 0 0 12px currentColor;
+  clip-path: none;
+}
+.yokai-duel-strike[data-effect="frost"] {
+  border-style: dashed;
+  box-shadow: 0 0 9px currentColor, inset 0 0 15px currentColor;
+}
+.yokai-duel-strike[data-effect="step"] {
+  width: 9px;
+  height: 14px;
+  top: calc(var(--duel-stage-height) * .78);
+  border-radius: 50%;
+  clip-path: none;
+  box-shadow: -12px 5px currentColor, 12px -4px currentColor;
+}
+.yokai-duel-strike:is([data-effect="bite"], [data-effect="pinch"]) {
+  clip-path: polygon(0 16%, 100% 6%, 86% 45%, 71% 29%, 57% 51%, 43% 28%, 29% 43%, 15% 24%, 0 45%, 0 78%, 15% 60%, 29% 82%, 43% 61%, 57% 79%, 71% 57%, 86% 78%, 100% 50%, 100% 92%, 0 98%);
+}
+.yokai-duel-strike[data-effect="pinch"] { aspect-ratio: 2; }
 .yokai-duel-fighter small { text-transform: capitalize; }
 .yokai-duel-fighter progress { width: 100%; accent-color: #c56bff; }
 .yokai-duel-moves { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 8px; }

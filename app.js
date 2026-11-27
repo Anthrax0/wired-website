@@ -2434,6 +2434,104 @@ document.addEventListener('click',event=>{
 const duelInvitesSeen = new Set();
 const duelRewardsSeen = new Set();
 const duelMoves = ['Guard', 'Attack', 'Skill 1', 'Skill 2', 'Skill 3', 'Skill 4'];
+const yokaiBasicAttacks = {
+  "betobeto-san": ["Heel Tap", "stalk", "step", "#b8a2ed"],
+  "kappa": ["Pond Hook", "low", "water", "#69dcad"],
+  "kasa-obake": ["Umbrella Jab", "hop", "jab", "#f7849d"],
+  "keukegen": ["Dustball Tackle", "roll", "dust", "#c4a994"],
+  "kodama": ["Briar Flick", "cast", "twig", "#99df71"],
+  "nurikabe": ["Closing Wall", "slide", "wall", "#d5c4dd"],
+  "yanari": ["Floorboard Snap", "stomp", "board", "#dc9a66"],
+  "zashiki-warashi": ["Toy Toss", "cast", "toy", "#ff95b9"],
+  "dodomeki": ["Pickpocket Swipe", "feint", "swipe", "#efc873"],
+  "kejoro": ["Silken Lash", "cast", "lash", "#f498c7"],
+  "nuppeppo": ["Clammy Bump", "slide", "dust", "#b9a484"],
+  "nure-onna": ["Undertow Lash", "low", "lash", "#62c2d5"],
+  "amabie": ["Salt Quill", "cast", "quill", "#98f4ed"],
+  "bakeneko": ["False Purr", "tumble", "swipe", "#ff9a8c"],
+  "kamaitachi": ["Crosswind Cut", "feint", "arc", "#a8f2b9"],
+  "kitsune": ["Foxfire Snap", "feint", "fire", "#ff995d"],
+  "komainu": ["Threshold Pounce", "hop", "swipe", "#f4ce89"],
+  "nekomata": ["Twin-Tail Spark", "cast", "spark", "#79ccff"],
+  "tengu": ["Talon Descent", "dive", "swipe", "#ec8b86"],
+  "futakuchi-onna": ["Hidden Bite", "feint", "bite", "#e896a3"],
+  "oni": ["Iron Knuckle", "charge", "slam", "#ff765f"],
+  "rokurokubi": ["Over-the-Shoulder Snap", "stalk", "bite", "#ad95eb"],
+  "ushi-oni": ["Blackwater Gore", "charge", "water", "#a88bf0"],
+  "yuki-onna": ["Frost Touch", "slide", "frost", "#acddff"],
+  "gashadokuro": ["Bone Pinch", "loom", "pinch", "#e5d7b5"],
+  "jorogumo": ["Tripwire Pluck", "cast", "thread", "#ffc4db"],
+  "nurarihyon": ["Guest’s Rebuke", "cast", "jab", "#e4a9fc"],
+  "onryo": ["Grudge Claw", "stalk", "swipe", "#b4a2fc"],
+  "shinigami": ["Reaper’s Tap", "cast", "arc", "#a98bff"],
+  "yatagarasu": ["Three-Talon Dive", "dive", "swipe", "#dbb8fd"],
+  "sasquatch": ["Pinewood Shove", "charge", "dust", "#b3ca85"],
+  "yeti": ["Icebreaker Fist", "loom", "frost", "#9ae7ff"]
+};
+const yokaiAttackMotion = {
+  stalk:[.37, 6, 0], low:[.33, 15, 10], hop:[.34, -58, -9],
+  roll:[.34, 5, 120], cast:[.035, -8, -5], slide:[.33, 0, 0],
+  stomp:[.08, -55, 0], tumble:[.28, 10, 66], feint:[.27, -18, -12],
+  dive:[.34, -74, 21], charge:[.36, 2, -13], loom:[.24, -30, -10]
+};
+const yokaiProjectileEffects = new Set(['twig', 'toy', 'quill', 'spark', 'fire', 'jab']);
+
+function yokaiBasicAttack(fighter) {
+  const key = (fighter.species || fighter.slug || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  return Object.hasOwn(yokaiBasicAttacks, key) ? yokaiBasicAttacks[key] : ['Attack', 'charge', 'swipe', '#c56bff'];
+}
+
+function yokaiDuelMoveName(fighter, move) {
+  if (move === 1) return yokaiBasicAttack(fighter)[0];
+  if (move === 2 && fighter.skill) return fighter.skill;
+  return duelMoves[move];
+}
+
+function animateYokaiBasicAttacks(card, duel, previousRound) {
+  const round = duel.history.at(-1);
+  if (!round || previousRound === undefined || previousRound >= round.turn ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const stage = card.querySelector('.yokai-duel-fighters');
+  const sprites = stage.querySelectorAll('.yokai-duel-sprite');
+  if (sprites.length !== 2 || typeof sprites[0].animate !== 'function') return;
+  const stageWidth = stage.clientWidth;
+  const attacks = [
+    [round.a, duel.challenger_fighter, 0],
+    [round.b, duel.opponent_fighter, 1]
+  ].filter(([move]) => move === 1);
+  attacks.forEach(([, fighter, side], index) => {
+    const [, motion, effect, color] = yokaiBasicAttack(fighter);
+    const [distance, lift, rotation] = yokaiAttackMotion[motion];
+    const direction = side === 0 ? 1 : -1;
+    const delay = index * 370;
+    const origin = (side === 0 ? .25 : .75) * stageWidth;
+    const target = stageWidth - origin;
+    const sprite = sprites[side];
+    const transform = (x, y, angle) => `translate(${x * direction}px, ${y}px) rotate(${angle * direction}deg)`;
+    sprite.animate([
+      {transform:transform(0, 0, 0), offset:0},
+      {transform:transform(motion === 'slide' ? 0 : -10, motion === 'dive' ? lift : 0, -4), offset:.24},
+      {transform:transform(stageWidth * distance * .65, lift, rotation * .7), offset:.48},
+      {transform:transform(stageWidth * distance, lift * .2, rotation), offset:.62},
+      {transform:transform(0, 0, 0), offset:1}
+    ], {duration:560, delay, easing:'ease-in-out'});
+    const graphic = document.createElement('span');
+    const projectile = yokaiProjectileEffects.has(effect);
+    graphic.className = 'yokai-duel-strike';
+    graphic.dataset.effect = effect;
+    graphic.setAttribute('aria-hidden', 'true');
+    graphic.style.color = color;
+    graphic.style.left = target + 'px';
+    stage.append(graphic);
+    const strike = graphic.animate([
+      {opacity:0, transform:`translate(calc(-50% + ${projectile ? origin - target : 0}px), -50%) scale(.5)`, offset:0},
+      {opacity:1, transform:'translate(-50%, -50%) scale(1.05)', offset:.56},
+      {opacity:0, transform:'translate(-50%, -50%) scale(1.42)', offset:1}
+    ], {duration:460, delay:delay + (projectile ? 140 : 225), easing:'ease-out'});
+    strike.finished.then(() => graphic.remove(), () => graphic.remove());
+  });
+}
+
 
 async function yokaiDuelRequest(action, params = {}) {
   const {data, error} = await sb.rpc('yokai_duel', {p_action: action, ...params});
@@ -2476,7 +2574,7 @@ function yokaiDuelFighterMarkup(fighter, hp, member) {
   if (!fighter) return '';
   const portrait = yokaiPortraitUrl(fighter.species, fighter.slug, fighter.tier > 1);
   return `<div class="yokai-duel-fighter">
-    ${portrait ? `<img src="${escapeHTML(portrait)}" alt="">` : ''}
+    <div class="yokai-duel-sprite">${portrait ? `<img src="${escapeHTML(portrait)}" alt="" loading="lazy">` : ''}</div>
     <strong>${escapeHTML(fighter.name)}</strong>
     <small>${escapeHTML(member)} · Level ${fighter.level} · ${escapeHTML(fighter.rarity)}</small>
     <progress value="${hp}" max="${fighter.hp}" aria-label="${escapeHTML(fighter.name)} health"></progress>
@@ -2498,9 +2596,9 @@ function yokaiDuelCard(duel, actor) {
   } else if (duel.status === 'active') {
     controls = `<p>Round ${duel.turn}${duel.deadline ? ` · <span data-duel-deadline="${escapeHTML(duel.deadline)}"></span>` : ""}</p>
       <p>${duel.my_move !== null ? 'Move locked in.' : 'Choose a move.'} ${duel.opponent_locked ? 'Opponent ready.' : ''}</p>
-      <div class="yokai-duel-moves">${duelMoves.slice(0, pet.tier + 2).map((move, index) => {
+      <div class="yokai-duel-moves">${duelMoves.slice(0, pet.tier + 2).map((_, index) => {
         const cooldown = index >= 2 ? Math.max(0, duel.ready[index - 2] - duel.turn) : 0;
-        const name = index === 2 && pet.skill ? pet.skill : move;
+        const name = yokaiDuelMoveName(pet, index);
         return `<button class="ghost" type="button" data-duel-move="${index}" ${duel.my_move !== null || cooldown ? 'disabled' : ''}>
           ${escapeHTML(name)}${cooldown ? ` · ${cooldown} round${cooldown === 1 ? '' : 's'}` : ''}</button>`;
       }).join('')}</div><button class="ghost" type="button" data-duel-leave>Forfeit</button>`;
@@ -2513,7 +2611,7 @@ function yokaiDuelCard(duel, actor) {
     }
   }
   const last = duel.history.at(-1);
-  const describe = (fighter, move, crit, damage) => `${escapeHTML(fighter.name)} used ${escapeHTML(move === 2 && fighter.skill ? fighter.skill : duelMoves[move])}.${crit ? ' <strong>Critical Hit!</strong>' : ''}${move ? ` ${damage} damage.` : ''}`;
+  const describe = (fighter, move, crit, damage) => `${escapeHTML(fighter.name)} used ${escapeHTML(yokaiDuelMoveName(fighter, move))}.${crit ? ' <strong>Critical Hit!</strong>' : ''}${move ? ` ${damage} damage.` : ''}`;
   return `<h3>Duel with ${escapeHTML(opponent)}</h3><div class="yokai-duel-fighters">
     ${yokaiDuelFighterMarkup(duel.challenger_fighter, duel.challenger_hp, duel.challenger_name)}
     ${yokaiDuelFighterMarkup(duel.opponent_fighter, duel.opponent_hp, duel.opponent_name)}
@@ -2586,6 +2684,8 @@ async function refreshYokaiDuels() {
         const choice = card.querySelector('input[name="pet"]:checked')?.value;
         card.duelMarkup = markup;
         card.innerHTML = markup;
+        animateYokaiBasicAttacks(card, duel, card.duelRenderedRound);
+        card.duelRenderedRound = duel.history.at(-1)?.turn ?? 0;
         for (const input of card.querySelectorAll('input[name="pet"]')) if (input.value === choice) input.checked = true;
       }
       if (list.children[index] !== card) list.insertBefore(card, list.children[index] || null);
