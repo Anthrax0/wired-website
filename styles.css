@@ -2221,7 +2221,7 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   text-align: center;
   overflow: hidden;
@@ -2249,6 +2249,9 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   line-height: 1;
   filter: drop-shadow(0 2px 4px #652b1a);
 }
+.orange-grove-fruit:nth-child(odd) { transform: translateY(28%) rotate(-13deg) scale(.8); }
+.orange-grove-fruit:nth-child(even) { transform: translateY(-23%) rotate(12deg); }
+.orange-grove-fruit:nth-child(3) { transform: translateY(16%) rotate(-6deg) scale(1.12); }
 .store-preview-cover .orange-grove-fruit { font-size: 1.1rem; }
 .store-purchase-icon .orange-grove-fruit { font-size: 7px; }
 

@@ -1002,7 +1002,8 @@ function openMemberProfileReports(community = null) {
 }
 
 function orangeGroveBanner(coverClass){
- return `<div class="${coverClass} orange-grove-banner"><span class="orange-grove-fruit" aria-hidden="true">🍊</span><span class="orange-grove-fruit" aria-hidden="true">🍊</span></div>`;
+ const fruit = '<span class="orange-grove-fruit">🍊</span>';
+ return `<div class="${coverClass} orange-grove-banner" aria-hidden="true">${fruit.repeat(5)}</div>`;
 }
 
 function renderMemberProfile(){
