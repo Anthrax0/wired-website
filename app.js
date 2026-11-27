@@ -863,6 +863,12 @@ function renderMemberProfile(){
  const actions=v.querySelector('.profile-social-actions');if(actions){for(const id of ['profileBlockBtn','profileSendGiftBtn']){const btn=actions.querySelector('#'+id);if(btn)quick.appendChild(btn);}}
  const companionSection=v.querySelector('.profile-yokai-card, .profile-companion, .profile-yokai, .bonded-companion, .profile-yokai-section, .profile-companion-section');
  if(companionSection)companionSection.before(quick);else (v.querySelector('.profile-about')||v.querySelector('.profile-person'))?.before(quick);
+ const duelButton = document.createElement('button');
+ duelButton.type = 'button';
+ duelButton.className = 'ghost small';
+ duelButton.textContent = 'Challenge to Duel';
+ duelButton.onclick = () => openYokaiDuelChallenge(p);
+ quick.append(duelButton);
  quick.querySelectorAll('[data-member-social]').forEach(el=>el.addEventListener('click',()=>openViewedMemberSocial(p.id,el.dataset.memberSocial)));
  $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('people')});
  $('profileFollowBtn')?.addEventListener('click',()=>toggleFollow(p.id));
@@ -2266,6 +2272,183 @@ document.addEventListener('click',event=>{
   });
 });
 
+const duelInvitesSeen = new Set();
+const duelMoves = ['Guard', 'Attack', 'Skill 1', 'Skill 2', 'Skill 3', 'Skill 4'];
+
+async function yokaiDuelRequest(action, params = {}) {
+  const {data, error} = await sb.rpc('yokai_duel', {p_action: action, ...params});
+  if (error) throw error;
+  return data;
+}
+
+function openYokaiDuelChallenge(member) {
+  const pets = state.userPets || [];
+  if (!pets.length) { toast('Adopt a Yokai before challenging a member.'); return; }
+  const dialog = document.createElement('dialog');
+  dialog.className = 'card yokai-duel-dialog';
+  dialog.setAttribute('aria-labelledby', 'duelChallengeTitle');
+  dialog.innerHTML = `<h2 id="duelChallengeTitle">Challenge ${escapeHTML(member.username || 'this member')}</h2>
+    <form>${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true})}
+    <p role="status"></p><button class="primary" type="submit">Send Challenge</button>
+    <button class="ghost" type="button" data-cancel>Cancel</button></form>`;
+  const form = dialog.querySelector('form');
+  dialog.addEventListener('close', () => dialog.remove(), {once:true});
+  dialog.querySelector('[data-cancel]').onclick = () => dialog.close();
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      await yokaiDuelRequest('invite', {p_target:member.id, p_pet:new FormData(form).get('pet')});
+      if (!dialog.open) return;
+      dialog.close();
+      nav('pets', {sanctuaryView:'duels'});
+    } catch (error) {
+      form.querySelector('[role="status"]').textContent = errorText(error);
+      submit.disabled = false;
+    }
+  };
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function yokaiDuelFighterMarkup(fighter, hp, member) {
+  if (!fighter) return '';
+  const portrait = yokaiPortraitUrl(fighter.species, fighter.slug, fighter.tier > 1);
+  return `<div class="yokai-duel-fighter">
+    ${portrait ? `<img src="${escapeHTML(portrait)}" alt="">` : ''}
+    <strong>${escapeHTML(fighter.name)}</strong>
+    <small>${escapeHTML(member)} · Level ${fighter.level} · ${escapeHTML(fighter.rarity)}</small>
+    <progress value="${hp}" max="${fighter.hp}" aria-label="${escapeHTML(fighter.name)} health"></progress>
+    <span>${hp} / ${fighter.hp} HP</span>
+  </div>`;
+}
+
+function yokaiDuelCard(duel, actor) {
+  const sender = duel.challenger === actor;
+  const pet = sender ? duel.challenger_fighter : duel.opponent_fighter;
+  const opponent = sender ? duel.opponent_name : duel.challenger_name;
+  const pets = state.userPets || [];
+  let controls = '';
+  if (duel.status === 'pending') {
+    controls = sender ? '<p>Waiting for your opponent to accept.</p>' :
+      pets.length ? `<form>${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true})}
+        <button class="primary" type="submit">Accept Challenge</button></form>` : '<p>Adopt a Yokai to accept this challenge.</p>';
+    controls += `<button class="ghost" type="button" data-duel-leave>${sender ? 'Cancel Invitation' : 'Decline'}</button>`;
+  } else if (duel.status === 'active') {
+    controls = `<p>Round ${duel.turn} · <span data-duel-deadline="${escapeHTML(duel.deadline)}"></span></p>
+      <p>${duel.my_move !== null ? 'Move locked in.' : 'Choose a move.'} ${duel.opponent_locked ? 'Opponent ready.' : ''}</p>
+      <div class="yokai-duel-moves">${duelMoves.slice(0, pet.tier + 2).map((move, index) => {
+        const cooldown = index >= 2 ? Math.max(0, duel.ready[index - 2] - duel.turn) : 0;
+        const name = index === 2 && pet.skill ? pet.skill : move;
+        return `<button class="ghost" type="button" data-duel-move="${index}" ${duel.my_move !== null || cooldown ? 'disabled' : ''}>
+          ${escapeHTML(name)}${cooldown ? ` · ${cooldown} round${cooldown === 1 ? '' : 's'}` : ''}</button>`;
+      }).join('')}</div><button class="ghost" type="button" data-duel-leave>Forfeit</button>`;
+  } else {
+    const outcome = duel.winner ? duel.winner === actor ? 'You won' : 'You lost' : duel.opponent_fighter ? 'Draw' : 'Invitation closed';
+    controls = `<p><strong>${outcome}</strong> · ${escapeHTML(duel.reason || 'Duel ended')}</p>`;
+  }
+  const last = duel.history.at(-1);
+  const describe = (fighter, move, crit, damage) => `${escapeHTML(fighter.name)} used ${escapeHTML(move === 2 && fighter.skill ? fighter.skill : duelMoves[move])}.${crit ? ' <strong>Critical Hit!</strong>' : ''}${move ? ` ${damage} damage.` : ''}`;
+  return `<h3>Duel with ${escapeHTML(opponent)}</h3><div class="yokai-duel-fighters">
+    ${yokaiDuelFighterMarkup(duel.challenger_fighter, duel.challenger_hp, duel.challenger_name)}
+    ${yokaiDuelFighterMarkup(duel.opponent_fighter, duel.opponent_hp, duel.opponent_name)}
+    </div>${last ? `<p aria-live="polite">Round ${last.turn}<br>
+    ${describe(duel.challenger_fighter,last.a,last.a_crit,last.a_damage)}<br>
+    ${describe(duel.opponent_fighter,last.b,last.b_crit,last.b_damage)}</p>` : ''}
+    ${controls}`;
+}
+
+function updateYokaiDuelCountdowns(host) {
+  host.querySelectorAll('[data-duel-deadline]').forEach(clock => {
+    const seconds = Math.max(0, Math.ceil((Date.parse(clock.dataset.duelDeadline) - Date.now()) / 1000));
+    clock.textContent = seconds + 's left';
+  });
+}
+
+let yokaiDuelPolling = false;
+async function refreshYokaiDuels() {
+  const actor = state.user?.id;
+  if (!actor || document.hidden || yokaiDuelPolling) return;
+  yokaiDuelPolling = true;
+  try {
+    const duels = await yokaiDuelRequest('list');
+    if (state.user?.id !== actor) return;
+    const host = document.querySelector('[data-duel-arena]');
+    for (const duel of duels) {
+      if (duel.status !== 'pending' || duel.opponent !== actor || duelInvitesSeen.has(duel.id)) continue;
+      duelInvitesSeen.add(duel.id);
+      if (!host) toast(duel.challenger_name + ' challenged you. Open Yokai → Duel Arena.');
+    }
+    if (!host) return;
+    host.querySelector('[role="status"]').textContent = duels.length ? '' : 'No duels yet. Challenge a member from their global profile.';
+    const list = host.querySelector('[data-duel-list]');
+    const existing = new Map([...list.children].map(card => [card.dataset.duelId, card]));
+    duels.forEach((duel, index) => {
+      const card = existing.get(duel.id) || document.createElement('article');
+      existing.delete(duel.id);
+      card.className = 'card yokai-duel-card';
+      card.dataset.duelId = duel.id;
+      card.dataset.turn = duel.turn;
+      card.dataset.status = duel.status;
+      const markup = yokaiDuelCard(duel, actor);
+      if (card.duelMarkup !== markup && card.dataset.working !== 'true') {
+        const choice = card.querySelector('input[name="pet"]:checked')?.value;
+        card.duelMarkup = markup;
+        card.innerHTML = markup;
+        for (const input of card.querySelectorAll('input[name="pet"]')) if (input.value === choice) input.checked = true;
+      }
+      if (list.children[index] !== card) list.insertBefore(card, list.children[index] || null);
+    });
+    for (const card of existing.values()) card.remove();
+    updateYokaiDuelCountdowns(host);
+  } catch (error) {
+    const status = document.querySelector('[data-duel-arena] [role="status"]');
+    if (status && state.user?.id === actor) status.textContent = errorText(error);
+  } finally {
+    yokaiDuelPolling = false;
+  }
+}
+
+function bindYokaiDuelArena(host) {
+  async function submit(card, action, params = {}) {
+    if (card.dataset.working === 'true') return;
+    card.dataset.working = 'true';
+    try {
+      await yokaiDuelRequest(action, {p_id:card.dataset.duelId, ...params});
+    } catch (error) {
+      toast(errorText(error));
+    } finally {
+      delete card.dataset.working;
+      await refreshYokaiDuels();
+    }
+  }
+  host.addEventListener('submit', event => {
+    event.preventDefault();
+    void submit(event.target.closest('[data-duel-id]'), 'accept', {p_pet:new FormData(event.target).get('pet')});
+  });
+  host.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    const card = button?.closest('[data-duel-id]');
+    if (!card) return;
+    if (button.hasAttribute('data-duel-move')) {
+      void submit(card, 'move', {p_turn:Number(card.dataset.turn), p_move:Number(button.dataset.duelMove)});
+    } else if (button.hasAttribute('data-duel-leave')) {
+      if (card.dataset.status !== 'active' || window.confirm('Forfeit this duel?')) void submit(card, 'leave');
+    }
+  });
+  void refreshYokaiDuels();
+}
+
+let yokaiDuelLastPoll = 0;
+setInterval(() => {
+  const host = document.querySelector('[data-duel-arena]');
+  if (host) updateYokaiDuelCountdowns(host);
+  if (Date.now() - yokaiDuelLastPoll < (host ? 1500 : 15000)) return;
+  yokaiDuelLastPoll = Date.now();
+  void refreshYokaiDuels();
+}, 750);
+
 function renderPetParadise(){
   const v=$("view");
   if(!state.user){
@@ -2294,7 +2477,7 @@ function renderPetParadise(){
   const footer='<p class="pet-kindness">☾ Your yokai companions keep their powers while you’re away. In the hush of the sanctuary, they await your return.</p>';
   const owned='<section class="pet-section"><div class="section-head"><div><h2>My Yokai</h2><p class="hint">Feed their hunger. Sharpen their power. Awaken what lurks within.</p></div></div>'+(pets.length?petCards:'<div class="pet-empty"><div>☾</div><h3>No Spirits Bound to You</h3><p>Enter the summoning chamber to adopt your first yokai.</p></div>')+'</section>';
   const summon='<section class="pet-section"><div class="section-head"><div><h2>Summon a Yokai</h2><p class="hint">'+(atLimit?'You can own up to '+YOKAI_OWNERSHIP_LIMIT+' yokai companions. Free a spot before adopting another.':first?'Your first Common yokai is on us.':'Collect new companions with your WIRED points.')+'</p></div></div><div class="pet-adoption-grid">'+shop+'</div></section>';
-  const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My Yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a Yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button></div>';
+  const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My Yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a Yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="duels"><span class="yokai-choice-symbol" aria-hidden="true">⚔</span><strong>Duel Arena</strong><span>Battle another member’s companion live</span></button></div>';
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
   const listingDuration = '<label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label>';
   const poundHeader = `<h2>Yokai Pound</h2>
@@ -2324,7 +2507,9 @@ function renderPetParadise(){
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
   </section>`;
-  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:choices)+footer;
+  const arena = '<section class="pet-section" data-duel-arena><h2>Duel Arena</h2><p role="status">Loading duels…</p><div data-duel-list></div></section>';
+  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:sanctuaryView==='duels'?back+arena:choices)+footer;
+  if (sanctuaryView === 'duels') bindYokaiDuelArena(v.querySelector('[data-duel-arena]'));
   if (sanctuaryView === 'pound') void renderYokaiPound(v.querySelector('.yokai-pound'));
   if (sanctuaryView === 'exchange') void renderYokaiAdoptionExchanges(v.querySelector('.yokai-exchanges'));
   v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{
@@ -4424,7 +4609,7 @@ async function restoreWiredRoute(route){
   discoveryMode:route.discoveryMode||'',
   storeSection:['profile','yokai','gifts'].includes(route.storeSection)?route.storeSection:'home',
   sanctuaryCompanionId:route.sanctuaryCompanionId,
-  sanctuaryView:['owned','summon','pound','exchange'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
+  sanctuaryView:['owned','summon','pound','exchange','duels'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
  });
  if(route.page==='store'&&wiredStoreSection==='gifts'&&route.giftTarget){
   wiredGiftTarget=route.giftTarget;
