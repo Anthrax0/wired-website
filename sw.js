@@ -1,5 +1,5 @@
-const CACHE = "wired-pwa-v128";
-const FILES = ["./", "./index.html", "./styles.css?v=yokai-duel-picker-rarity-1", "./app.js?v=yokai-duel-picker-rarity-1", "./manifest.webmanifest", "./wired-logo.png", "./assets/wired-wordmark.webp", "./assets/wired-icon-192.png", "./assets/wired-icon-512.png"];
+const CACHE = "wired-pwa-v129";
+const FILES = ["./", "./index.html", "./styles.css?v=yokai-duel-draws-1", "./app.js?v=yokai-duel-draws-1", "./manifest.webmanifest", "./wired-logo.png", "./assets/wired-wordmark.webp", "./assets/wired-icon-192.png", "./assets/wired-icon-512.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));

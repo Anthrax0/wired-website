@@ -2623,6 +2623,10 @@ function yokaiDuelFighterMarkup(fighter, hp, member) {
   </div>`;
 }
 
+function hasYokaiDuelReward(duel, actor) {
+  return duel.reward_points > 0 && (!duel.winner || duel.winner === actor);
+}
+
 function yokaiDuelCard(duel, actor) {
   const sender = duel.challenger === actor;
   const pet = sender ? duel.challenger_fighter : duel.opponent_fighter;
@@ -2649,7 +2653,7 @@ function yokaiDuelCard(duel, actor) {
     const botWon = duel.is_bot && (duel.reason === 'Forfeit' || duel.reason === 'Turn timed out' || (!duel.challenger_hp && duel.opponent_hp > 0));
     const outcome = duel.winner ? duel.winner === actor ? 'You won' : 'You lost' : botWon ? 'You lost' : duel.opponent_fighter ? 'Draw' : 'Invitation closed';
     controls = `<p><strong>${outcome}</strong> · ${escapeHTML(duel.reason || 'Duel ended')}</p>`;
-    if (duel.winner === actor && duel.reward_points) {
+    if (hasYokaiDuelReward(duel, actor)) {
       controls += `<p>+${Number(duel.reward_xp)} XP · +${Number(duel.reward_points)} points</p>`;
     }
   }
@@ -2702,7 +2706,7 @@ async function refreshYokaiDuels() {
     let earnedReward = false;
     for (const duel of duels) {
       const rewardKey = actor + ':' + duel.id;
-      if (duel.winner === actor && duel.reward_points && !duelRewardsSeen.has(rewardKey)) {
+      if (hasYokaiDuelReward(duel, actor) && !duelRewardsSeen.has(rewardKey)) {
         duelRewardsSeen.add(rewardKey);
         earnedReward = true;
       }
@@ -2875,7 +2879,8 @@ function renderPetParadise(){
         <li>Bot wins can award 0–20 base XP. The penalty applies to the match reward, and previously earned XP stays yours. Your Yokai’s own rarity XP bonus applies afterward. Bot wins still award 5 points.</li>
         <li><strong>Member duels</strong> · 5 accepted duels per day for each member. A knockout win earns 20 XP and 10 points.</li>
         <li>Both limits reset at midnight UTC. A started duel still counts if you forfeit, time out, or draw.</li>
-        <li>Only knockout wins earn rewards. XP goes to your winning companion if you still own it.</li>
+        <li><strong>Draws</strong> · If both Yokai are knocked out in the same round or the match reaches the round limit without a winner, each member earns half the usual knockout reward. Member draws award 10 base XP and 5 points each. Bot draws award half the rarity-adjusted base XP and 2 points, rounded down from 2.5.</li>
+        <li>Your Yokai’s rarity XP bonus also applies to draws. XP goes to the companion that fought if you still own it. Forfeits and timeouts award no rewards.</li>
         <li>Guard prevents all damage for one round. You can’t use it two rounds in a row.</li>
       </ul>
     </section>
