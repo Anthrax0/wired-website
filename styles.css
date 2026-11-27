@@ -2511,3 +2511,22 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .yokai-skill-action[aria-disabled="true"] { opacity: .68; cursor: default; }
 .yokai-skill-action [data-skill-timer]:not([hidden]) { display: block; margin-top: 3px; }
 .yokai-care-skill-info { min-width: 44px; }
+
+.comment-disclosure > summary {
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px solid #763ea5;
+  border-radius: 10px;
+  background: #1a1028;
+  color: #e9d1ff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.comment-disclosure > summary:hover,
+.comment-disclosure > summary:focus-visible {
+  border-color: #bf80ff;
+}
+.profile-comments > .comment-disclosure,
+.comment-disclosure > .comment-form {
+  margin-top: 10px;
+}
