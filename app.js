@@ -698,6 +698,14 @@ function renderProfilePage(view){
    button.onclick=()=>openProfilePage(target);
    body.appendChild(button);
   }
+  if(wiredStaffAccess){
+   const button=document.createElement("button");
+   button.type="button";
+   button.className="wired-profile-row";
+   button.innerHTML=profilePageRow("WIRED Profile Reports");
+   button.onclick=()=>openMemberProfileReports();
+   body.append(button);
+  }
  }else if(page==="profile-account"){
   body.innerHTML=profileAccountForms();
   body.querySelector("#usernameForm").onsubmit=saveUsername;
@@ -850,17 +858,160 @@ async function openViewedMemberSocial(userId,type){
   v.querySelectorAll('[data-social-person]').forEach(el=>el.addEventListener('click',()=>openMemberProfile(el.dataset.socialPerson)));
  }catch(e){toast(errorText(e));}
 }
+function profileActionsMarkup(community, moderation) {
+ return `<details class="wired-profile-actions">
+   <summary class="ghost" aria-label="${community ? 'Community profile actions' : 'Global profile actions'}">
+     <span class="${community ? 'wired-profile-dots' : 'wired-profile-lines'}" aria-hidden="true">${community ? '⋯' : ''}</span>
+   </summary>
+   <div class="wired-profile-action-panel">
+     <button type="button" data-profile-action="chat">Start a Chat</button>
+     <button type="button" data-profile-action="flag">Flag Member Profile</button>
+     <button type="button" data-profile-action="block">Block User</button>
+     ${moderation ? '<button type="button" data-profile-action="moderate">Moderation Tools</button>' : ''}
+   </div>
+ </details>`;
+}
+
+document.addEventListener('click', event => {
+ for (const menu of document.querySelectorAll('.wired-profile-actions[open]')) {
+  if (!menu.contains(event.target)) menu.open = false;
+ }
+});
+
+function bindProfileActions(root, member, community = null, moderate = null) {
+ const menu = root.querySelector('.wired-profile-actions');
+ if (!menu) return;
+ const summary = menu.querySelector('summary');
+ const close = () => { menu.open = false; summary.focus(); };
+ menu.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && menu.open) { event.preventDefault(); close(); }
+ });
+ menu.querySelector('[data-profile-action="chat"]').onclick = () => {
+  close();
+  if (community) void startCommunityDM(member.id, community.id);
+  else void startDMByUsername(member.username);
+ };
+ menu.querySelector('[data-profile-action="flag"]').onclick = () => {
+  close();
+  openMemberProfileFlag(member, community);
+ };
+ menu.querySelector('[data-profile-action="block"]').onclick = () => {
+  close();
+  void toggleWiredBlock(member.id);
+ };
+ if (moderate) menu.querySelector('[data-profile-action="moderate"]').onclick = () => { close(); moderate(); };
+}
+
+function openProfileReportDialog(title, content) {
+ const dialog = document.createElement('dialog');
+ dialog.className = 'card wired-profile-report-dialog';
+ dialog.setAttribute('aria-labelledby', 'wiredProfileReportTitle');
+ dialog.innerHTML = `<h2 id="wiredProfileReportTitle">${escapeHTML(title)}</h2>${content}
+   <button class="ghost" type="button" data-profile-report-close>Close</button>`;
+ dialog.querySelector('[data-profile-report-close]').onclick = () => dialog.close();
+ dialog.addEventListener('close', () => dialog.remove(), {once:true});
+ document.body.append(dialog);
+ dialog.showModal();
+ return dialog;
+}
+
+function openMemberProfileFlag(member, community) {
+ const dialog = openProfileReportDialog('Flag Member Profile', `<p>${escapeHTML(member.username || 'WIRED member')}</p>
+   <form>
+     <label class="field">Violation type<select name="scope">
+        ${community ? '<option value="community">Community violation</option>' : ''}
+        <option value="app">WIRED app violation</option>
+     </select></label>
+     <p class="hint" data-report-destination></p>
+     <label class="field">What happened?<textarea name="reason" maxlength="1500" required rows="4"></textarea></label>
+     <p role="status"></p><button type="submit" class="primary">Send Report</button>
+   </form>`);
+ const form = dialog.querySelector('form');
+ const scope = form.elements.scope;
+ const destination = form.querySelector('[data-report-destination]');
+ const status = form.querySelector('[role="status"]');
+ const updateDestination = () => {
+  destination.textContent = scope.value === 'community'
+   ? 'Sent to this community’s owners and moderators.'
+   : 'Sent to WIRED app owners and administrators.';
+ };
+ scope.onchange = updateDestination;
+ updateDestination();
+ form.onsubmit = async event => {
+  event.preventDefault();
+  const reason = form.elements.reason.value.trim();
+  if (!reason) { status.textContent = 'Enter a reason for your report.'; return; }
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+   const {error} = await sb.from('member_profile_reports').insert({
+    member_id: member.id, community_id: community?.id || null, scope: scope.value, reason
+   });
+   if (error) throw error;
+   dialog.close();
+   toast('Profile report submitted.');
+  } catch (error) {
+   status.textContent = error.code === '23505' ? 'You already have an open report for this profile and violation type.' : errorText(error);
+   button.disabled = false;
+  }
+ };
+}
+
+function openMemberProfileReports(community = null) {
+ const dialog = openProfileReportDialog(community ? 'Community Profile Reports' : 'WIRED Profile Reports',
+   '<p role="status"></p><div data-profile-report-list></div>');
+ const status = dialog.querySelector('[role="status"]');
+ const list = dialog.querySelector('[data-profile-report-list]');
+ async function load() {
+  status.textContent = 'Loading reports…';
+  let query = sb.from('member_profile_reports')
+   .select('id,member_id,reason,created_at,member:profiles!member_profile_reports_member_id_fkey(username),community:communities(name)')
+   .eq('scope', community ? 'community' : 'app').eq('status','open').order('created_at').order('id').limit(50);
+  if (community) query = query.eq('community_id',community.id);
+  const {data, error} = await query;
+  if (!dialog.open) return;
+  if (error) { status.textContent = errorText(error); return; }
+  status.textContent = data.length ? '' : 'No open profile reports.';
+  list.innerHTML = data.map(report => `<article class="card">
+    <strong>${escapeHTML(report.member?.username || 'Member ' + report.member_id)}</strong>
+    <p class="hint">${escapeHTML(new Date(report.created_at).toLocaleString())}${!community && report.community ? ' · ' + escapeHTML(report.community.name) : ''}</p>
+    <p class="wired-profile-report-reason">${escapeHTML(report.reason)}</p>
+    <div class="card-actions"><button type="button" class="ghost" data-view-reported-member="${escapeHTML(report.member_id)}">View Profile</button>
+    <button type="button" class="ghost" data-resolve-profile-report="${escapeHTML(report.id)}">Resolve</button></div>
+   </article>`).join('');
+ }
+ list.onclick = async event => {
+  const profile = event.target.closest('[data-view-reported-member]');
+  if (profile) {
+   dialog.close();
+   const id = profile.dataset.viewReportedMember;
+   if (community) await openCommunityMemberProfile(id, community.id);
+   else await openMemberProfile(id);
+   return;
+  }
+  const button = event.target.closest('[data-resolve-profile-report]');
+  if (!button) return;
+  button.disabled = true;
+  const {data, error} = await sb.from('member_profile_reports').update({status:'resolved'})
+   .eq('id',button.dataset.resolveProfileReport).eq('status','open').select('id').maybeSingle();
+  if (error) { status.textContent = errorText(error); button.disabled = false; return; }
+  toast(data ? 'Profile report resolved.' : 'This report is no longer open.');
+  await load();
+ };
+ void load();
+}
+
 function renderMemberProfile(){
  const p=state.viewingProfile;if(!p)return;
  const v=$('view');
  if(p.wiredBlocked){v.innerHTML='<button type="button" class="link" id="backBlockedProfile">← Back</button><section class="card"><h2>Blocked</h2><p>You blocked this member across WIRED.</p><button type="button" class="ghost" id="profileBlockBtn">Blocked</button></section>';v.querySelector('#backBlockedProfile').onclick=()=>openProfilePage(state.profileReturnPage==='profile-blocked'?'profile-blocked':'people');v.querySelector('#profileBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(p.id));return;}const cover=p.cover_url?'url("'+escapeHTML(p.cover_url)+'")':'linear-gradient(120deg,#49246b,#171020 60%,#29133b)';
  const avatar=p.avatar_url?'<img src="'+escapeHTML(p.avatar_url)+'" alt="Profile photo">':'W';
  const fr=p.friendRequest;const isMutualFriend=!!(p.isFollowing&&p.followsMe);const friendLabel=isMutualFriend?'Friends':'Follow each other to become friends';
- v.innerHTML='<button class="link" id="backMemberProfile">← Back</button><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card '+(p.equipped_theme_item_id?'equipped-profile-theme ':'')+equippedCosmeticClass(p.equipped_theme_item_id,'theme')+' '+(p.equipped_theme_item_id==='d703a32c-2257-4bb6-b18c-9f87d0fdc3a6'?'black-rose-theme':'')+'"><div class="profile-person"><div class="profile-avatar '+(p.equipped_frame_item_id?'equipped-neon-frame':'')+' '+equippedCosmeticClass(p.equipped_frame_item_id,'frame')+' '+(p.equipped_frame_item_id==='1a48d530-1e6b-4bde-9c99-c242bda3990c'?'orange-fruit-frame':'')+'">'+avatar+'</div><div><h2 class="'+(p.equipped_nameplate_item_id?'equipped-nameplate':'')+' '+equippedCosmeticClass(p.equipped_nameplate_item_id,'nameplate')+' '+(p.equipped_nameplate_item_id==='8028d5a4-d964-45e8-8241-fb00c652a42a'?'orange-fruit-nameplate':'')+' '+(p.equipped_theme_item_id?'equipped-violet-theme':'')+'">'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2>'+relationshipSubtitleMarkup(p.displayRelationship,false)+(isMutualFriend?'<button type="button" class="ghost profile-name-chat" id="profileChatBtn">Chat</button>':'')+'</div></div>'+relationshipMarkup(p)+profileYokaiMarkup(p.companion)+'<section class="profile-about"><h3>About Me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><span class="profile-friend-status">'+friendLabel+'</span>' +'<button type="button" class="ghost" id="profileSendGiftBtn">🎁 Send Gift</button><button type="button" class="ghost" id="profileBlockBtn" style="color:#ff525f;border-color:#b42b42;font-size:.75rem;padding:.3rem .55rem">Block</button></div>'+profileCommentsMarkup(p.id,p.comments)+'</section>';
+ v.innerHTML='<div class="wired-global-profile-toolbar"><button type="button" class="link" id="backMemberProfile">← Back</button>'+profileActionsMarkup(false,false)+'</div><div class="profile-cover member-profile-cover" style="background-image:'+cover+'"></div><section class="card profile-custom-card '+(p.equipped_theme_item_id?'equipped-profile-theme ':'')+equippedCosmeticClass(p.equipped_theme_item_id,'theme')+' '+(p.equipped_theme_item_id==='d703a32c-2257-4bb6-b18c-9f87d0fdc3a6'?'black-rose-theme':'')+'"><div class="profile-person"><div class="profile-avatar '+(p.equipped_frame_item_id?'equipped-neon-frame':'')+' '+equippedCosmeticClass(p.equipped_frame_item_id,'frame')+' '+(p.equipped_frame_item_id==='1a48d530-1e6b-4bde-9c99-c242bda3990c'?'orange-fruit-frame':'')+'">'+avatar+'</div><div><h2 class="'+(p.equipped_nameplate_item_id?'equipped-nameplate':'')+' '+equippedCosmeticClass(p.equipped_nameplate_item_id,'nameplate')+' '+(p.equipped_nameplate_item_id==='8028d5a4-d964-45e8-8241-fb00c652a42a'?'orange-fruit-nameplate':'')+' '+(p.equipped_theme_item_id?'equipped-violet-theme':'')+'">'+escapeHTML(p.username||'WIRED member')+(p.id_verified?' <span class="pill">✓ Verified</span>':'')+'</h2>'+relationshipSubtitleMarkup(p.displayRelationship,false)+'</div></div>'+relationshipMarkup(p)+profileYokaiMarkup(p.companion)+'<section class="profile-about"><h3>About Me</h3><p>'+escapeHTML(p.bio||'This member hasn’t added a biography yet.')+'</p></section><div class="profile-social-actions"><button class="primary" id="profileFollowBtn">'+(p.isFollowing?'Following':'＋ Follow')+'</button><span class="profile-friend-status">'+friendLabel+'</span>' +'<button type="button" class="ghost" id="profileSendGiftBtn">🎁 Send Gift</button></div>'+profileCommentsMarkup(p.id,p.comments)+'</section>';
  attachProfileCommentHandlers(p.id);
  const quick=document.createElement('div');quick.className='profile-social-actions';quick.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:12px 0';
  quick.innerHTML=['Followers','Following','Friends'].map((label,i)=>'<button type="button" class="ghost small" data-member-social="'+['followers','following','friends'][i]+'">'+label+'</button>').join('');
- const actions=v.querySelector('.profile-social-actions');if(actions){for(const id of ['profileBlockBtn','profileSendGiftBtn']){const btn=actions.querySelector('#'+id);if(btn)quick.appendChild(btn);}}
+ const actions=v.querySelector('.profile-social-actions');if(actions){const gift=actions.querySelector('#profileSendGiftBtn');if(gift)quick.appendChild(gift);}
  const companionSection=v.querySelector('.profile-yokai-card, .profile-companion, .profile-yokai, .bonded-companion, .profile-yokai-section, .profile-companion-section');
  if(companionSection)companionSection.before(quick);else (v.querySelector('.profile-about')||v.querySelector('.profile-person'))?.before(quick);
  const duelButton = document.createElement('button');
@@ -873,9 +1024,8 @@ function renderMemberProfile(){
  $('backMemberProfile')?.addEventListener('click',()=>{if(state.profileReturnPage==='community'&&state.activeCommunity){state.page='community';renderCommunity()}else nav('people')});
  $('profileFollowBtn')?.addEventListener('click',()=>toggleFollow(p.id));
 
- $('profileChatBtn')?.addEventListener('click',()=>startDMByUsername(p.username));
+ bindProfileActions(v,p);
  $('profileSendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(p.id,p.username));
- $('profileBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(p.id));
  $('relationshipRequestBtn')?.addEventListener('click',()=>requestRelationship(p.id));
  $('relationshipAcceptBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'accepted'));
  $('relationshipDeclineBtn')?.addEventListener('click',()=>relationshipAction(p.relationshipRequest.id,'declined'));
@@ -3156,6 +3306,7 @@ function renderCommunity(){
   html+='<div class="section-head"><h3>Banned Members ('+bans.length+')</h3></div>';
   html+=bans.map(ban=>'<article class="moderation-row"><div><button type="button" class="profile-member-link" data-profile-id="'+escapeHTML(ban.user_id)+'">'+escapeHTML(ban.profiles?.username||'WIRED member')+'</button><p class="hint">'+(ban.expires_at?'Until '+escapeHTML(new Date(ban.expires_at).toLocaleString()):'Permanent ban')+'</p></div>'+
    (ban.former_role!=='mod'||c.owner_id===state.user?.id?'<button type="button" class="ghost small" data-member-ban="'+escapeHTML(ban.user_id)+'" data-banned="true">Lift ban</button>':'')+'</article>').join('')||'<p class="empty">No active bans.</p>';
+  html+='<button type="button" class="ghost" id="communityMemberReports">Community Profile Reports</button>';
   html+='<div class="section-head"><h3>Open Reports ('+state.moderationReports.length+')</h3></div>';
   html+=state.moderationReports.map(r=>'<article class="moderation-row"><div><b>'+escapeHTML(r.reason||'Reported content')+'</b><p class="hint">Post · '+escapeHTML(r.target_id)+'</p></div><div class="card-actions"><button class="ghost small" data-report-resolve="'+escapeHTML(r.id)+'">Resolve</button><button class="primary small" data-report-remove="'+escapeHTML(r.id)+'" data-report-post="'+escapeHTML(r.target_id)+'">Remove post</button></div></article>').join('')||'<div class="empty">No open reports for this community.</div>';
   html+='<div class="section-head"><h3>Community Posts · Moderation</h3></div>';
@@ -3219,6 +3370,7 @@ function renderCommunity(){
  }
  }
  v.querySelectorAll('[data-member-ban]').forEach(b=>b.addEventListener('click',()=>setMemberBanned(b.dataset.memberBan,b.dataset.banned!=='true')));v.querySelectorAll('[data-member-warning]').forEach(b=>b.addEventListener('click',async()=>{const reason=await wiredDialog('Enter the reason for this member warning:',{input:true,danger:false});if(reason?.trim())try{await issueMemberWarning(b.dataset.memberWarning,reason.trim())}catch(e){toast(errorText(e))}}));
+ $('communityMemberReports')?.addEventListener('click',()=>openMemberProfileReports(c));
  v.querySelectorAll('[data-report-resolve]').forEach(b=>b.addEventListener('click',()=>resolveCommunityReport(b.dataset.reportResolve)));
  v.querySelectorAll('[data-report-remove]').forEach(b=>b.addEventListener('click',()=>removeReportedPost(b.dataset.reportRemove,b.dataset.reportPost)));
  v.querySelectorAll('[data-moderate-remove-post]').forEach(b=>b.addEventListener('click',()=>moderateRemovePost(b.dataset.moderateRemovePost)));
@@ -3587,6 +3739,7 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   if(!isCurrent())return;
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
   const own=userId===uid;
+  const canModerate=!own&&['owner','mod'].includes(state.activeCommunityRole);
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
   const avatar=local?.avatar_url||global?.avatar_url;
   const cover=local?.cover_url;
@@ -3594,7 +3747,7 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   const editor=own?'<details class="card community-local-profile" id="communityProfileEditor"><summary>Edit community profile</summary><div id="communityLocalProfile">Loading…</div></details>':'';
   panel.innerHTML=`<header class="wired-local-profile-hero">
    ${cover?`<img class="wired-local-profile-cover" src="${escapeHTML(cover)}" alt="">`:""}
-   <div class="wired-local-profile-toolbar"><button type="button" class="ghost small" id="closeLocalProfile">← Back</button>${own?'<button type="button" class="ghost small" id="communityProfilePoints">Point stash</button>':""}</div>
+   <div class="wired-local-profile-toolbar"><button type="button" class="ghost small" id="closeLocalProfile">← Back</button>${own?'<button type="button" class="ghost small" id="communityProfilePoints">Point stash</button>':profileActionsMarkup(true,canModerate)}</div>
    <div class="wired-local-profile-identity">
     <span class="community-local-avatar-wrap">${avatar?`<img class="community-local-avatar" src="${escapeHTML(avatar)}" alt="">`:'<span class="community-local-avatar community-local-avatar-fallback" aria-hidden="true">W</span>'}${communityAvatarLevelBadge({communityPoints:profileCommunityPoints})}</span>
     <small>${escapeHTML(community.name||"Community")}</small><h2>${escapeHTML(name)}</h2>
@@ -3610,7 +3763,7 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
    ${local?.show_global_companion?`<section class="community-companion-section">${companion?profileYokaiMarkup(companion):`<p class="hint">${escapeHTML(companionMessage)}</p>`}</section>`:""}
    <section class="community-profile-biography"><h3>Bio</h3><p id="communityProfileBio">${escapeHTML(local?.bio||"No community biography yet.")}</p>${own&&!local?.bio?'<button type="button" class="link" id="communityAddBio">Add a bio</button>':""}</section>
    ${own&&myPartner?`<p class="hint">In a community relationship · <button type="button" class="link" data-community-profile-partner="${escapeHTML(myPartner)}">View partner profile</button></p>`:""}
-   ${editor}${own?"":'<div class="card-actions"><button type="button" class="ghost small" id="communityChatBtn">Chat</button><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>'}
+   ${editor}${own?"":'<div class="card-actions"><button class="ghost small" id="communityFollowBtn">'+(following?'Unfollow community profile':'Follow community profile')+'</button><button class="ghost small" id="communityRelationshipBtn" '+(!friends||relationship||myActive?'disabled':'')+'>'+escapeHTML(relationLabel)+'</button>'+(relationship?.status==='pending'&&relationship.recipient_id===uid?'<button class="primary small" id="acceptCommunityRelationship">Accept relationship</button><button class="ghost small" id="declineCommunityRelationship">Decline</button>':'')+(relationship?.status==='pending'&&relationship.requester_id===uid?'<button class="ghost small" id="cancelCommunityRelationship">Cancel request</button>':'')+(relationship?.status==='accepted'?'<button class="ghost small" id="endCommunityRelationship">End relationship</button>':'')+'</div>'}
    <nav class="wired-local-profile-tabs" aria-label="Profile content">
     <button type="button" data-community-profile-pane="posts">Posts</button>
     <button type="button" data-community-profile-pane="wall">Wall</button>
@@ -3619,12 +3772,8 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
    <section id="communityProfilePosts"></section>
    <div id="communityProfileComments" hidden><p class="hint">Loading comments…</p></div>
   </div>`;
-  if(['owner','mod'].includes(state.activeCommunityRole)){
-   panel.classList.add('has-member-moderation');
-   panel.insertAdjacentHTML('afterbegin','<button type="button" class="ghost member-moderation-trigger" id="communityMemberModeration" aria-label="Moderation tools for '+escapeHTML(name)+'" aria-haspopup="dialog">⋯</button>');
-   panel.querySelector('#communityMemberModeration').addEventListener('click',()=>openMemberModeration(panel,community,userId,name));
-  }
-  if(!own)panel.querySelector('.wired-local-profile-body .card-actions').insertAdjacentHTML('beforeend','<button type="button" class="ghost small" id="communitySendGiftBtn">Send Gift</button><button type="button" class="ghost small" id="communityBlockBtn">Block</button>');
+  if(!own)panel.querySelector('.wired-local-profile-body .card-actions').insertAdjacentHTML('beforeend','<button type="button" class="ghost small" id="communitySendGiftBtn">Send Gift</button>');
+  bindProfileActions(panel,{id:userId,username:name},community,canModerate?()=>openMemberModeration(panel,community,userId,name):null);
   const host=document.getElementById('view');
   if(!host)throw new Error('Community page is not available.');
   host.replaceChildren(panel);
@@ -3690,7 +3839,6 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   });
   panel.querySelector('[data-community-profile-partner]')?.addEventListener('click',()=>openCommunityMemberProfile(myPartner));
   panel.querySelector('#communitySendGiftBtn')?.addEventListener('click',()=>openGiftShopForProfile(userId,name,cid));
-  panel.querySelector('#communityBlockBtn')?.addEventListener('click',()=>toggleWiredBlock(userId));
   panel.querySelector('#closeLocalProfile')?.addEventListener('click',()=>openCommunitySection(state.communityTab==='members'?'members':'latest'));
   panel.querySelectorAll('[data-community-social]').forEach(button=>button.addEventListener('click',async()=>{
    const group=button.dataset.communitySocial,ids=socialGroups[group]||[];
@@ -3703,7 +3851,6 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
    section.innerHTML='<h3>'+escapeHTML(group)+'</h3>'+ids.map(id=>{const p=profiles.get(id);return '<button type="button" class="profile-social-person" data-community-social-person="'+escapeHTML(id)+'">'+(p?.avatar_url?'<img class="profile-social-avatar" src="'+escapeHTML(p.avatar_url)+'" alt="">':'')+'<b>'+escapeHTML(p?.nickname||'Community member')+'</b><span>View profile →</span></button>';}).join('');
    section.querySelectorAll('[data-community-social-person]').forEach(b=>b.addEventListener('click',()=>openCommunityMemberProfile(b.dataset.communitySocialPerson)));
   }));
-  panel.querySelector('#communityChatBtn')?.addEventListener('click',()=>startCommunityDM(userId,cid));
   panel.querySelector('#communityFollowBtn')?.addEventListener('click',async()=>{
    try{
     const query=sb.from('community_profile_follows');
