@@ -2496,3 +2496,18 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .orange-fruit-nameplate {
   --orange-nameplate-background: linear-gradient(135deg, #ffde84, #ffb747 55%, #ff962f);
 }
+
+.yokai-care-skills { display: grid; gap: 8px; margin-block: 10px 14px; }
+.yokai-care-skills .hint { margin: 0; }
+.yokai-care-skill-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.yokai-care-skill-row button { min-height: 44px; }
+.yokai-care-skill-row .yokai-skill-action {
+  text-align: left;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.yokai-skill-action[aria-disabled="true"] { opacity: .68; cursor: default; }
+.yokai-skill-action [data-skill-timer]:not([hidden]) { display: block; margin-top: 3px; }
+.yokai-care-skill-info { min-width: 44px; }

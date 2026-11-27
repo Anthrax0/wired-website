@@ -2112,6 +2112,100 @@ function yokaiRechargeLabel(readyAt){
  if(!remaining)return null;
  return String(Math.floor(remaining/3600)).padStart(2,"0")+":"+String(Math.floor(remaining%3600/60)).padStart(2,"0")+":"+String(remaining%60).padStart(2,"0");
 }
+const yokaiCareSkills = [
+  {name:'Spirit Bond', hours:1, recharges:'yokaiSkillRecharges', invoke:invokeYokaiSkill},
+  {name:'Awakened Dominion', hours:3, recharges:'evolvedYokaiSkillRecharges', invoke:invokeEvolvedYokaiSkill,
+    description:'Earn extra XP and points, and restore happiness and energy.'},
+  {name:'Sovereign Eclipse', hours:5, recharges:'ascendantYokaiSkillRecharges', invoke:invokeAscendantYokaiSkill,
+    description:'Earn extra XP and points, and restore happiness, fullness, and energy.'},
+  {name:'Veilbreaker', hours:7, recharges:'eternalYokaiSkillRecharges', invoke:invokeEternalYokaiSkill,
+    description:'Earn greater XP and points, and restore happiness, fullness, and energy.'}
+];
+
+function yokaiCareSkillDetails(pet, index) {
+  const skill = yokaiCareSkills[index];
+  const species = pet.pet_species || {};
+  const unlock = [1, Number(species.evolution_level || 15), 45, 90][index];
+  return {
+    ...skill, unlock,
+    name: index === 0 ? species.ability_name || skill.name : skill.name,
+    description: index === 0 ? species.ability_description || 'A unique gift that grows with your bond.' : skill.description,
+    form: [species.name, species.evolved_name, species.third_evolved_name, species.fourth_evolved_name][index]
+  };
+}
+
+function yokaiCareSkillRemaining(id, index) {
+  return yokaiRechargeLabel(state[yokaiCareSkills[index].recharges]?.[id]);
+}
+
+function yokaiCareSkillsMarkup(pet, count) {
+  return `<section class="yokai-care-skills" data-yokai-care-skills="${escapeHTML(pet.id)}">
+    <p class="hint">Press and hold a skill to view its details.</p>
+    ${yokaiCareSkills.slice(0, count).map((_, index) => {
+      const {name} = yokaiCareSkillDetails(pet, index);
+      const remaining = yokaiCareSkillRemaining(pet.id, index);
+      return `<div class="yokai-care-skill-row">
+        <button class="pet-action yokai-skill-action" type="button" data-care-skill="${index}" aria-disabled="${Boolean(remaining)}">
+          Invoke Skill: ${escapeHTML(name)}<small data-skill-timer ${remaining ? '' : 'hidden'}>${remaining ? 'Recharging · ' + remaining : ''}</small>
+        </button>
+        <button class="pet-action yokai-care-skill-info" type="button" aria-label="Details for ${escapeHTML(name)}" data-care-skill-details="${index}">ⓘ</button>
+      </div>`;
+    }).join('')}
+    </section>`;
+}
+
+function showYokaiCareSkillDetails(pet, index) {
+  const {name, form, description, hours, unlock} = yokaiCareSkillDetails(pet, index);
+  const dialog = document.createElement('dialog');
+  dialog.className = 'card yokai-duel-dialog';
+  dialog.setAttribute('aria-labelledby', 'yokai-care-skill-title');
+  dialog.innerHTML = `<h2 id="yokai-care-skill-title">${escapeHTML(name)}</h2>
+    ${form ? `<p class="hint">${escapeHTML(yokaiTypeName(form))}</p>` : ''}
+    <p>${escapeHTML(description)}</p>
+    <p>Unlocks at level ${unlock} · ${hours}-hour cooldown</p>
+    <form method="dialog"><button class="primary">Close</button></form>`;
+  dialog.addEventListener('close', () => dialog.remove(), {once:true});
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function bindYokaiCareSkills(section, pet) {
+  section.querySelectorAll('[data-care-skill-details]').forEach(button => {
+    button.addEventListener('click', () => showYokaiCareSkillDetails(pet, Number(button.dataset.careSkillDetails)));
+  });
+  section.querySelectorAll('[data-care-skill]').forEach(button => {
+    const index = Number(button.dataset.careSkill);
+    let timer, point, suppressTap = false;
+    const cancelHold = () => { clearTimeout(timer); point = null; };
+    button.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      cancelHold();
+      suppressTap = false;
+      point = {x:event.clientX, y:event.clientY};
+      timer = setTimeout(() => {
+        if (!button.isConnected) return;
+        suppressTap = true;
+        showYokaiCareSkillDetails(pet, index);
+      }, 500);
+    });
+    button.addEventListener('pointermove', event => {
+      if (point && Math.hypot(event.clientX - point.x, event.clientY - point.y) > 10) {
+        suppressTap = true;
+        cancelHold();
+      }
+    });
+    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) button.addEventListener(type, cancelHold);
+    button.addEventListener('contextmenu', event => event.preventDefault());
+    button.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') suppressTap = false;
+    });
+    button.addEventListener('click', () => {
+      if (suppressTap || yokaiCareSkillRemaining(pet.id, index)) return;
+      void yokaiCareSkills[index].invoke(pet.id, button);
+    });
+  });
+}
+
 setInterval(()=>{
  if(state.page!=="pets")return;
  document.querySelectorAll("[data-pet-care]").forEach(button=>{
@@ -2123,33 +2217,16 @@ setInterval(()=>{
   if(remaining){button.disabled=true;button.textContent=label+" · "+remaining;}
   else if(until){delete state.yokaiCareRecharges[key];button.disabled=false;button.textContent=label;}
  });
- document.querySelectorAll("[data-yokai-eternal-skill]").forEach(button=>{
-  const id=button.dataset.yokaiEternalSkill;
-  const until=state.eternalYokaiSkillRecharges?.[id];
-  const remaining=until?yokaiRechargeLabel(until):null;
-  if(remaining){button.disabled=true;button.textContent="✵ Recharging "+remaining;}
-  else if(until){delete state.eternalYokaiSkillRecharges[id];button.disabled=false;button.textContent="✵ Invoke Eternal Skill · 7h cooldown";}
- });
- document.querySelectorAll("[data-yokai-ascendant-skill]").forEach(button=>{
-  const id=button.dataset.yokaiAscendantSkill;
-  const until=state.ascendantYokaiSkillRecharges?.[id];
-  const remaining=until?yokaiRechargeLabel(until):null;
-  if(remaining){button.disabled=true;button.textContent="✺ Recharging "+remaining;}
-  else if(until){delete state.ascendantYokaiSkillRecharges[id];button.disabled=false;button.textContent="✺ Invoke Ascendant Skill · 5h cooldown";}
- });
- document.querySelectorAll("[data-yokai-evolved-skill]").forEach(button=>{
-  const id=button.dataset.yokaiEvolvedSkill;
-  const until=state.evolvedYokaiSkillRecharges?.[id];
-  const remaining=until?yokaiRechargeLabel(until):null;
-  if(remaining){button.disabled=true;button.textContent="☾ Recharging "+remaining;}
-  else if(until){delete state.evolvedYokaiSkillRecharges[id];button.disabled=false;button.textContent="☾ Invoke Awakened Skill · 3h cooldown";}
- });
- document.querySelectorAll("[data-yokai-skill]").forEach(button=>{
-  const id=button.dataset.yokaiSkill;
-  const until=state.yokaiSkillRecharges?.[id];
-  const remaining=until?yokaiRechargeLabel(until):null;
-  if(remaining){button.disabled=true;button.textContent="✦ Recharging "+remaining;}
-  else if(until){delete state.yokaiSkillRecharges[id];button.disabled=false;button.textContent="✦ Invoke Skill · 1h cooldown";}
+ document.querySelectorAll('[data-yokai-care-skills] [data-care-skill]').forEach(button=>{
+  if (button.disabled) return;
+  const id = button.closest('[data-yokai-care-skills]').dataset.yokaiCareSkills;
+  const remaining = yokaiCareSkillRemaining(id, Number(button.dataset.careSkill));
+  if (button.getAttribute('aria-disabled') !== String(Boolean(remaining))) {
+    button.setAttribute('aria-disabled', String(Boolean(remaining)));
+  }
+  const timer = button.querySelector('[data-skill-timer]');
+  timer.hidden = !remaining;
+  timer.textContent = remaining ? 'Recharging · ' + remaining : '';
  });
 },1000);
 async function renderYokaiPound(panel) {
@@ -2837,7 +2914,7 @@ function renderPetParadise(){
     const displayName=eternal?(species.fourth_evolved_name||("Eternal "+(species.third_evolved_name||species.name||"Yokai"))):ascendant?(species.third_evolved_name||("Ascendant "+(species.evolved_name||species.name||"Yokai"))):evolved?(species.evolved_name||("Awakened "+(species.name||"Yokai"))):(species.name||"WIRED spirit");
     const portraitUrl=yokaiPortraitUrl(species.name,species.slug,evolved);
     const backgroundSku=state.yokaiBackgrounds?.[p.id]?.sku;
-    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><div class="yokai-card-classification"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span>'+yokaiTestSubjectBadge(p)+'</div><div class="yokai-card-controls"><span class="pet-level">LVL '+level+'</span>'+ownedYokaiActions(p)+'</div></div><div class="pet-creature yokai-owned-art yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+yokaiBackgroundClass(backgroundSku)+'"'+yokaiBackgroundStyle(backgroundSku)+'><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(yokaiTypeName(displayName))+' gothic anime portrait">' + yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>x.pet_id===p.id),p) + '</div><h3>'+escapeHTML(yokaiCompanionName(p.nickname,species.name))+'</h3><p class="pet-species">'+escapeHTML(yokaiTypeName(displayName))+(eternal?' <span class="yokai-evolved-tag">✵ ETERNAL</span>':ascendant?' <span class="yokai-evolved-tag">✺ ASCENDANT</span>':evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p>'+yokaiXpProgressMarkup(p,level)+'<div class="yokai-ability"><b>✧ '+escapeHTML(species.ability_name||"Spirit Bond")+'</b><span>'+escapeHTML(species.ability_description||"A unique gift that grows with your bond.")+'</span></div>'+(eternal?'<p class="yokai-evolution-note">✵ '+escapeHTML(species.fourth_evolution_description||"Your yokai has transcended!")+'</p>':ascendant?'<p class="yokai-evolution-note">✺ '+escapeHTML(species.third_evolution_description||"Your yokai has ascended!")+' Next transcendence: level 90.</p>':evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+' Next ascension: level 45. Transcendence at level 90.</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(yokaiTypeName(species.evolved_name||"Awakened form"))+' at level '+Number(species.evolution_level||15)+'. Ascension at level 45, transcendence at level 90.</p>')+'<p class="yokai-evolution-note">As your yokai grows, each awakening unlocks one additional skill.</p>'+petStat("Happiness",p.happiness,"🖤")+petStat("Fullness",p.hunger,"🥩")+petStat("Energy",p.energy,"⚡")+'<div class="yokai-whisper" aria-live="polite"><b>☾ Spirit whisper</b><p>'+escapeHTML(yokaiSpeech.get(String(p.id))||((YOKAI_WHISPERS[species.name]||[])[0]||"The veil stirs around us."))+'</p></div><button class="pet-action yokai-skill-action" type="button" data-yokai-skill="'+escapeHTML(p.id)+'">✦ Invoke Skill · 1h cooldown</button>'+(evolved?'<div class="yokai-ability"><b>☾ '+escapeHTML(yokaiTypeName(species.evolved_name||displayName))+' — Awakened Dominion</b><span>Unleash your evolved yokai’s greater power. Earn extra XP and points, and restore happiness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-evolved-skill="'+escapeHTML(p.id)+'">☾ Invoke Awakened Skill · 3h cooldown</button>':'')+(ascendant?'<div class="yokai-ability"><b>✺ '+escapeHTML(yokaiTypeName(species.third_evolved_name||displayName))+' — Sovereign Eclipse</b><span>Ascendant power: extra XP, points, happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-ascendant-skill="'+escapeHTML(p.id)+'">✺ Invoke Ascendant Skill · 5h cooldown</button>':'')+(eternal?'<div class="yokai-ability"><b>✵ '+escapeHTML(yokaiTypeName(species.fourth_evolved_name||displayName))+' — Veilbreaker</b><span>Eternal power: earn greater XP and points, restoring happiness, fullness and energy.</span></div><button class="pet-action yokai-skill-action" type="button" data-yokai-eternal-skill="'+escapeHTML(p.id)+'">✵ Invoke Eternal Skill · 7h cooldown</button>':'')+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🥩 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">⚔️ Train</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
+    return '<article class="pet-card pet-rarity-'+escapeHTML(species.rarity||"common")+'"><div class="pet-card-top"><div class="yokai-card-classification"><span class="pet-rarity">'+rarityLabel(species.rarity||"common")+'</span>'+yokaiTestSubjectBadge(p)+'</div><div class="yokai-card-controls"><span class="pet-level">LVL '+level+'</span>'+ownedYokaiActions(p)+'</div></div><div class="pet-creature yokai-owned-art yokai-motion yokai-'+escapeHTML(species.slug||"spirit")+(evolved?" yokai-awakened":"")+yokaiBackgroundClass(backgroundSku)+'"'+yokaiBackgroundStyle(backgroundSku)+'><img class="yokai-portrait-image" src="'+portraitUrl+'" alt="'+escapeHTML(yokaiTypeName(displayName))+' gothic anime portrait">' + yokaiAccessoryOverlay((state.petEquipment||[]).filter(x=>x.pet_id===p.id),p) + '</div><h3>'+escapeHTML(yokaiCompanionName(p.nickname,species.name))+'</h3><p class="pet-species">'+escapeHTML(yokaiTypeName(displayName))+(eternal?' <span class="yokai-evolved-tag">✵ ETERNAL</span>':ascendant?' <span class="yokai-evolved-tag">✺ ASCENDANT</span>':evolved?' <span class="yokai-evolved-tag">✦ AWAKENED</span>':'')+'</p>'+yokaiXpProgressMarkup(p,level)+(eternal?'<p class="yokai-evolution-note">✵ '+escapeHTML(species.fourth_evolution_description||"Your yokai has transcended!")+'</p>':ascendant?'<p class="yokai-evolution-note">✺ '+escapeHTML(species.third_evolution_description||"Your yokai has ascended!")+' Next transcendence: level 90.</p>':evolved?'<p class="yokai-evolution-note">✦ '+escapeHTML(species.evolution_description||"Your yokai has awakened!")+' Next ascension: level 45. Transcendence at level 90.</p>':'<p class="yokai-evolution-note">Next awakening: '+escapeHTML(yokaiTypeName(species.evolved_name||"Awakened form"))+' at level '+Number(species.evolution_level||15)+'. Ascension at level 45, transcendence at level 90.</p>')+'<p class="yokai-evolution-note">As your yokai grows, each awakening unlocks one additional skill.</p>'+petStat("Happiness",p.happiness,"🖤")+petStat("Fullness",p.hunger,"🥩")+petStat("Energy",p.energy,"⚡")+'<div class="yokai-whisper" aria-live="polite"><b>☾ Spirit whisper</b><p>'+escapeHTML(yokaiSpeech.get(String(p.id))||((YOKAI_WHISPERS[species.name]||[])[0]||"The veil stirs around us."))+'</p></div>'+yokaiCareSkillsMarkup(p,eternal?4:ascendant?3:evolved?2:1)+'<div class="pet-actions"><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="feed">🥩 Feed</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="play">⚔️ Train</button><button class="pet-action" data-pet-care="'+escapeHTML(p.id)+'" data-action="rest">🌙 Rest</button></div><p class="pet-footnote">Your yokai never gets sick or loses progress while you are away.</p></article>';
   },"pet-collection");
   const shop=rarityGroup(state.petSpecies,p=>{
     const freeCommon=first&&p.rarity==="common";
@@ -2923,10 +3000,10 @@ function renderPetParadise(){
 
   v.querySelectorAll("[data-pet-adopt]").forEach(b=>b.addEventListener("click",()=>adoptPet(b.dataset.petAdopt)));
   v.querySelectorAll("[data-pet-care]").forEach(b=>b.addEventListener("click",()=>careForPet(b.dataset.petCare,b.dataset.action,b)));
-  v.querySelectorAll("[data-yokai-skill]").forEach(b=>b.addEventListener("click",()=>invokeYokaiSkill(b.dataset.yokaiSkill,b)));
-  v.querySelectorAll("[data-yokai-evolved-skill]").forEach(b=>b.addEventListener("click",()=>invokeEvolvedYokaiSkill(b.dataset.yokaiEvolvedSkill,b)));
-  v.querySelectorAll("[data-yokai-ascendant-skill]").forEach(b=>b.addEventListener("click",()=>invokeAscendantYokaiSkill(b.dataset.yokaiAscendantSkill,b)));
-  v.querySelectorAll("[data-yokai-eternal-skill]").forEach(b=>b.addEventListener("click",()=>invokeEternalYokaiSkill(b.dataset.yokaiEternalSkill,b)));
+  v.querySelectorAll('[data-yokai-care-skills]').forEach(section=>{
+    const pet = pets.find(pet => String(pet.id) === section.dataset.yokaiCareSkills);
+    if (pet) bindYokaiCareSkills(section, pet);
+  });
   v.querySelectorAll("[data-pet-rename]").forEach(b=>b.addEventListener("click",()=>renameOwnedYokai(b.dataset.petRename)));
   v.querySelectorAll("[data-pet-release]").forEach(b=>b.addEventListener("click",()=>releasePet(b.dataset.petRelease,b)));
 }
