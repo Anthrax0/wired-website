@@ -2493,7 +2493,7 @@ function yokaiDuelCard(duel, actor) {
         <button class="primary" type="submit">Accept Challenge</button></form>` : '<p>Adopt a Yokai to accept this challenge.</p>';
     controls += `<button class="ghost" type="button" data-duel-leave>${sender ? 'Cancel Invitation' : 'Decline'}</button>`;
   } else if (duel.status === 'active') {
-    controls = `<p>Round ${duel.turn} · <span data-duel-deadline="${escapeHTML(duel.deadline)}"></span></p>
+    controls = `<p>Round ${duel.turn}${duel.deadline ? ` · <span data-duel-deadline="${escapeHTML(duel.deadline)}"></span>` : ""}</p>
       <p>${duel.my_move !== null ? 'Move locked in.' : 'Choose a move.'} ${duel.opponent_locked ? 'Opponent ready.' : ''}</p>
       <div class="yokai-duel-moves">${duelMoves.slice(0, pet.tier + 2).map((move, index) => {
         const cooldown = index >= 2 ? Math.max(0, duel.ready[index - 2] - duel.turn) : 0;
@@ -2514,6 +2514,107 @@ function yokaiDuelCard(duel, actor) {
     ${describe(duel.challenger_fighter,last.a,last.a_crit,last.a_damage)}<br>
     ${describe(duel.opponent_fighter,last.b,last.b_crit,last.b_damage)}</p>` : ''}
     ${controls}`;
+}
+
+function yokaiPracticeFighter(species, level, name) {
+  // Match the live duel formulas in the Yokai duels migration.
+  const rarity = Math.max(0, ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical'].indexOf(species.rarity?.toLowerCase()));
+  const tier = level >= 90 ? 4 : level >= 45 ? 3 : level >= 15 ? 2 : 1;
+  const bonus = 1 + rarity * .02;
+  return {
+    name, level, tier, rarity: species.rarity || 'common', species: species.name, slug: species.slug,
+    hp: Math.round((100 + level * 3 + (tier - 1) * 12) * bonus),
+    attack: Math.round((12 + level * .45 + (tier - 1) * 2) * bonus),
+    crit: 5 + rarity, skill: species.ability_name
+  };
+}
+
+function yokaiPracticeRound(duel, move) {
+  const player = duel.challenger_fighter, bot = duel.opponent_fighter;
+  if (duel.status !== 'active' || !Number.isInteger(move) || move < 0 || move > player.tier + 1 ||
+      (move >= 2 && duel.ready[move - 2] > duel.turn)) return;
+  const botMoves = duelMoves.slice(2, bot.tier + 2).map((_, index) => index + 2);
+  const reply = botMoves.reverse().find(skill => duel.botReady[skill - 2] <= duel.turn) ?? 1;
+  const power = [0, 1, 1.3, 1.8, 2.5, 3.5];
+  const aCrit = move >= 2 && Math.random() * 100 < player.crit;
+  const bCrit = reply >= 2 && Math.random() * 100 < bot.crit;
+  const aDamage = Math.round(player.attack * power[move] * (aCrit ? 1.5 : 1));
+  const bDamage = Math.round(bot.attack * power[reply] * (bCrit ? 1.5 : 1) * (move === 0 ? .5 : 1));
+  duel.history.push({turn:duel.turn, a:move, b:reply, a_crit:aCrit, b_crit:bCrit, a_damage:aDamage, b_damage:bDamage});
+  duel.challenger_hp = Math.max(0, duel.challenger_hp - bDamage);
+  duel.opponent_hp = Math.max(0, duel.opponent_hp - aDamage);
+  if (move >= 2) duel.ready[move - 2] = duel.turn + move;
+  if (reply >= 2) duel.botReady[reply - 2] = duel.turn + reply;
+  if (!duel.challenger_hp || !duel.opponent_hp || duel.turn === 50) {
+    duel.status = 'finished';
+    duel.reason = !duel.challenger_hp || !duel.opponent_hp ? 'Knockout' : 'Round limit';
+    if (duel.challenger_hp && !duel.opponent_hp) duel.winner = duel.challenger;
+    if (duel.opponent_hp && !duel.challenger_hp) duel.winner = 'bot';
+  }
+  duel.turn++;
+}
+
+function yokaiPracticeMarkup(pets, species) {
+  const choices = [...species].sort((a, b) => a.name.localeCompare(b.name)).map(yokai => {
+    const name = yokaiTypeName(yokai.name);
+    return `<option value="${escapeHTML(yokai.id)}">${escapeHTML(name)} · ${escapeHTML(yokai.rarity)}</option>`;
+  }).join('');
+  return `<section class="card" data-yokai-practice><h3>Challenge a Bot</h3>
+    <p class="hint">Choose any Yokai species. The bot matches your companion’s level. Practice battles award no points or XP.</p>
+    ${!pets.length ? '<p>Adopt a Yokai to start practicing.</p>' : !choices ? '<p>No bot opponents are available.</p>' :
+    `<form>
+      ${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true})}
+      <label class="field">Bot opponent<select name="species" required><option value="">Choose a species</option>${choices}</select></label>
+      <button class="primary" type="submit">Start Practice Duel</button>
+    </form><div data-practice-match hidden></div>`}
+    </section>`;
+}
+
+function bindYokaiPractice(host) {
+  const form = host.querySelector('form');
+  if (!form) return;
+  const match = host.querySelector('[data-practice-match]');
+  let duel;
+  function render() {
+    form.hidden = true;
+    match.hidden = false;
+    match.innerHTML = yokaiDuelCard(duel, duel.challenger) +
+      (duel.status === 'finished' ? '<button class="primary" type="button" data-practice-reset>Choose Another Opponent</button>' : '');
+  }
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const pet = state.userPets.find(pet => String(pet.id) === data.get('pet'));
+    const species = state.petSpecies.find(species => String(species.id) === data.get('species'));
+    if (!state.user || !pet?.pet_species || !species) return;
+    const level = Number(pet.level) || 1;
+    const player = yokaiPracticeFighter(pet.pet_species, level, yokaiCompanionName(pet.nickname, pet.pet_species.name));
+    const bot = yokaiPracticeFighter(species, level, yokaiTypeName(species.name));
+    duel = {
+      challenger:state.user.id, challenger_name:'You', opponent_name:'Bot: ' + bot.name,
+      challenger_fighter:player, opponent_fighter:bot, challenger_hp:player.hp, opponent_hp:bot.hp,
+      status:'active', turn:1, ready:[1,1,1,1], botReady:[1,1,1,1], my_move:null, history:[]
+    };
+    render();
+  });
+  match.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || !duel) return;
+    if (button.hasAttribute('data-practice-reset')) {
+      duel = null;
+      match.hidden = true;
+      form.hidden = false;
+      form.querySelector('select').focus();
+    } else if (button.hasAttribute('data-duel-move')) {
+      yokaiPracticeRound(duel, Number(button.dataset.duelMove));
+      render();
+    } else if (button.hasAttribute('data-duel-leave') && window.confirm('Forfeit this practice duel?')) {
+      duel.status = 'finished';
+      duel.reason = 'Forfeit';
+      duel.winner = 'bot';
+      render();
+    }
+  });
 }
 
 function updateYokaiDuelCountdowns(host) {
@@ -2634,7 +2735,7 @@ function renderPetParadise(){
   const footer='<p class="pet-kindness">☾ Your yokai companions keep their powers while you’re away. In the hush of the sanctuary, they await your return.</p>';
   const owned='<section class="pet-section"><div class="section-head"><div><h2>My Yokai</h2><p class="hint">Feed their hunger. Sharpen their power. Awaken what lurks within.</p></div></div>'+(pets.length?petCards:'<div class="pet-empty"><div>☾</div><h3>No Spirits Bound to You</h3><p>Enter the summoning chamber to adopt your first yokai.</p></div>')+'</section>';
   const summon='<section class="pet-section"><div class="section-head"><div><h2>Summon a Yokai</h2><p class="hint">'+(atLimit?'You can own up to '+YOKAI_OWNERSHIP_LIMIT+' yokai companions. Free a spot before adopting another.':first?'Your first Common yokai is on us.':'Collect new companions with your WIRED points.')+'</p></div></div><div class="pet-adoption-grid">'+shop+'</div></section>';
-  const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My Yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a Yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="duels"><span class="yokai-choice-symbol" aria-hidden="true">⚔</span><strong>Duel Arena</strong><span>Battle another member’s companion live</span></button></div>';
+  const choices='<div class="yokai-sanctuary-choices"><button type="button" class="yokai-sanctuary-choice" data-yokai-view="owned"><span class="yokai-choice-symbol">☾</span><strong>My Yokai</strong><span>Enter your collection of bound spirits</span><small>'+pets.length+' '+(pets.length===1?'companion':'companions')+'</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="summon"><span class="yokai-choice-symbol">✧</span><strong>Summon a Yokai</strong><span>Explore the spirits awaiting adoption</span><small>Enter the summoning chamber</small></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="pound"><span class="yokai-choice-symbol" aria-hidden="true">⚿</span><strong>Yokai Pound</strong><span>Adopt or bid on companions listed by members</span></button><button type="button" class="yokai-sanctuary-choice" data-yokai-view="duels"><span class="yokai-choice-symbol" aria-hidden="true">⚔</span><strong>Duel Arena</strong><span>Challenge members live or practice against bots</span></button></div>';
   const back='<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="home">← Back to Yokai Hollow</button>';
   const listingDuration = '<label class="field">Listing duration<select name="hours"><option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label>';
   const poundHeader = `<h2>Yokai Pound</h2>
@@ -2664,9 +2765,13 @@ function renderPetParadise(){
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
   </section>`;
-  const arena = '<section class="pet-section" data-duel-arena><h2>Duel Arena</h2><p role="status">Loading duels…</p><div data-duel-list></div></section>';
+  const arena = `<section class="pet-section"><h2>Duel Arena</h2>${yokaiPracticeMarkup(pets, state.petSpecies)}
+    <section data-duel-arena><h3>Member Duels</h3><p role="status">Loading duels…</p><div data-duel-list></div></section></section>`;
   v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:sanctuaryView==='duels'?back+arena:choices)+footer;
-  if (sanctuaryView === 'duels') bindYokaiDuelArena(v.querySelector('[data-duel-arena]'));
+  if (sanctuaryView === 'duels') {
+    bindYokaiPractice(v.querySelector('[data-yokai-practice]'));
+    bindYokaiDuelArena(v.querySelector('[data-duel-arena]'));
+  }
   if (sanctuaryView === 'pound') void renderYokaiPound(v.querySelector('.yokai-pound'));
   if (sanctuaryView === 'exchange') void renderYokaiAdoptionExchanges(v.querySelector('.yokai-exchanges'));
   v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{
