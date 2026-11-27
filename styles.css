@@ -2144,3 +2144,34 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .yokai-card-menu-panel .yokai-card-menu-danger,
 .yokai-card-menu-danger svg { color: #ff5d76; }
 .yokai-card-menu-danger svg { filter: drop-shadow(0 0 4px #ec2849); }
+
+.yokai-duel-dialog {
+  width: min(440px, calc(100% - 24px));
+  max-height: 85vh;
+  overflow: auto;
+  color: #f5e8ff;
+  border-color: #9e52d5;
+  background: #170e23;
+}
+.yokai-duel-dialog::backdrop { background: #090411bf; }
+.yokai-duel-card { margin-block: 12px; }
+.yokai-duel-fighters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.yokai-duel-fighter {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  overflow-wrap: anywhere;
+}
+.yokai-duel-fighter img {
+  width: 100%;
+  height: clamp(75px, 22vw, 160px);
+  object-fit: contain;
+}
+.yokai-duel-fighter small { text-transform: capitalize; }
+.yokai-duel-fighter progress { width: 100%; accent-color: #c56bff; }
+.yokai-duel-moves { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 8px; }
+.yokai-duel-card button, .yokai-duel-dialog button { min-height: 44px; }
