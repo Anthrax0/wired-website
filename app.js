@@ -2514,12 +2514,23 @@ function animateYokaiDuelMoves(card, duel, previousRound) {
   const sprites = stage.querySelectorAll('.yokai-duel-sprite');
   if (sprites.length !== 2 || typeof sprites[0].animate !== 'function') return;
   const stageWidth = stage.clientWidth;
-  const attacks = [
+  const moves = [
     [round.a, duel.challenger_fighter, 0, round.a_crit],
     [round.b, duel.opponent_fighter, 1, round.b_crit]
-  ].filter(([move]) => move > 0 && move < duelMoves.length);
+  ];
+  for (const [move, fighter, side] of moves) {
+    if (move !== 0) continue;
+    const [, , , color] = yokaiBasicAttack(fighter);
+    const origin = (side === 0 ? .25 : .75) * stageWidth;
+    addYokaiDuelEffect(stage, 'yokai-duel-guard', origin, color, [
+      {opacity:0, transform:'translate(-50%, -50%) scale(.62)'},
+      {opacity:1, transform:'translate(-50%, -50%) scale(1)', offset:.28},
+      {opacity:.87, transform:'translate(-50%, -50%) scale(1.04)', offset:.82},
+      {opacity:0, transform:'translate(-50%, -50%) scale(1.13)'}
+    ], {duration:1180, easing:'ease-out'});
+  }
   let delay = 0;
-  attacks.forEach(([move, fighter, side, critical]) => {
+  moves.filter(([move]) => move > 0 && move < duelMoves.length).forEach(([move, fighter, side, critical]) => {
     const [, basicMotion, effect, color] = yokaiBasicAttack(fighter);
     const skill = yokaiDuelSkillEffects[move - 2];
     const motion = skill?.motion || basicMotion;
@@ -2615,6 +2626,8 @@ function yokaiDuelCard(duel, actor) {
   const sender = duel.challenger === actor;
   const pet = sender ? duel.challenger_fighter : duel.opponent_fighter;
   const opponent = sender ? duel.opponent_name : duel.challenger_name;
+  const last = duel.history.at(-1);
+  const guardCoolingDown = (sender ? last?.a : last?.b) === 0;
   const pets = state.userPets || [];
   let controls = '';
   if (duel.status === 'pending') {
@@ -2626,7 +2639,7 @@ function yokaiDuelCard(duel, actor) {
     controls = `<p>Round ${duel.turn}${duel.deadline ? ` · <span data-duel-deadline="${escapeHTML(duel.deadline)}"></span>` : ""}</p>
       <p>${duel.my_move !== null ? 'Move locked in.' : 'Choose a move.'} ${duel.opponent_locked ? 'Opponent ready.' : ''}</p>
       <div class="yokai-duel-moves">${duelMoves.slice(0, pet.tier + 2).map((_, index) => {
-        const cooldown = index >= 2 ? Math.max(0, duel.ready[index - 2] - duel.turn) : 0;
+        const cooldown = index >= 2 ? Math.max(0, duel.ready[index - 2] - duel.turn) : Number(index === 0 && guardCoolingDown);
         const name = yokaiDuelMoveName(pet, index);
         return `<button class="ghost" type="button" data-duel-move="${index}" ${duel.my_move !== null || cooldown ? 'disabled' : ''}>
           ${escapeHTML(name)}${cooldown ? ` · ${cooldown} round${cooldown === 1 ? '' : 's'}` : ''}</button>`;
@@ -2639,14 +2652,16 @@ function yokaiDuelCard(duel, actor) {
       controls += `<p>+${Number(duel.reward_xp)} XP · +${Number(duel.reward_points)} points</p>`;
     }
   }
-  const last = duel.history.at(-1);
-  const describe = (fighter, move, crit, damage) => `${escapeHTML(fighter.name)} used ${escapeHTML(yokaiDuelMoveName(fighter, move))}.${crit ? ' <strong>Critical Hit!</strong>' : ''}${move ? ` ${damage} damage.` : ''}`;
+  const describe = (fighter, move, crit, damage, opposingMove) => {
+    const result = move === 0 ? '' : opposingMove === 0 && damage === 0 ? ' Guard blocked all damage.' : ` ${damage} damage.`;
+    return `${escapeHTML(fighter.name)} used ${escapeHTML(yokaiDuelMoveName(fighter, move))}.${crit ? ' <strong>Critical Hit!</strong>' : ''}${result}`;
+  };
   return `<h3>Duel with ${escapeHTML(opponent)}</h3><div class="yokai-duel-fighters">
     ${yokaiDuelFighterMarkup(duel.challenger_fighter, duel.challenger_hp, duel.challenger_name)}
     ${yokaiDuelFighterMarkup(duel.opponent_fighter, duel.opponent_hp, duel.opponent_name)}
     </div>${last ? `<p aria-live="polite">Round ${last.turn}<br>
-    ${describe(duel.challenger_fighter,last.a,last.a_crit,last.a_damage)}<br>
-    ${describe(duel.opponent_fighter,last.b,last.b_crit,last.b_damage)}</p>` : ''}
+    ${describe(duel.challenger_fighter,last.a,last.a_crit,last.a_damage,last.b)}<br>
+    ${describe(duel.opponent_fighter,last.b,last.b_crit,last.b_damage,last.a)}</p>` : ''}
     ${controls}`;
 }
 
@@ -2858,6 +2873,7 @@ function renderPetParadise(){
         <li><strong>Member duels</strong> · 5 accepted duels per day for each member. A knockout win earns 20 XP and 10 points.</li>
         <li>Both limits reset at midnight UTC. A started duel still counts if you forfeit, time out, or draw.</li>
         <li>Only knockout wins earn rewards. XP goes to your winning companion if you still own it.</li>
+        <li>Guard prevents all damage for one round. You can’t use it two rounds in a row.</li>
       </ul>
     </section>
     ${yokaiBotChallengeMarkup(pets, state.petSpecies)}

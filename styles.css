@@ -2229,6 +2229,29 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   clip-path: polygon(0 16%, 100% 6%, 86% 45%, 71% 29%, 57% 51%, 43% 28%, 29% 43%, 15% 24%, 0 45%, 0 78%, 15% 60%, 29% 82%, 43% 61%, 57% 79%, 71% 57%, 86% 78%, 100% 50%, 100% 92%, 0 98%);
 }
 .yokai-duel-strike[data-effect="pinch"] { aspect-ratio: 2; }
+.yokai-duel-guard {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--duel-stage-height) * .57);
+  width: min(31%, calc(var(--duel-stage-height) * .6));
+  aspect-ratio: .82;
+  pointer-events: none;
+  opacity: 0;
+  clip-path: polygon(50% 0, 95% 20%, 88% 62%, 72% 84%, 50% 100%, 28% 84%, 12% 62%, 5% 20%);
+  background: linear-gradient(155deg, #fcf3ff, currentColor 45%, #744c9d);
+}
+.yokai-duel-guard::before, .yokai-duel-guard::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  clip-path: inherit;
+  background: radial-gradient(ellipse at center, #160c34e8 35%, #1c0b3d 72%);
+}
+.yokai-duel-guard::after {
+  inset: 18% 16%;
+  background: repeating-linear-gradient(135deg, transparent 0 9px, currentColor 10px 12px, transparent 13px 20px);
+  opacity: .62;
+}
 .yokai-duel-sigil {
   position: absolute;
   z-index: 2;
