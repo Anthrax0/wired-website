@@ -1953,6 +1953,21 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   padding: 0 0 8px;
   font-weight: 700;
 }
+.yokai-test-subject {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  max-width: 100%;
+  margin-block: 4px;
+  padding: 2px .55em;
+  border: 1px solid #bdd555;
+  border-radius: 999px;
+  background: #232b13;
+  color: #e7f999;
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
 .yokai-companion-option {
   display: flex;
   align-items: center;
