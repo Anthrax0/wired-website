@@ -2806,8 +2806,17 @@ function yokaiDuelCard(duel, actor) {
     ${controls}`;
 }
 
+const yokaiRarityLevels = ['common','uncommon','rare','epic','legendary','mythical'];
+
+function groupYokaiByRarity(items) {
+  return yokaiRarityLevels.map(rarity => [
+    rarity,
+    items.filter(item => String((item.pet_species || item).rarity || 'common').toLowerCase() === rarity)
+  ]);
+}
+
 function yokaiBotChallengeMarkup(pets, species) {
-  const choices = [...species].sort((a, b) => a.name.localeCompare(b.name)).map(yokai => {
+  const choices = groupYokaiByRarity(species).flatMap(([, group]) => group).map(yokai => {
     const name = yokaiTypeName(yokai.name);
     return `<option value="${escapeHTML(yokai.id)}">${escapeHTML(name)} · ${escapeHTML(yokai.rarity)}</option>`;
   }).join('');
@@ -2958,9 +2967,8 @@ function renderPetParadise(){
   const pets=state.userPets||[],first=state.freeFirstCommonAvailable===true;
   const atLimit=pets.length>=YOKAI_OWNERSHIP_LIMIT;
   const listingCompanion=pets.find(pet=>pet.id===state.yokaiListingCompanionId)||pets[0];
-  const rarityLevels=["common","uncommon","rare","epic","legendary","mythical"];
   const rarityLabel=r=>({common:"Common",uncommon:"Uncommon",rare:"Rare",epic:"Epic",legendary:"Legendary",mythical:"Mythical"}[String(r||"").toLowerCase()]||r);
-  const rarityGroup=(items,renderCard,gridClass)=>rarityLevels.map(rarity=>{const group=items.filter(item=>String((item.pet_species||item).rarity||"common").toLowerCase()===rarity);return group.length?'<section class="yokai-rarity-group"><h3 class="yokai-rarity-heading">'+rarityLabel(rarity)+' <span>('+group.length+')</span></h3><div class="'+gridClass+'">'+group.map(renderCard).join("")+'</div></section>':"";}).join("");
+  const rarityGroup=(items,renderCard,gridClass)=>groupYokaiByRarity(items).map(([rarity,group])=>group.length?'<section class="yokai-rarity-group"><h3 class="yokai-rarity-heading">'+rarityLabel(rarity)+' <span>('+group.length+')</span></h3><div class="'+gridClass+'">'+group.map(renderCard).join("")+'</div></section>':"").join("");
   const petCards=rarityGroup(pets,p=>{
     const species=p.pet_species||{},level=Number(p.level)||1,evolved=level>=Number(species.evolution_level||15),ascendant=level>=45,eternal=level>=90;
     const displayName=eternal?(species.fourth_evolved_name||("Eternal "+(species.third_evolved_name||species.name||"Yokai"))):ascendant?(species.third_evolved_name||("Ascendant "+(species.evolved_name||species.name||"Yokai"))):evolved?(species.evolved_name||("Awakened "+(species.name||"Yokai"))):(species.name||"WIRED spirit");
@@ -2992,7 +3000,7 @@ function renderPetParadise(){
       <label class="field">Requested yokai type<select name="species"><option value="">Any type</option>
       ${(state.petSpecies || []).map(species => '<option value="' + escapeHTML(species.id) + '" data-rarity="' + escapeHTML(species.rarity) + '">' + escapeHTML(yokaiTypeName(species.name)) + '</option>').join('')}</select></label>
       <label class="field">Requested rarity<select name="rarity"><option value="">Any rarity</option>
-      ${rarityLevels.map(rarity => '<option value="' + rarity + '">' + rarityLabel(rarity) + '</option>').join('')}</select></label>
+      ${yokaiRarityLevels.map(rarity => '<option value="' + rarity + '">' + rarityLabel(rarity) + '</option>').join('')}</select></label>
       <label class="field">Minimum level<input name="level" type="number" min="1" max="99" value="1" required></label>
       ${listingDuration}<button class="primary">List exchange</button>
     </form>` : ''}
