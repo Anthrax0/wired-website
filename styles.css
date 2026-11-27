@@ -2229,6 +2229,47 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   clip-path: polygon(0 16%, 100% 6%, 86% 45%, 71% 29%, 57% 51%, 43% 28%, 29% 43%, 15% 24%, 0 45%, 0 78%, 15% 60%, 29% 82%, 43% 61%, 57% 79%, 71% 57%, 86% 78%, 100% 50%, 100% 92%, 0 98%);
 }
 .yokai-duel-strike[data-effect="pinch"] { aspect-ratio: 2; }
+.yokai-duel-sigil {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--duel-stage-height) * .62);
+  width: clamp(34px, 12vw, 88px);
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  pointer-events: none;
+  opacity: 0;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: radial-gradient(circle, currentColor, transparent 42%);
+  box-shadow: 0 0 12px currentColor, inset 0 0 12px currentColor;
+}
+.yokai-duel-sigil::before, .yokai-duel-sigil::after {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+.yokai-duel-sigil::after { inset: 26%; transform: rotate(0deg); }
+.yokai-duel-sigil-2 { border: 5px double currentColor; }
+.yokai-duel-sigil-2::before { inset: 6%; transform: rotate(22.5deg); }
+.yokai-duel-sigil-3 { border-style: dashed; }
+.yokai-duel-sigil-3::before {
+  inset: -22%;
+  border-width: 2px;
+  clip-path: polygon(50% 0, 60% 34%, 100% 50%, 60% 62%, 50% 100%, 40% 62%, 0 50%, 40% 34%);
+  background: currentColor;
+  opacity: .58;
+}
+.yokai-duel-sigil-4 {
+  border: 5px double currentColor;
+  background: radial-gradient(circle, #0b0617 0 24%, currentColor 26%, transparent 33%),
+    repeating-conic-gradient(from 15deg, transparent 0 13deg, currentColor 15deg 16deg, transparent 18deg 30deg);
+}
+.yokai-duel-sigil-4::before { inset: -12%; border-radius: 50%; border-style: dashed; }
+.yokai-duel-sigil-4::after { inset: 16%; transform: rotate(45deg); }
+.yokai-duel-sigil-impact { top: calc(var(--duel-stage-height) * .57); }
+.yokai-duel-sigil-critical { outline: 2px solid #ffe5a3; outline-offset: 7px; }
 .yokai-duel-fighter small { text-transform: capitalize; }
 .yokai-duel-fighter progress { width: 100%; accent-color: #c56bff; }
 .yokai-duel-moves { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 8px; }

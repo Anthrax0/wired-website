@@ -2487,7 +2487,26 @@ function yokaiDuelMoveName(fighter, move) {
   return duelMoves[move];
 }
 
-function animateYokaiBasicAttacks(card, duel, previousRound) {
+const yokaiDuelSkillEffects = [
+  {motion:'cast', duration:660, scale:1.2},
+  {motion:'loom', duration:760, scale:1.45},
+  {motion:'dive', duration:870, scale:1.7},
+  {motion:'cast', duration:990, scale:2.05}
+];
+
+function addYokaiDuelEffect(stage, className, x, color, frames, options, effect) {
+  const graphic = document.createElement('span');
+  graphic.className = className;
+  if (effect) graphic.dataset.effect = effect;
+  graphic.setAttribute('aria-hidden', 'true');
+  graphic.style.color = color;
+  graphic.style.left = x + 'px';
+  stage.append(graphic);
+  const animation = graphic.animate(frames, options);
+  animation.finished.then(() => graphic.remove(), () => graphic.remove());
+}
+
+function animateYokaiDuelMoves(card, duel, previousRound) {
   const round = duel.history.at(-1);
   if (!round || previousRound === undefined || previousRound >= round.turn ||
       matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2496,14 +2515,17 @@ function animateYokaiBasicAttacks(card, duel, previousRound) {
   if (sprites.length !== 2 || typeof sprites[0].animate !== 'function') return;
   const stageWidth = stage.clientWidth;
   const attacks = [
-    [round.a, duel.challenger_fighter, 0],
-    [round.b, duel.opponent_fighter, 1]
-  ].filter(([move]) => move === 1);
-  attacks.forEach(([, fighter, side], index) => {
-    const [, motion, effect, color] = yokaiBasicAttack(fighter);
+    [round.a, duel.challenger_fighter, 0, round.a_crit],
+    [round.b, duel.opponent_fighter, 1, round.b_crit]
+  ].filter(([move]) => move > 0 && move < duelMoves.length);
+  let delay = 0;
+  attacks.forEach(([move, fighter, side, critical]) => {
+    const [, basicMotion, effect, color] = yokaiBasicAttack(fighter);
+    const skill = yokaiDuelSkillEffects[move - 2];
+    const motion = skill?.motion || basicMotion;
+    const duration = skill?.duration || 560;
     const [distance, lift, rotation] = yokaiAttackMotion[motion];
     const direction = side === 0 ? 1 : -1;
-    const delay = index * 370;
     const origin = (side === 0 ? .25 : .75) * stageWidth;
     const target = stageWidth - origin;
     const sprite = sprites[side];
@@ -2514,21 +2536,28 @@ function animateYokaiBasicAttacks(card, duel, previousRound) {
       {transform:transform(stageWidth * distance * .65, lift, rotation * .7), offset:.48},
       {transform:transform(stageWidth * distance, lift * .2, rotation), offset:.62},
       {transform:transform(0, 0, 0), offset:1}
-    ], {duration:560, delay, easing:'ease-in-out'});
-    const graphic = document.createElement('span');
-    const projectile = yokaiProjectileEffects.has(effect);
-    graphic.className = 'yokai-duel-strike';
-    graphic.dataset.effect = effect;
-    graphic.setAttribute('aria-hidden', 'true');
-    graphic.style.color = color;
-    graphic.style.left = target + 'px';
-    stage.append(graphic);
-    const strike = graphic.animate([
-      {opacity:0, transform:`translate(calc(-50% + ${projectile ? origin - target : 0}px), -50%) scale(.5)`, offset:0},
-      {opacity:1, transform:'translate(-50%, -50%) scale(1.05)', offset:.56},
-      {opacity:0, transform:'translate(-50%, -50%) scale(1.42)', offset:1}
-    ], {duration:460, delay:delay + (projectile ? 140 : 225), easing:'ease-out'});
-    strike.finished.then(() => graphic.remove(), () => graphic.remove());
+    ], {duration, delay, easing:'ease-in-out'});
+    const projectile = yokaiProjectileEffects.has(effect) || motion === 'cast';
+    const scale = skill?.scale || 1;
+    if (skill) {
+      const skillClass = 'yokai-duel-sigil yokai-duel-sigil-' + (move - 1);
+      addYokaiDuelEffect(stage, skillClass, origin, color, [
+        {opacity:0, transform:'translate(-50%, -50%) scale(.35) rotate(-35deg)'},
+        {opacity:.9, transform:'translate(-50%, -50%) scale(1) rotate(0deg)', offset:.6},
+        {opacity:0, transform:'translate(-50%, -50%) scale(1.3) rotate(18deg)'}
+      ], {duration:Math.round(duration * .66), delay, easing:'ease-out'});
+      addYokaiDuelEffect(stage, skillClass + ' yokai-duel-sigil-impact' + (critical ? ' yokai-duel-sigil-critical' : ''), target, color, [
+        {opacity:0, transform:'translate(-50%, -50%) scale(.28)'},
+        {opacity:.96, transform:`translate(-50%, -50%) scale(${scale})`, offset:.27},
+        {opacity:0, transform:`translate(-50%, -50%) scale(${scale * 1.46})`}
+      ], {duration:Math.round(duration * .59), delay:delay + Math.round(duration * .57), easing:'ease-out'});
+    }
+    addYokaiDuelEffect(stage, 'yokai-duel-strike', target, color, [
+      {opacity:0, transform:`translate(calc(-50% + ${projectile ? origin - target : 0}px), -50%) scale(${.5 * scale})`, offset:0},
+      {opacity:1, transform:`translate(-50%, -50%) scale(${1.05 * scale})`, offset:.56},
+      {opacity:0, transform:`translate(-50%, -50%) scale(${1.42 * scale})`, offset:1}
+    ], {duration:Math.round(duration * .82), delay:delay + Math.round(duration * (projectile ? .25 : .4)), easing:'ease-out'}, effect);
+    delay += Math.round(duration * (skill ? .84 : .66));
   });
 }
 
@@ -2684,7 +2713,7 @@ async function refreshYokaiDuels() {
         const choice = card.querySelector('input[name="pet"]:checked')?.value;
         card.duelMarkup = markup;
         card.innerHTML = markup;
-        animateYokaiBasicAttacks(card, duel, card.duelRenderedRound);
+        animateYokaiDuelMoves(card, duel, card.duelRenderedRound);
         card.duelRenderedRound = duel.history.at(-1)?.turn ?? 0;
         for (const input of card.querySelectorAll('input[name="pet"]')) if (input.value === choice) input.checked = true;
       }
