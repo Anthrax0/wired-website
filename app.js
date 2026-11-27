@@ -139,21 +139,39 @@ async function loadProfileComments(profileId){
  if(authorError)throw authorError;const byId=new Map((authors||[]).map(x=>[x.id,x]));
  return rows.map(x=>({...x,author:byId.get(x.author_id)||{username:"WIRED member"}}));
 }
-function editableTextMarkup(kind,item,canEdit){
- const id=escapeHTML(item.id);
+function editableTextMarkup(item){
  return '<div data-editable-content><p data-editable-body>'+escapeHTML(item.body)+'</p>'+
-  '<small class="hint" data-edited-label'+(item.edited_at?'':' hidden')+'>Edited</small>'+
-  (canEdit?'<div class="authored-text-actions"><button class="ghost small authored-edit-button" type="button" data-edit-kind="'+kind+'" data-edit-id="'+id+'">Edit comment</button></div>':'')+'</div>';
+  '<small class="hint" data-edited-label'+(item.edited_at?'':' hidden')+'>Edited</small></div>';
 }
-document.addEventListener('click',async event=>{
- const button=event.target.closest('[data-edit-kind][data-edit-id]');
- if(!button||button.disabled)return;
- const kind=button.dataset.editKind,id=button.dataset.editId;
- const field=button.closest('[data-editable-content]').querySelector('[data-editable-body]');
- button.disabled=true;
- try{await editAuthoredText(kind,id,field.textContent);}
- finally{button.disabled=false;}
-});
+function commentActionAttributes(kind,id,canEdit,canDelete=canEdit){
+ if(!canDelete)return '';
+ return ' tabindex="0" aria-haspopup="dialog" aria-label="Hold or press Enter for comment actions." data-comment-actions="'+escapeHTML(id)+'" data-comment-kind="'+kind+'"'+(canEdit?' data-comment-edit':'');
+}
+function attachCommentActions(scope,deleteComment){
+ if(!scope)return;
+ attachHoldActions(scope,'[data-comment-actions]',comment=>{
+  if(!comment.isConnected||$('commentActions')||!state.user)return;
+  const userId=state.user.id;
+  const dialog=document.createElement('dialog');
+  dialog.id='commentActions';
+  dialog.setAttribute('aria-labelledby','commentActionsTitle');
+  dialog.innerHTML='<h2 id="commentActionsTitle">Comment Actions</h2><form method="dialog">'+
+   (comment.hasAttribute('data-comment-edit')?'<button class="ghost" value="edit">Edit comment</button>':'')+
+   '<button class="ghost" value="delete">Delete comment</button><button class="ghost" value="cancel" autofocus>Cancel</button></form>';
+  document.body.append(dialog);
+  dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
+  dialog.addEventListener('close',()=>{
+   const action=dialog.returnValue;
+   dialog.remove();
+   if(!comment.isConnected||state.user?.id!==userId)return;
+   comment.focus({preventScroll:true});
+   const {commentActions:id,commentKind:kind}=comment.dataset;
+   if(action==='edit')void editAuthoredText(kind,id,comment.querySelector('[data-editable-body]').textContent);
+   if(action==='delete')void deleteComment(id);
+  },{once:true});
+  dialog.showModal();
+ },true);
+}
 async function editAuthoredText(kind,id,original){
  const author=state.user?.id;
  try{
@@ -173,7 +191,7 @@ async function editAuthoredText(kind,id,original){
    if(item&&!item.unsent_at){item.body=body;item.edited_at=editedAt;}
   }
   const selector=kind==='message'?'[data-message-actions="'+CSS.escape(id)+'"] [data-editable-content]':
-   '[data-edit-kind="'+CSS.escape(kind)+'"][data-edit-id="'+CSS.escape(id)+'"]';
+   '[data-comment-kind="'+CSS.escape(kind)+'"][data-comment-actions="'+CSS.escape(id)+'"] [data-editable-content]';
   const visible=document.querySelector(selector)?.closest('[data-editable-content]');
   if(visible){
    visible.querySelector('[data-editable-body]').textContent=body;
@@ -265,7 +283,7 @@ function profileCommentsMarkup(profileId,comments,kind='profile'){
   const id=escapeHTML(x.id),canDelete=state.user&&(state.user.id===x.author_id||state.user.id===profileId);
   const parent=depth&&x.parent_comment_id?byId.get(String(x.parent_comment_id)):null;
   const replyLabel=depth?'<div class="profile-reply-context">↳ Reply to '+escapeHTML(parent?.author?.username||'comment')+'</div>':'';
-  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" style="'+(depth?'margin-left:'+Math.min(depth*14,56)+'px;border-left:3px solid #a25bdf;':'')+'" id="profile-comment-'+id+'">'+replyLabel+'<div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+(canDelete?'<button type="button" class="profile-comment-delete" data-delete-profile-comment="'+id+'" aria-label="Delete comment">Delete</button>':'')+'</div>'+editableTextMarkup(kind,x,state.user?.id===x.author_id)+(x.has_image?'<img class="wired-comment-image" data-comment-image="'+escapeHTML(profileCommentImagePath(kind,x.author_id,x.id))+'" alt="Comment attachment" loading="lazy">':'')+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" aria-label="Write a reply" placeholder="Write a reply…"></textarea>'+profileCommentImagePicker()+'<div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>';
+  return '<article class="profile-comment'+(depth?' profile-comment-reply-item':'')+'" style="'+(depth?'margin-left:'+Math.min(depth*14,56)+'px;border-left:3px solid #a25bdf;':'')+'" id="profile-comment-'+id+'"'+commentActionAttributes(kind,x.id,!!state.user&&state.user.id===x.author_id,canDelete)+'>'+replyLabel+'<div class="profile-comment-top"><strong>'+escapeHTML(x.author?.username||"WIRED member")+'</strong><time>'+escapeHTML(new Date(x.created_at).toLocaleString())+'</time>'+'</div>'+editableTextMarkup(x)+(x.has_image?'<img class="wired-comment-image" data-comment-image="'+escapeHTML(profileCommentImagePath(kind,x.author_id,x.id))+'" alt="Comment attachment" loading="lazy">':'')+(state.user?'<button type="button" class="profile-comment-reply" data-show-reply="'+id+'">Reply</button><form class="profile-reply-form" data-reply-form="'+id+'" hidden><textarea name="body" maxlength="1000" rows="2" aria-label="Write a reply" placeholder="Write a reply…"></textarea>'+profileCommentImagePicker()+'<div class="profile-comment-footer"><span class="hint">Up to 1,000 characters.</span><button class="primary small" type="submit">Send reply</button></div></form>':'')+'</article>';
  };
  return '<section class="profile-comments" aria-label="Profile comments"><div class="section-head"><h3>Comments</h3><span class="hint">'+roots.length+' '+(roots.length===1?'comment':'comments')+' · '+replyCount+' '+(replyCount===1?'reply':'replies')+'</span></div>'+(state.user?'<details class="comment-disclosure"><summary>Comment</summary><form id="profileCommentForm" class="profile-comment-form"><label class="field"><span class="sr-only">Write a comment</span><textarea id="profileCommentBody" maxlength="1000" rows="3" placeholder="Write a comment on this profile…"></textarea></label>'+profileCommentImagePicker()+'<div class="profile-comment-footer"><span class="hint">Be respectful. Up to 1,000 characters.</span><button class="primary" type="submit">Post comment</button></div></form></details>':'<p class="hint">Log in to leave a comment.</p>')+'<div class="profile-comment-list">'+(ordered.length?ordered.map(({item,depth})=>renderOne(item,depth)).join(''):'<p class="empty">No comments yet. Start the conversation.</p>')+'</div></section>';
 }
@@ -274,7 +292,7 @@ function attachProfileCommentHandlers(profileId){
  $("profileCommentForm")?.addEventListener("submit",e=>postProfileComment(e,profileId));
  document.querySelectorAll("[data-show-reply]").forEach(b=>b.addEventListener("click",()=>{const f=document.querySelector('[data-reply-form="'+CSS.escape(b.dataset.showReply)+'"]');if(f){f.hidden=!f.hidden;if(!f.hidden)f.querySelector("textarea")?.focus();}}));
  document.querySelectorAll("[data-reply-form]").forEach(f=>f.addEventListener("submit",e=>postProfileComment(e,profileId)));
- document.querySelectorAll("[data-delete-profile-comment]").forEach(b=>b.addEventListener("click",()=>deleteProfileComment(b.dataset.deleteProfileComment,profileId)));
+ attachCommentActions(document.querySelector(".profile-comments"),id=>deleteProfileComment(id,profileId));
 }
 async function postProfileComment(e,profileId){
  e.preventDefault();
@@ -323,14 +341,14 @@ async function renderCommunityProfileComments(panel,cid,profileId){
    const form=slot.querySelector('[data-reply-form="'+CSS.escape(b.dataset.showReply)+'"]');
    if(form){form.hidden=!form.hidden;if(!form.hidden)form.querySelector('textarea')?.focus();}
   }));
-  slot.querySelectorAll('[data-delete-profile-comment]').forEach(b=>b.addEventListener('click',async()=>{
+  attachCommentActions(slot.querySelector('.profile-comments'),async id=>{
    if(!await wiredDialog('Delete this community profile comment?'))return;
    try{
-    const {error}=await sb.from('community_profile_comments').delete().eq('id',b.dataset.deleteProfileComment).eq('community_id',cid).eq('profile_id',profileId);
+    const {error}=await sb.from('community_profile_comments').delete().eq('id',id).eq('community_id',cid).eq('profile_id',profileId);
     if(error)throw error;
     await renderCommunityProfileComments(panel,cid,profileId);toast('Comment deleted.');
    }catch(err){toast('Could not delete comment: '+errorText(err));}
-  }));
+  });
  }catch(err){slot.innerHTML='<p class="hint">Comments unavailable: '+escapeHTML(errorText(err))+'</p>';}
 }
 function unreadCommunityNotifications(communityId){
@@ -3562,7 +3580,7 @@ function renderPostCard(p){
  }
  const icons={like:'👍',love:'❤️',laugh:'😂',wow:'😮',support:'🤝'};
  const reactions=Object.keys(icons).map(r=>'<button type="button" aria-label="React '+r+'" class="reaction '+(p.my_reactions?.includes(r)?'selected':'')+'" data-react-post="'+escapeHTML(p.id)+'" data-reaction="'+r+'">'+icons[r]+' '+(p.reaction_counts?.[r]||0)+'</button>').join('');
- const comments=(p.comments||[]).map(z=>'<div class="comment"><b>'+escapeHTML(z.username||'WIRED member')+'</b>'+editableTextMarkup('post',z,state.user?.id===z.author_id)+'</div>').join('');
+ const comments=(p.comments||[]).map(z=>'<div class="comment"'+commentActionAttributes('post',z.id,!!state.user&&state.user.id===z.author_id)+'><b>'+escapeHTML(z.username||'WIRED member')+'</b>'+editableTextMarkup(z)+'</div>').join('');
  const collections=state.communityPostCollections;
  const actions=collections&&!collections.loading&&!collections.error?'<div class="community-post-actions">'+
   '<button type="button" class="ghost small" data-post-collection="saved" data-post-id="'+escapeHTML(p.id)+'" aria-pressed="'+collections.saved.has(p.id)+'">'+(collections.saved.has(p.id)?'Unsave':'Save post')+'</button>'+
@@ -3733,6 +3751,7 @@ function renderCommunity(){
  loadCommunityLocalProfile();
  v.querySelectorAll('[data-react-post]').forEach(b=>b.addEventListener('click',()=>togglePostReaction(b.dataset.reactPost,b.dataset.reaction)));
  v.querySelectorAll('[data-comment-form]').forEach(form=>form.addEventListener('submit',e=>submitPostComment(e,form.dataset.commentForm)));
+ v.querySelectorAll('[data-community-post] .comments').forEach(section=>attachCommentActions(section,deletePostComment));
  v.querySelector('#openMyCommunityProfile')?.addEventListener('click',()=>openCommunityMemberProfile(state.user.id));
  v.querySelectorAll('[data-profile-id]').forEach(b=>b.addEventListener('click',()=>openCommunityMemberProfile(b.dataset.profileId)));
  v.querySelectorAll('[data-member-role]').forEach(b=>b.addEventListener('click',()=>setMemberRole(b.dataset.memberRole,b.dataset.nextRole)));
@@ -4378,6 +4397,18 @@ async function togglePostReaction(id,reaction){
  finally{if(button?.isConnected)button.disabled=false;}
 }
 async function submitPostComment(e,id){e.preventDefault();const input=e.currentTarget.elements.comment;try{await api('/posts/'+encodeURIComponent(id)+'/comments','POST',{body:input.value.trim()});await refreshCommunityPosts()}catch(err){toast(errorText(err))}}
+async function deletePostComment(id){
+ const author=state.user?.id,community=state.activeCommunity;
+ if(!author||!community||!await wiredDialog('Delete this comment?')||state.user?.id!==author)return;
+ try{
+  const {data,error}=await sb.from('post_comments').delete().eq('id',id).eq('author_id',author).select('id').maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error('The comment is no longer available.');
+  toast('Comment deleted.');
+  if(state.page==='community'&&state.activeCommunity===community)await refreshCommunityPosts();
+ }catch(error){toast(errorText(error));}
+}
+
 let inboxRefreshSequence=0;
 function directChatIdentity(t){
  const p=t?.directPeer;
@@ -4530,7 +4561,7 @@ function renderThreadMessages(){
   const own=messageIsMine(message);
   const actions=own&&!message.unsent_at?' tabindex="0" aria-haspopup="dialog" aria-label="Your message. Hold or press Enter for message actions." data-message-actions="'+escapeHTML(message.id)+'"':'';
   return '<article class="message-bubble'+(own?' message-own':'')+'"'+actions+'><div class="meta">'+escapeHTML(message.username||'Member')+' · '+escapeHTML(new Date(message.created_at).toLocaleString())+'</div>'+
-   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :message.image_path?'<div class="chat-image" data-chat-image="'+escapeHTML(message.id)+'"><button type="button" class="ghost small">Load '+chatImageLabel(message.image_path)+'</button></div>':message.voice_path?'<button type="button" class="ghost small" data-play-voice="'+escapeHTML(message.id)+'">▶ Play voice clip</button>':editableTextMarkup('message',message,false))+'</article>';
+   (message.unsent_at?'<p class="hint message-unsent">Message unsent</p>' :message.image_path?'<div class="chat-image" data-chat-image="'+escapeHTML(message.id)+'"><button type="button" class="ghost small">Load '+chatImageLabel(message.image_path)+'</button></div>':message.voice_path?'<button type="button" class="ghost small" data-play-voice="'+escapeHTML(message.id)+'">▶ Play voice clip</button>':editableTextMarkup(message))+'</article>';
  }).join('')||'<div class="empty chat-empty">No messages yet. Say hello to start the conversation.</div>';
  for(const [id,audio] of playing){
   const button=log.querySelector('[data-play-voice="'+CSS.escape(id)+'"]');
@@ -4588,37 +4619,42 @@ function openMessageActions(bubble){
  dialog.showModal();
 }
 function attachMessageActions(log){
+ attachHoldActions(log,'[data-message-actions]',openMessageActions);
+}
+function attachHoldActions(scope,selector,open,ignoreControls=false){
+ const target=event=>ignoreControls&&event.target.closest("button,a,input,textarea,select,label")?null:event.target.closest(selector);
  let press=null;
  const cancel=()=>{
   if(press)clearTimeout(press.timer);
   press=null;
  };
- log.addEventListener('pointerdown',event=>{
+ scope.addEventListener('pointerdown',event=>{
   cancel();
   if(!event.isPrimary||event.button!==0)return;
-  const bubble=event.target.closest('[data-message-actions]');
+  const bubble=target(event);
   if(!bubble)return;
   press={id:event.pointerId,x:event.clientX,y:event.clientY,timer:setTimeout(()=>{
    cancel();
-   openMessageActions(bubble);
+   open(bubble);
   },500)};
  });
- log.addEventListener('pointermove',event=>{
+ scope.addEventListener('pointermove',event=>{
   if(press&&event.pointerId===press.id&&Math.hypot(event.clientX-press.x,event.clientY-press.y)>10)cancel();
  });
- for(const name of ['pointerup','pointercancel','pointerleave','scroll','dragstart'])log.addEventListener(name,cancel);
- log.addEventListener('contextmenu',event=>{
-  const bubble=event.target.closest('[data-message-actions]');
+ for(const name of ['pointerup','pointercancel','pointerleave','scroll','dragstart'])scope.addEventListener(name,cancel);
+ scope.addEventListener('contextmenu',event=>{
+  const bubble=target(event);
   if(!bubble)return;
   event.preventDefault();
   cancel();
-  openMessageActions(bubble);
+  open(bubble);
  });
- log.addEventListener('keydown',event=>{
-  const bubble=event.target.closest('[data-message-actions]');
+ scope.addEventListener('keydown',event=>{
+  const bubble=target(event);
   if(!bubble||!['Enter',' ','ContextMenu'].includes(event.key)&&!(event.shiftKey&&event.key==='F10'))return;
   event.preventDefault();
-  openMessageActions(bubble);
+  cancel();
+  open(bubble);
  });
 }
 const VOICE_BUCKET='chat-voice-clips';

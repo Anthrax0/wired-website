@@ -1716,17 +1716,13 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .brand-wordmark{display:block;width:clamp(108px,40vw,184px);max-width:100%;height:auto;mix-blend-mode:screen}
 .brand small{padding-left:4px}
 
-.authored-text-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.authored-text-actions button{min-height:40px}
-.authored-text-actions .authored-edit-button{color:#f0d9ff;border-color:#9655cb}
-
-.message-own[data-message-actions]{cursor:context-menu;-webkit-touch-callout:none;user-select:none}
-.message-own[data-message-actions]:focus-visible{outline:2px solid #c58afb;outline-offset:2px}
-#messageActions{max-width:min(360px,calc(100vw - 32px));padding:18px}
-#messageActions h2{margin:0 0 12px;font-size:1.15rem}
-#messageActions form{display:grid;gap:8px}
-#messageActions button{min-height:44px;text-align:left}
-#messageActions button[value="unsend"]{color:#ff9caa}
+:is(.message-own[data-message-actions],[data-comment-actions]){cursor:context-menu;-webkit-touch-callout:none;user-select:none}
+:is(.message-own[data-message-actions],[data-comment-actions]):focus-visible{outline:2px solid #c58afb;outline-offset:2px}
+:is(#messageActions,#commentActions){max-width:min(360px,calc(100vw - 32px));padding:18px}
+:is(#messageActions,#commentActions) h2{margin:0 0 12px;font-size:1.15rem}
+:is(#messageActions,#commentActions) form{display:grid;gap:8px}
+:is(#messageActions,#commentActions) button{min-height:44px;text-align:left}
+#messageActions button[value="unsend"],#commentActions button[value="delete"]{color:#ff9caa}
 
 .has-member-moderation{position:relative}
 .member-moderation-trigger{position:absolute;top:12px;right:12px;min-width:44px;min-height:44px;font-size:1.35rem;line-height:1}
