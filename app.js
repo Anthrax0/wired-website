@@ -2648,7 +2648,7 @@ function yokaiDuelCard(duel, actor) {
     const botWon = duel.is_bot && (duel.reason === 'Forfeit' || duel.reason === 'Turn timed out' || (!duel.challenger_hp && duel.opponent_hp > 0));
     const outcome = duel.winner ? duel.winner === actor ? 'You won' : 'You lost' : botWon ? 'You lost' : duel.opponent_fighter ? 'Draw' : 'Invitation closed';
     controls = `<p><strong>${outcome}</strong> · ${escapeHTML(duel.reason || 'Duel ended')}</p>`;
-    if (duel.winner === actor && duel.reward_xp) {
+    if (duel.winner === actor && duel.reward_points) {
       controls += `<p>+${Number(duel.reward_xp)} XP · +${Number(duel.reward_points)} points</p>`;
     }
   }
@@ -2701,7 +2701,7 @@ async function refreshYokaiDuels() {
     let earnedReward = false;
     for (const duel of duels) {
       const rewardKey = actor + ':' + duel.id;
-      if (duel.winner === actor && duel.reward_xp && !duelRewardsSeen.has(rewardKey)) {
+      if (duel.winner === actor && duel.reward_points && !duelRewardsSeen.has(rewardKey)) {
         duelRewardsSeen.add(rewardKey);
         earnedReward = true;
       }
@@ -2869,7 +2869,9 @@ function renderPetParadise(){
   const arena = `<section class="pet-section" data-duel-arena><h2>Duel Arena</h2>
     <section class="card"><h3>Duel Rules</h3>
       <ul>
-        <li><strong>Bot duels</strong> · 5 starts per day. A knockout win earns 10 XP and 5 points.</li>
+        <li><strong>Bot duels</strong> · 5 starts per day. A knockout win against a bot of the same rarity earns 10 base XP and 5 points.</li>
+        <li><strong>Bot rarity adjustment</strong> · Add 2 base XP for each rarity tier the bot is above your Yokai. Subtract 2 base XP for each tier below. For example, a Rare Yokai earns 14 base XP against a Legendary bot and 6 against a Common bot.</li>
+        <li>Bot wins can award 0–20 base XP. The penalty applies to the match reward, and previously earned XP stays yours. Your Yokai’s own rarity XP bonus applies afterward. Bot wins still award 5 points.</li>
         <li><strong>Member duels</strong> · 5 accepted duels per day for each member. A knockout win earns 20 XP and 10 points.</li>
         <li>Both limits reset at midnight UTC. A started duel still counts if you forfeit, time out, or draw.</li>
         <li>Only knockout wins earn rewards. XP goes to your winning companion if you still own it.</li>
