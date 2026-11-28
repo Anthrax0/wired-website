@@ -2636,3 +2636,42 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .community-title-editor-list{list-style:none;margin:0;padding:0}
 .community-title-editor-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;overflow-wrap:anywhere}
 .community-title-editor-list li span{min-width:0}
+
+/* Thorn Garden profile cosmetics */
+:is(.profile-unified-card,.profile-custom-card,.store-preview-profile).thorn-garden-theme {
+  background: #100817 url("assets/profile/thorn-garden/background.webp") center top / 100% auto no-repeat !important;
+}
+:is(.profile-cover,.store-preview-cover).thorn-garden-cover {
+  background: #180b23 url("assets/profile/thorn-garden/banner.webp") center / cover no-repeat !important;
+}
+:is(.profile-avatar,.profile-summary-avatar,.store-preview-avatar).thorn-garden-frame {
+  position: relative;
+  border-color: transparent !important;
+  overflow: visible;
+  box-shadow: none !important;
+}
+.thorn-garden-frame img { border-radius: 50%; }
+:is(.profile-avatar,.profile-summary-avatar,.store-preview-avatar).thorn-garden-frame::after {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  background: url("assets/profile/thorn-garden/frame.webp") center / contain no-repeat;
+  pointer-events: none;
+}
+:is(h2,h3,.store-preview-nameplate).thorn-garden-nameplate {
+  display: inline-block;
+  max-width: 100%;
+  padding: .55em 2.15em !important;
+  border: 0 !important;
+  background: url("assets/profile/thorn-garden/nameplate.webp") center / 100% 100% no-repeat !important;
+  box-shadow: none !important;
+  color: #f8e5ff !important;
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 4px #100617, 0 0 5px #100617 !important;
+}
+.store-purchase-icon > .store-preview-nameplate.thorn-garden-nameplate {
+  width: 100%;
+  min-height: 0;
+  font-size: .62rem;
+}
