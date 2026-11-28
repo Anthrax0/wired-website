@@ -514,6 +514,15 @@ footer{border-color:#4b2864}
 /* Global activity notifications */
 .notifications-trigger{position:relative;display:inline-flex;align-items:center;gap:7px}
 .notification-count{display:inline-flex;min-width:19px;height:19px;padding:0 5px;align-items:center;justify-content:center;border-radius:999px;background:#a855f7;color:#fff;font-size:11px;font-weight:800}
+.notification-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(10px,3vw,24px)}
+.notification-columns h3{margin:0 0 12px;font-size:clamp(14px,3.8vw,19px)}
+.notification-columns .empty{padding:18px 8px}
+.notification-columns .notification-copy{overflow-wrap:anywhere}
+.notification-columns .chat-request-actions{flex-wrap:wrap}
+@media(max-width:600px){
+  .notification-columns .notification-open{align-items:flex-start;gap:6px;padding:8px}
+  .notification-columns .notification-avatar{width:24px;height:24px;flex:0 0 24px}
+}
 .notification-list{display:grid;gap:10px}
 .notification-item{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border:1px solid rgba(168,85,247,.24);border-radius:14px;background:rgba(18,13,31,.82);color:inherit;cursor:pointer}
 .notification-item.unread{border-color:rgba(192,132,252,.72);background:rgba(88,28,135,.18)}

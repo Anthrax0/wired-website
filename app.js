@@ -486,10 +486,10 @@ function renderNotifications(communityId=null,host=$("view")){
  }).join(''):'<div class="empty">'+empty+'</div>')+'</div>';
  const isCommunityNotification=n=>Boolean(n.isCommunity||n.community_id);
  v.innerHTML=heading+(communityId ? renderList(rows,'No unread notifications in this community.') :
-  '<section aria-labelledby="global-notifications-heading"><h3 id="global-notifications-heading">Global Notifications</h3>'+
+  '<div class="notification-columns"><section aria-labelledby="global-notifications-heading"><h3 id="global-notifications-heading">Global Notifications</h3>'+
   renderList(rows.filter(n=>!isCommunityNotification(n)),'No unread global notifications.')+'</section>'+
   '<section aria-labelledby="community-notifications-heading"><h3 id="community-notifications-heading">Community Notifications</h3>'+
-  renderList(rows.filter(isCommunityNotification),'No unread community notifications.')+'</section>');
+  renderList(rows.filter(isCommunityNotification),'No unread community notifications.')+'</section></div>');
  v.querySelector("#markAllNotificationsRead")?.addEventListener("click",()=>communityId?markCommunityNotificationsRead(communityId):markAllNotificationsRead());
  v.querySelectorAll(".notification-open[data-notification-id]").forEach(b=>b.addEventListener("click",()=>openNotification(b.dataset.notificationId,b.dataset.notificationActor,b.dataset.notificationType,b.dataset.notificationComment,b.dataset.notificationCommunity)));
  v.querySelectorAll("[data-chat-request]").forEach(b=>b.addEventListener("click",()=>respondToGlobalChatRequest(b.dataset.chatRequest,b.dataset.thread,b.dataset.status,b)));
