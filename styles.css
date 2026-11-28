@@ -2675,3 +2675,42 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   min-height: 0;
   font-size: .62rem;
 }
+
+/* Glitched profile cosmetics */
+:is(.profile-unified-card,.profile-custom-card,.store-preview-profile).glitched-theme {
+  background: #0b0512 url("assets/profile/glitched/background.webp") center top / 100% auto no-repeat !important;
+}
+:is(.profile-cover,.store-preview-cover).glitched-cover {
+  background: #10071b url("assets/profile/glitched/banner.webp") center / cover no-repeat !important;
+}
+:is(.profile-avatar,.profile-summary-avatar).glitched-frame {
+  position: relative;
+  border: 0 !important;
+  overflow: visible;
+  box-shadow: none !important;
+  margin: 33px;
+}
+.profile-person:has(.glitched-frame) > :last-child { min-width: 0; }
+:is(.profile-avatar,.profile-summary-avatar).glitched-frame::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: url("assets/profile/glitched/frame.webp") center / contain no-repeat;
+  pointer-events: none;
+}
+.store-preview-avatar.glitched-frame {
+  background: url("assets/profile/glitched/frame.webp") center / contain no-repeat !important;
+}
+:is(h2,h3,.store-preview-nameplate).glitched-nameplate {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  padding: .65em 1.5em !important;
+  border: 0 !important;
+  background: url("assets/profile/glitched/nameplate.webp") center / 100% 100% no-repeat !important;
+  box-shadow: none !important;
+  color: #f9edff !important;
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 4px #0b0512 !important;
+}
