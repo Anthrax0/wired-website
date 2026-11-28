@@ -3646,7 +3646,7 @@ function communityFeedPosts(tab,posts,collections){
   const order=collections[tab];
   return sorted.filter(post=>order.has(post.id)).sort((a,b)=>Date.parse(order.get(b.id))-Date.parse(order.get(a.id)));
  }
- if(tab==='wiki')return sorted.filter(post=>(post.kind||post.post_type||post.type)==='wiki');
+ if(tab==='wiki')return sorted.filter(isCommunityWiki);
  if(tab==='activities')return sorted.filter(post=>['poll','quiz'].includes(post.kind));
  return sorted;
 }
@@ -3744,10 +3744,171 @@ async function openCommunity(id,section='latest'){
   if(isCurrent()&&!['compose','profile'].includes(state.communityTab)&&!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
  }catch(e){toast(errorText(e));}
 }
+function isCommunityWiki(post){
+ return (post.kind||post.post_type||post.type)==='wiki';
+}
+function wikiMedia(post){
+ const urls=Array.isArray(post.metadata?.media_urls)?post.metadata.media_urls:[post.metadata?.media_url];
+ return urls.filter(url=>typeof url==='string'&&/^https?:\/\//i.test(url));
+}
+function wikiCoverMarkup(post){
+ const cover=wikiMedia(post)[0];
+ return '<span class="wiki-cover">'+(cover?'<img src="'+escapeHTML(cover)+'" alt="" loading="lazy">':
+  '<span class="wiki-cover-placeholder" aria-hidden="true">▤</span>')+'</span>';
+}
+function wikiTileMarkup(post){
+ return '<button type="button" class="wiki-tile" data-open-wiki="'+escapeHTML(post.id)+'">'+wikiCoverMarkup(post)+
+  '<strong>'+escapeHTML(post.title||'Untitled wiki')+'</strong></button>';
+}
+function openCommunityWiki(entries,id){
+ const index=entries.findIndex(post=>post.id===id);
+ if(index===-1||!state.activeCommunityRole||$('communityWikiReader'))return;
+ const communityId=state.activeCommunity.id,userId=state.user.id;
+ const dialog=document.createElement('dialog');
+ dialog.id='communityWikiReader';
+ dialog.className='wiki-reader';
+ dialog.setAttribute('aria-labelledby','communityWikiTitle');
+ let selected=index;
+ let saved=null;
+ let busy=false;
+ function draw(){
+  const post=entries[selected],title=post.title||'Untitled wiki',liked=post.my_reactions?.includes('like');
+  dialog.dataset.wikiId=post.id;
+  const comments=(post.comments||[]).map(comment=>'<div class="comment">'+commentAuthorMarkup(comment.username,comment.created_at)+editableTextMarkup(comment)+'</div>').join('');
+  const likes=Number(post.reaction_counts?.like)||0;
+  dialog.innerHTML='<header class="wiki-reader-nav"><button class="ghost small" type="button" data-wiki-close autofocus>← Back</button>'+
+   '<button class="ghost small" type="button" data-wiki-share>Share</button></header>'+
+   '<div class="wiki-reader-content"><header class="wiki-reader-hero">'+wikiCoverMarkup(post)+
+   '<h2 id="communityWikiTitle">'+escapeHTML(title)+'</h2><p>By '+escapeHTML(post.authorName||post.username||'WIRED member')+'</p></header>'+
+   '<section class="wiki-reader-about"><h3>About</h3><div class="wiki-reader-body">'+
+   (post.body?'<p>'+escapeHTML(post.body)+'</p>':'')+
+   wikiMedia(post).slice(1).map(url=>'<img src="'+escapeHTML(url)+'" alt="Wiki attachment" loading="lazy">').join('')+
+   '</div></section><section class="wiki-reader-comments">'+commentHeading((post.comments||[]).length,'h3')+
+   '<div class="post-comment-list">'+comments+'</div><form class="comment-form" data-wiki-comment>'+
+   '<input name="comment" required maxlength="4000" placeholder="Write a comment…" aria-label="Write a comment">'+
+   '<button type="submit" class="primary small">Send</button></form></section></div>'+
+   '<footer class="wiki-reader-actions">'+(post.author_id&&post.author_id!==userId?'<button class="ghost small" type="button" data-wiki-gift>Send gift</button>':'')+
+   '<button class="ghost small" type="button" data-wiki-like aria-pressed="'+!!liked+'">♡ Like · '+likes+'</button>'+
+   '<button class="ghost small" type="button" data-wiki-save '+(saved?'aria-pressed="'+saved.has(post.id)+'"':'disabled')+'>'+
+   (saved?.has(post.id)?'Unsave':'Save')+'</button>'+
+   '<button class="ghost small" type="button" data-wiki-next '+(selected+1>=entries.length?'disabled':'')+'>Next entry →</button></footer>';
+ }
+ dialog.addEventListener('click',async event=>{
+  const button=event.target.closest('.wiki-reader-nav button,.wiki-reader-actions button');
+  if(!button)return;
+  const post=entries[selected];
+  if(button.hasAttribute('data-wiki-close')){dialog.close();return;}
+  if(busy)return;
+  if(button.hasAttribute('data-wiki-next')){
+   selected++;
+   draw();
+   saveWiredRoute();
+   dialog.querySelector('[data-wiki-close]').focus();
+   return;
+  }
+  if(button.hasAttribute('data-wiki-gift')){
+   dialog.close();
+   void openGiftShopForProfile(post.author_id,post.authorName||post.username||'WIRED member',communityId);
+   return;
+  }
+  busy=true;
+  button.disabled=true;
+  try{
+   if(button.hasAttribute('data-wiki-share')){
+    const url=new URL(location.pathname,location.origin);
+    url.searchParams.set('community',communityId);
+    url.searchParams.set('wiki',post.id);
+    if(navigator.share)await navigator.share({title:post.title,url:url.href});
+    else{await navigator.clipboard.writeText(url.href);toast('Wiki link copied.');}
+   }else if(button.hasAttribute('data-wiki-like')){
+    const previous=post.my_reactions?.includes('like')||false;
+    const result=await api('/posts/'+encodeURIComponent(post.id)+'/reactions','POST',{reaction:'like'});
+    const active=!!result.active;
+    const reactions=(post.my_reactions||[]).filter(reaction=>reaction!=='like');
+    post.my_reactions=active?[...reactions,'like']:reactions;
+    post.reaction_counts={...post.reaction_counts,like:Math.max(0,(Number(post.reaction_counts?.like)||0)+Number(active)-Number(previous))};
+    button.setAttribute('aria-pressed',String(active));
+    button.textContent='♡ Like · '+post.reaction_counts.like;
+   }else if(button.hasAttribute('data-wiki-save')&&saved){
+    const table=sb.from('community_saved_posts');
+    const wasSaved=saved.has(post.id);
+    const result=wasSaved?await table.delete().eq('post_id',post.id):await table.insert({post_id:post.id});
+    if(result.error&&result.error.code!=='23505')throw result.error;
+    const collection=state.activeCommunity?.id===communityId?state.communityPostCollections?.saved:null;
+    for(const list of new Set([saved,collection])){
+     if(wasSaved)list?.delete(post.id);
+     else list?.set(post.id,new Date().toISOString());
+    }
+    button.setAttribute('aria-pressed',String(!wasSaved));
+    button.textContent=wasSaved?'Save':'Unsave';
+   }
+  }catch(error){if(error.name!=='AbortError')toast(errorText(error));}
+  finally{busy=false;button.disabled=false;}
+ });
+ dialog.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(busy)return;
+  const form=event.target,input=form.elements.comment,body=input.value.trim();
+  if(!body)return;
+  const post=entries[selected];
+  const button=form.querySelector('[type="submit"]');
+  busy=true;
+  button.disabled=true;
+  try{
+   await api('/posts/'+encodeURIComponent(post.id)+'/comments','POST',{body});
+   input.value='';
+   const posts=await loadCommunityFeed(communityId);
+   const updated=posts.find(item=>item.id===post.id);
+   if(!dialog.isConnected||!updated)return;
+   post.comments=updated.comments;
+   const content=dialog.querySelector('.wiki-reader-content'),scroll=content.scrollTop;
+   draw();
+   dialog.querySelector('.wiki-reader-content').scrollTop=scroll;
+  }catch(error){toast(errorText(error));}
+  finally{busy=false;button.disabled=false;}
+ });
+ dialog.addEventListener('close',()=>{
+  dialog.remove();
+  saveWiredRoute();
+  if(state.page==='community'&&state.activeCommunity?.id===communityId&&!state.communityProfileId&&state.communityTab==='saved')renderCommunity();
+ },{once:true});
+ draw();
+ document.body.append(dialog);
+ dialog.showModal();
+ saveWiredRoute();
+ void loadCommunityPostCollections(communityId).then(collection=>{
+  if(!dialog.isConnected)return;
+  if(collection.error)throw collection.error;
+  saved=collection.saved;
+  const button=dialog.querySelector('[data-wiki-save]');
+  const isSaved=saved.has(entries[selected].id);
+  button.disabled=false;
+  button.setAttribute('aria-pressed',String(isSaved));
+  button.textContent=isSaved?'Unsave':'Save';
+ }).catch(error=>console.warn('Wiki save status unavailable',error));
+}
+
+async function openSharedCommunityWiki(){
+ const url=new URL(location.href);
+ const communityId=url.searchParams.get('community'),postId=url.searchParams.get('wiki');
+ const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+ if(!uuid.test(communityId||'')||!uuid.test(postId||''))return false;
+ if(!state.user){openAuth();return false;}
+ await openCommunity(communityId,'wiki');
+ const entries=state.posts.filter(isCommunityWiki);
+ if(state.activeCommunity?.id!==communityId||!state.activeCommunityRole||!entries.some(post=>post.id===postId)){
+  toast('This wiki entry is unavailable.');
+ }else openCommunityWiki(entries,postId);
+ url.searchParams.delete('community');
+ url.searchParams.delete('wiki');
+ history.replaceState(history.state,'',url);
+ return true;
+}
+
 function renderPostCard(p){
  const options=Array.isArray(p.metadata?.options)?p.metadata.options:[],votes=(p.vote_counts||[]),total=votes.reduce((a,n)=>a+n,0);
  const mediaUrls=Array.isArray(p.metadata?.media_urls)?p.metadata.media_urls:(p.metadata?.media_url?[p.metadata.media_url]:[]);
- const media=mediaUrls.map((url,i)=>'<img class="post-media" src="'+escapeHTML(url)+'" alt="Post image '+(i+1)+'" loading="lazy">').join('');
+ const media=isCommunityWiki(p)?wikiTileMarkup(p):mediaUrls.map((url,i)=>'<img class="post-media" src="'+escapeHTML(url)+'" alt="Post image '+(i+1)+'" loading="lazy">').join('');
  let interactive='';
  if(p.kind==='poll'){
   interactive='<div class="poll-options">'+options.map((o,i)=>{const n=votes[i]||0,percent=total?Math.round(n/total*100):0;return '<button class="poll-option '+(p.my_vote===i?'selected':'')+'" data-vote-post="'+escapeHTML(p.id)+'" data-vote-option="'+i+'"><span>'+escapeHTML(o)+'</span><span class="poll-result">'+n+' · '+percent+'%</span><span class="poll-bar" style="width:'+percent+'%"></span></button>';}).join('')+'</div><p class="hint">'+(p.my_vote===null?'Vote to see community results':'Your vote is recorded · '+total+' vote(s)')+'</p>';
@@ -3777,7 +3938,7 @@ function renderPostCard(p){
  const author=p.author_id?
   '<button type="button" class="post-author" data-profile-id="'+escapeHTML(p.author_id)+'">'+identity+'</button>':
   '<span class="post-author">'+identity+'</span>';
- return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="post-author-row">'+author+(p.id_verified?'<span class="hint">✓ Verified</span>':'')+'</div><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> · '+new Date(p.created_at).toLocaleString()+'</div><h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':'')+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments comment-section">'+commentHeading((p.comments||[]).length,'h4')+'<details class="comment-disclosure"><summary>Comment</summary><form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" aria-label="Write a comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></details><div class="post-comment-list">'+comments+'</div></div></article>';
+ return '<article class="card post" data-community-post="'+escapeHTML(p.id)+'"><div class="post-author-row">'+author+(p.id_verified?'<span class="hint">✓ Verified</span>':'')+'</div><div class="meta"><span class="pill">'+escapeHTML(p.kind||'blog')+'</span> · '+new Date(p.created_at).toLocaleString()+'</div>'+(isCommunityWiki(p)?'':'<h3>'+escapeHTML(p.title||'Post')+'</h3>'+(p.body?'<p>'+escapeHTML(p.body)+'</p>':''))+media+interactive+'<div class="post-reactions">'+reactions+'</div>'+actions+'<div class="comments comment-section">'+commentHeading((p.comments||[]).length,'h4')+'<details class="comment-disclosure"><summary>Comment</summary><form class="comment-form" data-comment-form="'+escapeHTML(p.id)+'"><input name="comment" aria-label="Write a comment" required maxlength="4000" placeholder="Write a comment…"><button class="primary small">Send</button></form></details><div class="post-comment-list">'+comments+'</div></div></article>';
 }
 let communityDirectoryResult=null;
 
@@ -3964,7 +4125,7 @@ function renderCommunity(){
  if(joined&&!state.managerOpen&&activeTab==='latest'&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
  if(joined&&!state.managerOpen&&activeTab==='compose'){
   const publishing=pendingCommunityPosts.has(communityPostSubmissionKey(state.user.id,c.id));
-  html+='<div class="card form-card"><div class="section-head"><h3>Create a Post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button type="submit" class="primary" '+(publishing?'disabled':'')+'>'+(publishing?'Publishing…':'Publish to community')+'</button></form></div>';}
+  html+='<div class="card form-card"><div class="section-head"><h3>Create a Post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><p class="hint" id="wikiCoverHint" hidden>The first image becomes the wiki cover. Other images appear under About.</p><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button type="submit" class="primary" '+(publishing?'disabled':'')+'>'+(publishing?'Publishing…':'Publish to community')+'</button></form></div>';}
  else if(!joined&&c.is_banned)html+='<p class="empty">You are banned from this community.</p>';
  else if(!joined&&c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
  else if(!joined)html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
@@ -4004,7 +4165,8 @@ function renderCommunity(){
   }else if(collectionFeed&&collections.loading){
    html+='<p class="empty" role="status">Loading posts…</p>';
   }else{
-   html+=posts.map(renderPostCard).join('')||'<div class="empty">'+empty+'</div>';
+   html+=(posts.length&&activeTab==='wiki'?'<div class="wiki-library">'+posts.map(wikiTileMarkup).join('')+'</div>':
+    posts.map(renderPostCard).join(''))||'<div class="empty">'+empty+'</div>';
   }
  }
  if(joined&&!state.managerOpen&&activeTab==='guidelines'){
@@ -4028,6 +4190,9 @@ function renderCommunity(){
  if($('communityChatList'))renderCommunityChatList(c.id);
  if($('communityNotificationList'))renderCommunityNotifications();
  $('retryCommunityFeed')?.addEventListener('click',()=>openCommunity(c.id,state.communityTab));
+ v.querySelectorAll('[data-open-wiki]').forEach(button=>button.addEventListener('click',()=>{
+  openCommunityWiki(communityFeedPosts('wiki',state.posts,state.communityPostCollections),button.dataset.openWiki);
+ }));
  v.querySelectorAll('[data-post-collection]').forEach(button=>button.addEventListener('click',()=>toggleCommunityPostCollection(button)));
  $('communityTabChat')?.addEventListener('click',()=>openCommunityChat(c.id));
  $('communityCheckinBtn')?.addEventListener('click',doCommunityCheckin);
@@ -4213,6 +4378,7 @@ function updatePostComposer(){
  if($('pollFields'))$('pollFields').hidden=type!=='poll';
  if($('quizFields'))$('quizFields').hidden=type!=='quiz';
  if($('postImageWrap'))$('postImageWrap').hidden=false;
+ if($('wikiCoverHint'))$('wikiCoverHint').hidden=type!=='wiki';
  if(type==='quiz'&&!$('quizQuestionBuilder')?.querySelector('[data-quiz-question]'))addQuizQuestion();
 }
 async function loadCommunityFeed(communityId){
@@ -4561,6 +4727,7 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   const postsPanel=panel.querySelector('#communityProfilePosts');
   const wall=panel.querySelector('#communityProfileComments');
   const tabs=[...panel.querySelectorAll('[data-community-profile-pane]')];
+  let profileWikiEntries=[];
   const renderPane=async pane=>{
    const request=++contentRequest;
    state.communityProfilePane={cid,userId,pane};
@@ -4582,17 +4749,20 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
     if(request!==contentRequest||!panel.isConnected)return;
     const visible=collection?communityFeedPosts('saved',posts,collection):posts.filter(post=>post.author_id===userId);
     const row=post=>`<button type="button" class="wired-local-profile-post" data-profile-post-id="${escapeHTML(post.id)}" data-profile-post-section="${pane==='saved'?'saved':post.kind==='wiki'?'wiki':'latest'}"><span>${escapeHTML(post.title||'Post')}</span><span aria-hidden="true">›</span></button>`;
-    const postsOnly=visible.filter(post=>post.kind!=='wiki');
-    const wikis=visible.filter(post=>post.kind==='wiki');
+    const postsOnly=visible.filter(post=>!isCommunityWiki(post));
+    profileWikiEntries=visible.filter(isCommunityWiki);
+    const wikiShelf=profileWikiEntries.length?'<section class="wiki-profile-shelf"><h3>Wiki Entries <span>'+profileWikiEntries.length+'</span></h3>'+
+     '<div class="wiki-shelf">'+profileWikiEntries.map(wikiTileMarkup).join('')+'</div></section>':'';
     postsPanel.innerHTML=(own&&pane==='posts'?'<button type="button" class="primary small" data-community-destination="compose">＋ Create a new post</button>':'')+
-     (pane==='saved'?(visible.map(row).join('')||'<p class="hint">No saved posts in this community.</p>'):
-      '<h3>Posts</h3>'+(postsOnly.map(row).join('')||'<p class="hint">No posts yet.</p>')+
-      '<h3>Wiki Entries</h3>'+(wikis.map(row).join('')||'<p class="hint">No wiki entries yet.</p>'));
+     (pane==='saved'?(visible.map(post=>isCommunityWiki(post)?wikiTileMarkup(post):row(post)).join('')||'<p class="hint">No saved posts in this community.</p>'):
+      wikiShelf+'<h3>Posts</h3>'+(postsOnly.map(row).join('')||'<p class="hint">No posts yet.</p>'));
    }catch(error){
     if(request===contentRequest&&panel.isConnected)postsPanel.textContent=errorText(error);
    }
   };
   postsPanel.addEventListener('click',async event=>{
+   const wiki=event.target.closest('[data-open-wiki]');
+   if(wiki){openCommunityWiki(profileWikiEntries,wiki.dataset.openWiki);return;}
    const button=event.target.closest('[data-profile-post-id]');
    if(!button)return;
    await openCommunitySection(button.dataset.profilePostSection);
@@ -5437,7 +5607,7 @@ $("headerLogoutBtn")?.addEventListener("click",()=>{if(state.user)logout().catch
 $("showRegister").addEventListener("click",()=>{$("loginForm").hidden=true;$("registerForm").hidden=false;$("authTitle").textContent="Create account"});
 $("showLogin").addEventListener("click",()=>{$("registerForm").hidden=true;$("loginForm").hidden=false;$("authTitle").textContent="Log in"});
 $("resendConfirm").addEventListener("click",async()=>{const email=$("regEmail").value.trim();if(!email||!email.includes("@")){$("authStatus").textContent="Enter your registration email address first.";return;}const {error}=await sb.auth.resend({type:"signup",email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});$("authStatus").textContent=error?error.message:"If this account is awaiting confirmation, a fresh verification email has been requested. Check your inbox.";});
-$("loginSubmit").addEventListener("click",async()=>{if(!$("loginAdult").checked){$("authStatus").textContent="WIRED is for adults aged 18 or older.";return;}const email=$("loginName").value.trim();if(!email.includes("@")){$("authStatus").textContent="Please sign in with the email address on your WIRED account.";return;}const {error}=await sb.auth.signInWithPassword({email,password:$("loginPassword").value});if(error){$("authStatus").textContent=error.message;return;}$("authDialog").close();toast("Welcome back to WIRED.");await refreshUser()});
+$("loginSubmit").addEventListener("click",async()=>{if(!$("loginAdult").checked){$("authStatus").textContent="WIRED is for adults aged 18 or older.";return;}const email=$("loginName").value.trim();if(!email.includes("@")){$("authStatus").textContent="Please sign in with the email address on your WIRED account.";return;}const {error}=await sb.auth.signInWithPassword({email,password:$("loginPassword").value});if(error){$("authStatus").textContent=error.message;return;}$("authDialog").close();toast("Welcome back to WIRED.");await refreshUser();await openSharedCommunityWiki().catch(error=>toast(errorText(error)))});
 $("registerSubmit").addEventListener("click",async()=>{const dob=$("regDob").value;if(!$("regConfirm").checked||!dob){$("authStatus").textContent="Enter your date of birth and confirm it.";return;}const birth=new Date(dob+"T00:00:00");const cutoff=new Date();cutoff.setHours(0,0,0,0);cutoff.setFullYear(cutoff.getFullYear()-18);if(birth>cutoff){$("authStatus").textContent="You must be at least 18 to join WIRED.";return;}const username=$("regUser").value.trim().toLowerCase();if(!/^[a-z0-9_]{3,24}$/.test(username)){$("authStatus").textContent="Username must be 3–24 characters (letters, numbers, underscores).";return;}const {data,error}=await sb.auth.signUp({email:$("regEmail").value.trim(),password:$("regPassword").value,options:{data:{username,date_of_birth:dob},emailRedirectTo:window.location.origin+window.location.pathname}});if(error){$("authStatus").textContent=error.message;return;}if(data.session){$("authDialog").close();toast("Your WIRED account is ready.");await refreshUser();}else{$("authStatus").textContent="Check your email for the confirmation link, then log in to WIRED.";}});
 async function saveBiography(e){
  e.preventDefault();if(!state.user)return;
@@ -5492,6 +5662,7 @@ function saveWiredRoute(){
   communityManagerOpen:community&&state.managerOpen,
   communityLeaderboardOpen:community&&state.leaderboardOpen,
   communityProfileId,
+  communityWikiId:community?$('communityWikiReader')?.dataset.wikiId:null,
   communityProfilePane:communityProfileId&&state.communityProfilePane?.userId===communityProfileId&&state.communityProfilePane.cid===state.activeCommunity?.id?state.communityProfilePane.pane:null,
   communityThreadId:community&&state.communityTab==='chats'&&!communityProfileId?state.activeThread:null,
   memberId:state.page==='member-profile'?state.viewingProfile?.id:null,
@@ -5550,7 +5721,12 @@ async function restoreWiredRoute(route){
     thread.id===route.communityThreadId&&(thread.community_id||thread.communityId)===route.communityId
    ))await openThread(route.communityThreadId);
   }
-  if(route.communityLeaderboardOpen&&!state.communityProfileId&&!state.activeThread)await openCommunityLeaderboard();
+  if(route.communityWikiId){
+   const entries=communityFeedPosts('wiki',state.posts,state.communityPostCollections);
+   const current=entries.find(post=>post.id===route.communityWikiId);
+   if(current)openCommunityWiki(state.communityProfileId&&state.communityProfilePane?.pane!=='saved'?
+    entries.filter(post=>post.author_id===current.author_id):entries,current.id);
+  }else if(route.communityLeaderboardOpen&&!state.communityProfileId&&!state.activeThread)await openCommunityLeaderboard();
   return true;
  }
  if(route.page==='global-members'){
@@ -5598,7 +5774,7 @@ async function init(){
  try{
   await refreshUser();
   updateCommunityNavigation();
-  if(!await restoreWiredRoute(route))nav('home');
+  if(!await openSharedCommunityWiki()&&!await restoreWiredRoute(route))nav('home');
  }catch(error){
   console.error('WIRED startup failed',error);
   render();
