@@ -2850,7 +2850,11 @@ function yokaiDuelCard(duel, actor) {
     const result = move === 0 ? '' : opposingMove === 0 && damage === 0 ? ' Guard blocked all damage.' : ` ${damage} damage.`;
     return `${escapeHTML(fighter.name)} used ${escapeHTML(yokaiDuelMoveName(fighter, move))}.${crit ? ' <strong>Critical Hit!</strong>' : ''}${result}`;
   };
-  return `<h3>Duel with ${escapeHTML(opponent)}</h3><div class="yokai-duel-fighters">
+  const finishedAt = duel.status === 'finished' && duel.finished_at ? new Date(duel.finished_at) : null;
+  const timestamp = finishedAt && Number.isFinite(finishedAt.getTime())
+    ? `<p class="hint"><time datetime="${finishedAt.toISOString()}">${escapeHTML(finishedAt.toLocaleString(undefined, {dateStyle:'medium', timeStyle:'short'}))}</time></p>`
+    : '';
+  return `<h3>Duel with ${escapeHTML(opponent)}</h3>${timestamp}<div class="yokai-duel-fighters">
     ${yokaiDuelFighterMarkup(duel.challenger_fighter, duel.challenger_hp, duel.challenger_name)}
     ${yokaiDuelFighterMarkup(duel.opponent_fighter, duel.opponent_hp, duel.opponent_name)}
     </div>${last ? `<p aria-live="polite">Round ${last.turn}<br>
