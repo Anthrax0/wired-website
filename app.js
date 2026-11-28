@@ -2977,7 +2977,10 @@ function yokaiChallengeMarkup(pets, species, online = false) {
     `<form>
       ${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true, showRarity:true})}
       <label class="field">${online ? 'Opponent species' : 'Bot opponent'}<select name="species" required><option value="">Choose a species</option>${choices}</select></label>
-      ${online ? '<label class="field">Opponent level<input name="level" type="number" min="1" max="99" required></label>' : ''}
+      ${online ? `<label class="field">Opponent level<select name="level" required>
+        <option value="">Choose a level</option>
+        ${Array.from({length:99}, (_, index) => `<option value="${index + 1}">${index + 1}</option>`).join('')}
+      </select></label>` : ''}
       <button class="primary" type="submit">${online ? 'Send Challenge' : 'Start Bot Duel'}</button>
       <p data-challenge-status role="status"></p>
     </form>`}
