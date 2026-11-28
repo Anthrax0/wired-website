@@ -2847,7 +2847,7 @@ function matchingOnlineDuelPets(duel, pets) {
 }
 
 const onlineDuelNotices = new Set();
-let onlineDuelToFocus = null;
+let activeDuelToFocus = null;
 
 function showOnlineDuelNotice(duel, actor) {
   if (!duel.requested_species) return;
@@ -2864,7 +2864,7 @@ function showOnlineDuelNotice(duel, actor) {
   try { sessionStorage.setItem(key, '1'); } catch {}
 
   if (accepted) {
-    onlineDuelToFocus = duel.id;
+    activeDuelToFocus = {id:duel.id};
     if (!document.querySelector('[data-duel-arena]')) nav('pets', {sanctuaryView:'duels'});
     return;
   }
@@ -3058,10 +3058,16 @@ async function refreshYokaiDuels() {
     });
     for (const card of existing.values()) card.remove();
     updateYokaiDuelCountdowns(host);
-    if (onlineDuelToFocus) {
-      const card = [...list.children].find(item => item.dataset.duelId === onlineDuelToFocus);
-      onlineDuelToFocus = null;
-      card?.scrollIntoView({block:'center'});
+    if (activeDuelToFocus) {
+      const target = duels.find(duel => duel.status === 'active' &&
+        (activeDuelToFocus.bot ? duel.is_bot : duel.id === activeDuelToFocus.id));
+      const card = target && [...list.children].find(item => item.dataset.duelId === target.id);
+      if (card) {
+        activeDuelToFocus = null;
+        card.scrollIntoView({block:'center'});
+      } else if (duels.some(duel => duel.id === activeDuelToFocus.id && duel.status === 'finished')) {
+        activeDuelToFocus = null;
+      }
     }
   } catch (error) {
     const status = document.querySelector('[data-duel-status]');
@@ -3077,6 +3083,7 @@ function bindYokaiDuelArena(host) {
     card.dataset.working = 'true';
     try {
       await yokaiDuelRequest(action, {p_id:card.dataset.duelId, ...params});
+      if (action === 'accept') activeDuelToFocus = {id:card.dataset.duelId};
     } catch (error) {
       toast(errorText(error));
     } finally {
@@ -3099,7 +3106,10 @@ function bindYokaiDuelArena(host) {
       void yokaiDuelRequest(online ? 'match_online' : 'start_bot', {
         p_pet:data.get('pet'), p_target:data.get('species'), ...(online ? {p_turn:Number(data.get('level'))} : {})
       })
-        .then(result => { if (online) status.textContent = 'Challenge sent to ' + result.member + '.'; })
+        .then(result => {
+          if (online) status.textContent = 'Challenge sent to ' + result.member + '.';
+          else activeDuelToFocus = {bot:true};
+        })
         .catch(error => { status.textContent = errorText(error); })
         .finally(() => {
           delete form.dataset.submitting;
