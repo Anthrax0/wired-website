@@ -1789,7 +1789,24 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 }
 
 
+.brand{gap:6px}
 .brand-icon{flex:none}
+.brand-lettering{display:grid;align-items:center;min-height:48px;white-space:nowrap}
+.brand-lettering>*{grid-area:1/1}
+.brand .brand-lettering b{
+  margin-top:4px;
+  font-size:19px;
+  font-weight:900;
+  font-style:italic;
+  letter-spacing:.08em;
+  color:#d9b3ff;
+  background:linear-gradient(180deg,#f1dfff 12%,#b97fed 50%,#8d54c8 52%,#d4aaff 92%);
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 1px 3px #aa58e66b);
+}
+.brand .brand-lettering small{align-self:end;font-size:7px;line-height:1;letter-spacing:.15em}
+
 
 :is(.message-own[data-message-actions],[data-comment-actions]){cursor:context-menu;-webkit-touch-callout:none;user-select:none}
 :is(.message-own[data-message-actions],[data-comment-actions]):focus-visible{outline:2px solid #c58afb;outline-offset:2px}
