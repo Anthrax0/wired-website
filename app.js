@@ -2982,6 +2982,7 @@ function yokaiChallengeMarkup(pets, species, online = false) {
         ${Array.from({length:99}, (_, index) => `<option value="${index + 1}">${index + 1}</option>`).join('')}
       </select></label>` : ''}
       <button class="primary" type="submit">${online ? 'Send Challenge' : 'Start Bot Duel'}</button>
+      ${online ? '' : '<button class="ghost" type="button" data-resume-bot-duel hidden>Resume Bot Duel</button><p class="hint" data-active-bot-duel hidden>Finish your active bot duel before starting another.</p>'}
       <p data-challenge-status role="status"></p>
     </form>`}
     </section>`;
@@ -3028,7 +3029,13 @@ async function refreshYokaiDuels() {
     host = document.querySelector('[data-duel-arena]');
     if (!host) return;
     const botForm = host.querySelector('[data-duel-bot] form');
-    if (botForm) botForm.hidden = duels.some(duel => duel.is_bot && duel.status === 'active');
+    if (botForm) {
+      const activeBot = duels.find(duel => duel.is_bot && duel.status === 'active');
+      botForm.dataset.activeBotDuel = activeBot?.id || '';
+      botForm.querySelector('button[type="submit"]').disabled = Boolean(activeBot || botForm.dataset.submitting);
+      botForm.querySelector('[data-resume-bot-duel]').hidden = !activeBot;
+      botForm.querySelector('[data-active-bot-duel]').hidden = !activeBot;
+    }
     host.querySelector('[data-duel-status]').textContent = duels.length ? '' : 'No duels yet. Choose a bot above or challenge a member from their global profile.';
     const list = host.querySelector('[data-duel-list]');
     const existing = new Map([...list.children].map(card => [card.dataset.duelId, card]));
@@ -3087,6 +3094,7 @@ function bindYokaiDuelArena(host) {
       const button = form.querySelector('button[type="submit"]');
       const status = form.querySelector('[data-challenge-status]');
       if (button.disabled) return;
+      form.dataset.submitting = 'true';
       button.disabled = true;
       status.textContent = '';
       void yokaiDuelRequest(online ? 'match_online' : 'start_bot', {
@@ -3094,7 +3102,11 @@ function bindYokaiDuelArena(host) {
       })
         .then(result => { if (online) status.textContent = 'Challenge sent to ' + result.member + '.'; })
         .catch(error => { status.textContent = errorText(error); })
-        .finally(() => { button.disabled = false; void refreshYokaiDuels(); });
+        .finally(() => {
+          delete form.dataset.submitting;
+          button.disabled = Boolean(form.dataset.activeBotDuel);
+          void refreshYokaiDuels();
+        });
       return;
     }
     const card = form.closest('[data-duel-id]');
@@ -3102,6 +3114,12 @@ function bindYokaiDuelArena(host) {
   });
   host.addEventListener('click', event => {
     const button = event.target.closest('button');
+    if (button?.hasAttribute('data-resume-bot-duel')) {
+      const id = button.form.dataset.activeBotDuel;
+      const activeCard = [...host.querySelectorAll('[data-duel-id]')].find(card => card.dataset.duelId === id);
+      activeCard?.scrollIntoView({block:'center'});
+      return;
+    }
     const card = button?.closest('[data-duel-id]');
     if (!card) return;
     if (button.hasAttribute('data-duel-move')) {
