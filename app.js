@@ -2840,13 +2840,82 @@ function showYokaiDuelVictory(duel, actor) {
   dialog.showModal();
 }
 
+function matchingOnlineDuelPets(duel, pets) {
+  return duel.requested_species ? pets.filter(pet =>
+    (pet.species_id || pet.pet_species?.id) === duel.requested_species && Number(pet.level) === duel.requested_level
+  ) : pets;
+}
+
+const onlineDuelNotices = new Set();
+let onlineDuelToFocus = null;
+
+function showOnlineDuelNotice(duel, actor) {
+  if (!duel.requested_species) return;
+  const incoming = duel.status === 'pending' && duel.opponent === actor;
+  const accepted = duel.status === 'active';
+  const declined = duel.challenger === actor && duel.reason === 'Invitation declined'
+    && Date.now() - Date.parse(duel.finished_at) < 5 * 60 * 1000;
+  if (!incoming && !accepted && !declined) return;
+  const key = `wired:online-duel:${actor}:${duel.id}:${duel.status}`;
+  if (onlineDuelNotices.has(key)) return;
+  try { if (sessionStorage.getItem(key)) return; } catch {}
+  if (document.querySelector('dialog[open]')) return;
+  onlineDuelNotices.add(key);
+  try { sessionStorage.setItem(key, '1'); } catch {}
+
+  if (accepted) {
+    onlineDuelToFocus = duel.id;
+    if (!document.querySelector('[data-duel-arena]')) nav('pets', {sanctuaryView:'duels'});
+    return;
+  }
+
+  const dialog = document.createElement('dialog');
+  dialog.className = 'wired-dialog';
+  dialog.setAttribute('aria-labelledby', 'online-duel-notice-title');
+  const fighter = duel.challenger_fighter;
+  const skills = duelMoveDisplayOrder.filter(move => move >= 2 && move <= fighter.tier + 1)
+    .map(move => escapeHTML(yokaiDuelMoveName(fighter, move))).join(' · ');
+  dialog.innerHTML = incoming ? `
+    <h2 id="online-duel-notice-title">Yokai Duel Invitation</h2>
+    <p><strong>${escapeHTML(duel.challenger_name)}</strong> challenged you to a duel.</p>
+    ${yokaiDuelFighterMarkup(fighter, duel.challenger_hp, duel.challenger_name)}
+    <p>Evolution Tier ${Number(fighter.tier)} · Attack ${Number(fighter.attack)} · Skill critical chance ${Number(fighter.crit)}%</p>
+    <p>${skills}</p>
+    <p>Accept with your matching Lv. ${Number(duel.requested_level)} Yokai.</p>
+    <form><button type="submit" class="primary" ${duel.matching_pet_id ? '' : 'disabled'}>Accept</button>
+    <button type="button" class="ghost" data-online-decline>Decline</button></form>
+    <p role="status">${duel.matching_pet_id ? '' : 'You no longer have a matching companion.'}</p>`
+    : `<h2 id="online-duel-notice-title">Duel Invitation Declined</h2>
+    <p>${escapeHTML(duel.opponent_name)} declined your duel invitation.</p>
+    <form method="dialog"><button class="primary" autofocus>Continue</button></form>`;
+  dialog.addEventListener('close', () => dialog.remove(), {once:true});
+  if (incoming) {
+    const respond = async action => {
+      const buttons = [...dialog.querySelectorAll('button')].filter(button => !button.disabled);
+      buttons.forEach(button => { button.disabled = true; });
+      try {
+        await yokaiDuelRequest(action, {p_id:duel.id, ...(action === 'accept' ? {p_pet:duel.matching_pet_id} : {})});
+        dialog.close();
+        void refreshYokaiDuels();
+      } catch (error) {
+        dialog.querySelector('[role="status"]').textContent = errorText(error);
+        buttons.forEach(button => { button.disabled = false; });
+      }
+    };
+    dialog.querySelector('form').onsubmit = event => { event.preventDefault(); void respond('accept'); };
+    dialog.querySelector('[data-online-decline]').onclick = () => { void respond('leave'); };
+  }
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 function yokaiDuelCard(duel, actor) {
   const sender = duel.challenger === actor;
   const pet = sender ? duel.challenger_fighter : duel.opponent_fighter;
   const opponent = sender ? duel.opponent_name : duel.challenger_name;
   const last = duel.history.at(-1);
   const guardCoolingDown = (sender ? last?.a : last?.b) === 0;
-  const pets = state.userPets || [];
+  const pets = matchingOnlineDuelPets(duel, state.userPets || []);
   let controls = '';
   if (duel.status === 'pending') {
     controls = sender ? '<p>Waiting for your opponent to accept.</p>' :
@@ -2897,19 +2966,20 @@ function groupYokaiByRarity(items) {
   ]);
 }
 
-function yokaiBotChallengeMarkup(pets, species) {
+function yokaiChallengeMarkup(pets, species, online = false) {
   const choices = groupYokaiByRarity(species).flatMap(([, group]) => group).map(yokai => {
     const name = yokaiTypeName(yokai.name);
     return `<option value="${escapeHTML(yokai.id)}">${escapeHTML(name)} · ${escapeHTML(yokai.rarity)}</option>`;
   }).join('');
-  return `<section class="card" data-duel-bot><h3>Challenge a Bot</h3>
-    <p class="hint">Choose any Yokai species. The bot matches your companion’s level.</p>
-    ${!pets.length ? '<p>Adopt a Yokai to start practicing.</p>' : !choices ? '<p>No bot opponents are available.</p>' :
+  return `<section class="card" ${online ? 'data-duel-online' : 'data-duel-bot'}><h3>${online ? 'Challenge Online Users' : 'Challenge a Bot'}</h3>
+    <p class="hint">${online ? 'Send an invitation to one online member with a Yokai of the species and level you choose.' : 'Choose any Yokai species. The bot matches your companion’s level.'}</p>
+    ${!pets.length ? '<p>Adopt a Yokai to start practicing.</p>' : !choices ? '<p>No opponent species are available.</p>' :
     `<form>
       ${yokaiCompanionPicker(pets, {name:'pet', label:'Choose your companion', selected:pets[0].id, showLevel:true, showRarity:true})}
-      <label class="field">Bot opponent<select name="species" required><option value="">Choose a species</option>${choices}</select></label>
-      <button class="primary" type="submit">Start Bot Duel</button>
-      <p data-bot-status role="status"></p>
+      <label class="field">${online ? 'Opponent species' : 'Bot opponent'}<select name="species" required><option value="">Choose a species</option>${choices}</select></label>
+      ${online ? '<label class="field">Opponent level<input name="level" type="number" min="1" max="99" required></label>' : ''}
+      <button class="primary" type="submit">${online ? 'Send Challenge' : 'Start Bot Duel'}</button>
+      <p data-challenge-status role="status"></p>
     </form>`}
     </section>`;
 }
@@ -2929,7 +2999,7 @@ async function refreshYokaiDuels() {
   try {
     const duels = await yokaiDuelRequest('list');
     if (state.user?.id !== actor) return;
-    const host = document.querySelector('[data-duel-arena]');
+    let host = document.querySelector('[data-duel-arena]');
     let earnedReward = false;
     for (const duel of duels) {
       const rewardKey = actor + ':' + duel.id;
@@ -2946,11 +3016,13 @@ async function refreshYokaiDuels() {
         duelRewardsSeen.add(rewardKey);
         earnedReward = true;
       }
-      if (duel.status !== 'pending' || duel.opponent !== actor || duelInvitesSeen.has(duel.id)) continue;
+      showOnlineDuelNotice(duel, actor);
+      if (duel.requested_species || duel.status !== 'pending' || duel.opponent !== actor || duelInvitesSeen.has(duel.id)) continue;
       duelInvitesSeen.add(duel.id);
       if (!host) toast(duel.challenger_name + ' challenged you. Open Yokai → Duel Arena.');
     }
     if (earnedReward) void Promise.allSettled([loadPetParadise(), loadGlobalStore()]);
+    host = document.querySelector('[data-duel-arena]');
     if (!host) return;
     const botForm = host.querySelector('[data-duel-bot] form');
     if (botForm) botForm.hidden = duels.some(duel => duel.is_bot && duel.status === 'active');
@@ -2977,6 +3049,11 @@ async function refreshYokaiDuels() {
     });
     for (const card of existing.values()) card.remove();
     updateYokaiDuelCountdowns(host);
+    if (onlineDuelToFocus) {
+      const card = [...list.children].find(item => item.dataset.duelId === onlineDuelToFocus);
+      onlineDuelToFocus = null;
+      card?.scrollIntoView({block:'center'});
+    }
   } catch (error) {
     const status = document.querySelector('[data-duel-status]');
     if (status && state.user?.id === actor) status.textContent = errorText(error);
@@ -3002,13 +3079,17 @@ function bindYokaiDuelArena(host) {
     event.preventDefault();
     const form = event.target;
     const data = new FormData(form);
-    if (form.closest('[data-duel-bot]')) {
+    const online = Boolean(form.closest('[data-duel-online]'));
+    if (online || form.closest('[data-duel-bot]')) {
       const button = form.querySelector('button[type="submit"]');
-      const status = form.querySelector('[data-bot-status]');
+      const status = form.querySelector('[data-challenge-status]');
       if (button.disabled) return;
       button.disabled = true;
       status.textContent = '';
-      void yokaiDuelRequest('start_bot', {p_pet:data.get('pet'), p_target:data.get('species')})
+      void yokaiDuelRequest(online ? 'match_online' : 'start_bot', {
+        p_pet:data.get('pet'), p_target:data.get('species'), ...(online ? {p_turn:Number(data.get('level'))} : {})
+      })
+        .then(result => { if (online) status.textContent = 'Challenge sent to ' + result.member + '.'; })
         .catch(error => { status.textContent = errorText(error); })
         .finally(() => { button.disabled = false; void refreshYokaiDuels(); });
       return;
@@ -3118,7 +3199,8 @@ function renderPetParadise(){
         <li><strong>Moves</strong> · Skills 1–4 take 1–4 rounds to recharge, respectively. You can use any ready move while they recharge. Guard blocks all damage for one round and can’t be used twice in a row.</li>
       </ul>
     </details>
-    ${yokaiBotChallengeMarkup(pets, state.petSpecies)}
+    ${yokaiChallengeMarkup(pets, state.petSpecies)}
+    ${yokaiChallengeMarkup(pets, state.petSpecies, true)}
     <h3>Matches</h3><p data-duel-status role="status">Loading duels…</p><div data-duel-list></div></section>`;
   v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:sanctuaryView==='duels'?back+arena:choices)+footer;
   if (sanctuaryView === 'duels') bindYokaiDuelArena(v.querySelector('[data-duel-arena]'));
