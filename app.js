@@ -3107,7 +3107,9 @@ function renderPetParadise(){
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
   </section>`;
   const arena = `<section class="pet-section" data-duel-arena><h2>Duel Arena</h2>
-    <section class="card"><h3>Duel Rules</h3>
+    <p>Welcome to the Duel Arena! Battle a Yokai bot or challenge another member. Open Duel Rules for details on limits, rewards, and moves.</p>
+    <details class="card">
+      <summary><strong>Duel Rules</strong></summary>
       <ul>
         <li><strong>Daily limits</strong> · Start up to 5 bot duels and play up to 5 accepted member duels per day. Limits reset at midnight UTC. Draws, forfeits, and timeouts still count.</li>
         <li><strong>Knockout wins</strong> · Member duels award 20 base XP and 10 points. Bot duels award 10 base XP and 5 points. Add or subtract 2 base XP per rarity tier the bot is above or below your Yokai (0–20 base XP total).</li>
@@ -3115,7 +3117,7 @@ function renderPetParadise(){
         <li><strong>XP and rewards</strong> · Your Yokai’s rarity bonus applies to wins and draws. XP goes to the companion that fought if you still own it. Forfeits and timeouts earn nothing.</li>
         <li><strong>Moves</strong> · Skills 1–4 take 1–4 rounds to recharge, respectively. You can use any ready move while they recharge. Guard blocks all damage for one round and can’t be used twice in a row.</li>
       </ul>
-    </section>
+    </details>
     ${yokaiBotChallengeMarkup(pets, state.petSpecies)}
     <h3>Matches</h3><p data-duel-status role="status">Loading duels…</p><div data-duel-list></div></section>`;
   v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:sanctuaryView==='duels'?back+arena:choices)+footer;
