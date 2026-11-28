@@ -3962,7 +3962,9 @@ function renderCommunity(){
  if(state.leaderboardOpen){html+='<section class="card community-leaderboard-panel"><div class="section-head"><h2>Community Leaderboard</h2><button type="button" class="ghost small" id="closeCommunityLeaderboard">Close</button></div>'+(state.communityLeaderboard.length?state.communityLeaderboard.map((m,i)=>'<div class="moderation-row"><b>#'+(i+1)+' '+escapeHTML(m.username)+'</b><span>'+communityLevelBadge({communityPoints:m.points})+' · '+Number(m.points)+' XP · '+Number(m.checkins)+' check-ins</span></div>').join(''):'<p class="hint">No check-ins yet. Be the first on the leaderboard!</p>')+'</section>';}
  if(!joined&&c.rules)html+='<article class="card"><h3>Community Rules</h3><p>'+escapeHTML(c.rules)+'</p></article>';
  if(joined&&!state.managerOpen&&activeTab==='latest'&&c.welcome_message)html+='<article class="card"><h3>Welcome</h3><p>'+escapeHTML(c.welcome_message)+'</p></article>';
- if(joined&&!state.managerOpen&&activeTab==='compose'){html+='<div class="card form-card"><div class="section-head"><h3>Create a Post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button class="primary">Publish to community</button></form></div>';}
+ if(joined&&!state.managerOpen&&activeTab==='compose'){
+  const publishing=pendingCommunityPosts.has(communityPostSubmissionKey(state.user.id,c.id));
+  html+='<div class="card form-card"><div class="section-head"><h3>Create a Post</h3><span class="pill">Share with members</span></div><form id="postForm"><label class="field">Post format<select id="postType"><option value="blog">Blog / text post</option><option value="image">Image post</option><option value="question">Question</option><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="story">Story</option><option value="wiki">Wiki entry</option></select></label><label class="field">Title<input id="postTitle" required maxlength="120" placeholder="Give your post a title"></label><label class="field">Content<textarea id="postBody" maxlength="10000" placeholder="Share with your community"></textarea></label><div id="pollFields" hidden><label class="field">Poll options (one per line)<textarea id="pollOptions" rows="4" placeholder="Option one&#10;Option two&#10;Option three"></textarea></label></div><div id="quizFields" hidden><div class="quiz-builder-intro"><b>Build a multi-question quiz</b><p class="hint">Add up to 20 questions, each with 2–6 answers. Correct answers stay private until a member submits.</p></div><div id="quizQuestionBuilder"></div><button type="button" class="ghost small" id="addQuizQuestion">＋ Add question</button></div><div id="postImageWrap"><label class="field">Add images (optional)<input id="postImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p class="hint">Attach up to 5 images · JPG, PNG, WEBP, or GIF · up to 10 MB each</p><div id="postImagePreview" class="post-image-preview"></div></div><button type="submit" class="primary" '+(publishing?'disabled':'')+'>'+(publishing?'Publishing…':'Publish to community')+'</button></form></div>';}
  else if(!joined&&c.is_banned)html+='<p class="empty">You are banned from this community.</p>';
  else if(!joined&&c.join_request_status==='pending')html+='<div class="empty">Your request to join is waiting for approval.</div>';
  else if(!joined)html+='<button class="primary" id="joinFromCommunity">'+(c.visibility==='private'?'Request to join':'Join this community')+'</button>';
@@ -4252,10 +4254,22 @@ async function refreshCommunityPosts(){
  state.communityFeedError=null;
  if(!$('closeLocalProfile')&&!$('backChats'))renderCommunity();
 }
+const pendingCommunityPosts=new Set();
+function communityPostSubmissionKey(userId,communityId){
+ return userId+':'+communityId;
+}
 async function createPost(e){
  e.preventDefault();
+ const communityId=state.activeCommunity?.id,userId=state.user?.id;
+ if(!communityId||!userId)return;
+ const submissionKey=communityPostSubmissionKey(userId,communityId);
+ const form=e.currentTarget;
+ if(pendingCommunityPosts.has(submissionKey)||form.dataset.published)return;
+ const button=form.querySelector('[type="submit"]');
+ pendingCommunityPosts.add(submissionKey);
+ button.disabled=true;
+ button.textContent='Publishing…';
  try{
-  const communityId=state.activeCommunity.id;
   const title=$('postTitle').value.trim(),body=$('postBody').value.trim();
   const kind=$('postType').value,metadata={},files=Array.from($('postImage')?.files||[]);
   if(files.length>5)throw new Error('You can attach up to 5 images to one post.');
@@ -4267,20 +4281,40 @@ async function createPost(e){
    if(file.size>10*1024*1024)throw new Error('Each image must be under 10 MB.');
    const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[file.type];
    if(!ext)throw new Error('Choose JPG, PNG, WEBP, or GIF images.');
-   const path=state.user.id+'/'+crypto.randomUUID()+'.'+ext;
+   const path=userId+'/'+crypto.randomUUID()+'.'+ext;
    const {error:uploadError}=await sb.storage.from('post-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
    if(uploadError)throw uploadError;
    urls.push(sb.storage.from('post-media').getPublicUrl(path).data.publicUrl);
   }
   if(urls.length){metadata.media_urls=urls;metadata.media_url=urls[0];}
   await api('/communities/'+encodeURIComponent(communityId)+'/posts','POST',{title,body,kind,metadata});
+  form.dataset.published='true';
   toast('Your '+kind+' has been published.');
-  if(state.page==='community'&&state.activeCommunity?.id===communityId){
-   if(state.communityTab==='compose')state.communityTab='latest';
-   await refreshCommunityPosts();
+  if(state.page==='community'&&state.activeCommunity?.id===communityId&&state.user?.id===userId){
+   if(state.communityTab==='compose')await openCommunitySection('latest');
+   try{await refreshCommunityPosts();}
+   catch(error){
+    console.warn('Published post; community feed refresh failed',error);
+    if(state.page==='community'&&state.activeCommunity?.id===communityId&&state.user?.id===userId&&state.communityTab==='latest'){
+     state.communityFeedError=error;
+     renderCommunity();
+    }
+   }
   }
  }catch(err){toast(errorText(err));}
+ finally{
+  pendingCommunityPosts.delete(submissionKey);
+  if(state.page==='community'&&state.activeCommunity?.id===communityId&&state.user?.id===userId){
+   const currentForm=$('postForm');
+   if(currentForm&&!currentForm.dataset.published){
+    const currentButton=currentForm.querySelector('[type="submit"]');
+    currentButton.disabled=false;
+    currentButton.textContent='Publish to community';
+   }
+  }
+ }
 }
+
 async function voteOnPost(id,option_index){try{const post=state.posts.find(p=>p.id===id);const result=await api('/posts/'+encodeURIComponent(id)+'/vote','POST',{option_index});if(post?.kind==='quiz')toast(result.correct?'Correct answer!':'Not quite — try another answer.');await refreshCommunityPosts()}catch(e){toast(errorText(e))}}
 async function submitQuiz(e,id){
  e.preventDefault();
