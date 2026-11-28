@@ -2816,6 +2816,27 @@ function hasYokaiDuelReward(duel, actor) {
   return duel.reward_points > 0 && (!duel.winner || duel.winner === actor);
 }
 
+const duelVictoryCandidates = new Set();
+
+function showYokaiDuelVictory(duel, actor) {
+  const fighter = duel.challenger === actor ? duel.challenger_fighter : duel.opponent_fighter;
+  const opponent = duel.challenger === actor ? duel.opponent_fighter : duel.challenger_fighter;
+  const rewards = [];
+  if (duel.reward_xp > 0) rewards.push(`+${Number(duel.reward_xp)} XP`);
+  if (duel.reward_points > 0) rewards.push(`+${Number(duel.reward_points)} points`);
+  const dialog = document.createElement('dialog');
+  dialog.className = 'wired-dialog wired-gift-dialog';
+  dialog.setAttribute('aria-labelledby', 'yokai-duel-victory-title');
+  dialog.innerHTML = `<p class="eyebrow">YOKAI DUEL</p>
+    <h2 id="yokai-duel-victory-title">Congratulations! You won!</h2>
+    <p>${escapeHTML(fighter?.name || 'Your Yokai')} won the duel against ${escapeHTML(opponent?.name || 'your opponent')}.</p>
+    ${rewards.length ? `<p class="wired-gift-points">${rewards.join(' · ')}</p>` : ''}
+    <form method="dialog"><button class="primary" autofocus>Continue</button></form>`;
+  dialog.addEventListener('close', () => dialog.remove(), {once:true});
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 function yokaiDuelCard(duel, actor) {
   const sender = duel.challenger === actor;
   const pet = sender ? duel.challenger_fighter : duel.opponent_fighter;
@@ -2908,6 +2929,15 @@ async function refreshYokaiDuels() {
     let earnedReward = false;
     for (const duel of duels) {
       const rewardKey = actor + ':' + duel.id;
+      if (duel.status === 'active') duelVictoryCandidates.add(rewardKey);
+      if (duel.status === 'finished' && duelVictoryCandidates.has(rewardKey)) {
+        if (duel.winner !== actor) {
+          duelVictoryCandidates.delete(rewardKey);
+        } else if (!document.querySelector('dialog[open]')) {
+          duelVictoryCandidates.delete(rewardKey);
+          showYokaiDuelVictory(duel, actor);
+        }
+      }
       if (hasYokaiDuelReward(duel, actor) && !duelRewardsSeen.has(rewardKey)) {
         duelRewardsSeen.add(rewardKey);
         earnedReward = true;
