@@ -1628,8 +1628,25 @@ button.store-wallet-history:hover,button.store-wallet-history:focus-visible{bord
 .community-section-nav button{min-height:44px;line-height:1.25}
 .community-section-nav button[aria-current="page"]{background:#322045;border-color:#ab6ddd;color:#fff}
 .community-post-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
-.community-directory .member-sidebar-list{display:grid;max-height:none;overflow:visible}
-.community-directory .member-sidebar-item{width:100%}
+.community-directory{display:grid;gap:12px;min-width:0}
+.community-directory h2,.community-directory h3{margin:0}
+.community-directory h3{padding:9px 12px;border-inline-start:3px solid #aa72f2;background:#231931;color:#e1c9ff;font-size:.9rem}
+.community-directory ul{display:grid;margin:0;padding:0;list-style:none}
+.community-directory li{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.community-directory-profile,.community-directory-online-list button{min-width:0;border:0;background:transparent;color:var(--text);cursor:pointer}
+.community-directory-profile{display:flex;flex:1;align-items:center;gap:12px;padding:10px 6px;text-align:left}
+.community-directory-profile:hover,.community-directory-online-list button:hover{background:#b17bff12}
+.community-directory .member-avatar{width:44px;height:44px}
+.community-directory-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.community-directory-name small{display:block;color:var(--muted)}
+.community-directory-follow{min-height:44px;min-width:78px;flex-shrink:0}
+.community-directory-activity{overflow:hidden;border:1px solid #543574;border-radius:14px;background:linear-gradient(130deg,#231337,#14101d)}
+.community-directory-activity summary{padding:12px 14px;color:#ead7ff;font-weight:700;cursor:pointer}
+.community-directory-activity [data-directory-online]{padding:0 14px 12px}
+.community-directory-online-count{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.community-directory-online-list{display:flex;gap:8px;overflow-x:auto;padding:6px 0 2px}
+.community-directory-online-list button{display:grid;justify-items:center;gap:6px;width:90px;flex:none;padding:5px;border-radius:8px;font-size:.8rem}
+.community-directory-online-list .community-directory-name{max-width:100%}
 @media(max-width:580px){.community-section-nav{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 .community-workspace-main{min-width:0}
