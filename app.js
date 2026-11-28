@@ -3109,15 +3109,11 @@ function renderPetParadise(){
   const arena = `<section class="pet-section" data-duel-arena><h2>Duel Arena</h2>
     <section class="card"><h3>Duel Rules</h3>
       <ul>
-        <li><strong>Bot duels</strong> · 5 starts per day. A knockout win against a bot of the same rarity earns 10 base XP and 5 points.</li>
-        <li><strong>Bot rarity adjustment</strong> · Add 2 base XP for each rarity tier the bot is above your Yokai. Subtract 2 base XP for each tier below. For example, a Rare Yokai earns 14 base XP against a Legendary bot and 6 against a Common bot.</li>
-        <li>Bot wins can award 0–20 base XP. The penalty applies to the match reward, and previously earned XP stays yours. Your Yokai’s own rarity XP bonus applies afterward. Bot wins still award 5 points.</li>
-        <li><strong>Member duels</strong> · 5 accepted duels per day for each member. A knockout win earns 20 XP and 10 points.</li>
-        <li>Both limits reset at midnight UTC. A started duel still counts if you forfeit, time out, or draw.</li>
-        <li><strong>Draws</strong> · If both Yokai are knocked out in the same round or the match reaches the round limit without a winner, each member earns half the usual knockout reward. Member draws award 10 base XP and 5 points each. Bot draws award half the rarity-adjusted base XP and 2 points, rounded down from 2.5.</li>
-        <li>Your Yokai’s rarity XP bonus also applies to draws. XP goes to the companion that fought if you still own it. Forfeits and timeouts award no rewards.</li>
-        <li><strong>Skill cooldowns</strong> · You can’t use the same skill two rounds in a row. After using Skill 1, 2, 3, or 4, wait 1, 2, 3, or 4 rounds respectively before using it again. You can still use Attack or any other ready move during that wait.</li>
-        <li>Guard prevents all damage for one round. You can’t use it two rounds in a row.</li>
+        <li><strong>Daily limits</strong> · Start up to 5 bot duels and play up to 5 accepted member duels per day. Limits reset at midnight UTC. Draws, forfeits, and timeouts still count.</li>
+        <li><strong>Knockout wins</strong> · Member duels award 20 base XP and 10 points. Bot duels award 10 base XP and 5 points. Add or subtract 2 base XP per rarity tier the bot is above or below your Yokai (0–20 base XP total).</li>
+        <li><strong>Draws</strong> · A double knockout or reaching the round limit without a winner earns half the usual win reward. Each member gets 10 base XP and 5 points in a member duel. Against a bot, you get half the rarity-adjusted base XP and 2 points.</li>
+        <li><strong>XP and rewards</strong> · Your Yokai’s rarity bonus applies to wins and draws. XP goes to the companion that fought if you still own it. Forfeits and timeouts earn nothing.</li>
+        <li><strong>Moves</strong> · Skills 1–4 take 1–4 rounds to recharge, respectively. You can use any ready move while they recharge. Guard blocks all damage for one round and can’t be used twice in a row.</li>
       </ul>
     </section>
     ${yokaiBotChallengeMarkup(pets, state.petSpecies)}
