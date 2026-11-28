@@ -2714,3 +2714,43 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
   overflow-wrap: anywhere;
   text-shadow: 0 1px 4px #0b0512 !important;
 }
+
+/* Emo Kitty profile cosmetics */
+:is(.profile-unified-card,.profile-custom-card,.store-preview-profile).emo-kitty-theme {
+  background: #110f10 url("assets/profile/emo-kitty/background.webp") center top / 100% auto no-repeat !important;
+}
+:is(.profile-cover,.store-preview-cover).emo-kitty-cover {
+  background: #110f10 url("assets/profile/emo-kitty/banner.webp") center / 100% 100% no-repeat !important;
+}
+:is(.profile-avatar,.profile-summary-avatar).emo-kitty-frame {
+  position: relative;
+  border: 0 !important;
+  overflow: visible;
+  box-shadow: none !important;
+  margin: 20px;
+}
+.profile-person:has(.emo-kitty-frame) > :last-child { min-width: 0; }
+:is(.profile-avatar,.profile-summary-avatar).emo-kitty-frame::after {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  background: url("assets/profile/emo-kitty/frame.webp") center / contain no-repeat;
+  pointer-events: none;
+}
+.store-preview-avatar.emo-kitty-frame {
+  background: url("assets/profile/emo-kitty/frame.webp") center / contain no-repeat !important;
+}
+:is(h2,h3,.store-preview-nameplate).emo-kitty-nameplate {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 1.2em 2em !important;
+  border: 0 !important;
+  background: url("assets/profile/emo-kitty/nameplate.webp") center / 100% 100% no-repeat !important;
+  box-shadow: none !important;
+  color: #fff2e3 !important;
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 4px #100a0a !important;
+}
