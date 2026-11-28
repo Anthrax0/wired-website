@@ -730,7 +730,7 @@ footer{border-color:#4b2864}
 .profile-yokai-art{width:112px;height:112px;flex:0 0 112px;overflow:hidden;border-radius:15px;background:radial-gradient(circle,rgba(177,111,224,.24),rgba(15,10,22,.9));display:grid;place-items:center}
 .profile-yokai-art img{width:100%;height:100%;object-fit:contain;display:block}
 .profile-yokai-info{min-width:0}.profile-yokai-kicker{font-size:.68rem;letter-spacing:.14em;color:#d6a8ff;font-weight:800}
-.profile-yokai-info h3{margin:7px 0 4px}.profile-yokai-info p{margin:0;color:var(--muted,#b9aabd)}
+.profile-yokai-info h3{margin:7px 0 4px;color:#f8f5fc}.profile-yokai-info p{margin:0;color:var(--muted,#b9aabd)}
 .profile-yokai-rarity{display:inline-block;margin-top:8px;padding:3px 9px;border:1px solid rgba(190,130,255,.35);border-radius:999px;font-size:.72rem;color:#e4c5ff}
 @media(max-width:480px){.profile-yokai-card{gap:12px;padding:12px}.profile-yokai-art{width:88px;height:88px;flex-basis:88px}}
 
