@@ -885,7 +885,7 @@ async function openViewedMemberSocial(userId,type){
   v.querySelectorAll('[data-social-person]').forEach(el=>el.addEventListener('click',()=>openMemberProfile(el.dataset.socialPerson)));
  }catch(e){toast(errorText(e));}
 }
-function profileActionsMarkup(community, moderation) {
+function profileActionsMarkup(community, moderation, manageTitles = false) {
  return `<details class="wired-profile-actions">
    <summary class="ghost" aria-label="${community ? 'Community profile actions' : 'Global profile actions'}">
      <span class="${community ? 'wired-profile-dots' : 'wired-profile-lines'}" aria-hidden="true">${community ? '⋯' : ''}</span>
@@ -894,6 +894,7 @@ function profileActionsMarkup(community, moderation) {
      <button type="button" data-profile-action="chat">Start a Chat</button>
      <button type="button" data-profile-action="flag">Flag Member Profile</button>
      <button type="button" data-profile-action="block">Block User</button>
+     ${manageTitles ? '<button type="button" data-profile-action="titles">Manage Titles</button>' : ''}
      ${moderation ? '<button type="button" data-profile-action="moderate">Moderation Tools</button>' : ''}
    </div>
  </details>`;
@@ -905,7 +906,7 @@ document.addEventListener('click', event => {
  }
 });
 
-function bindProfileActions(root, member, community = null, moderate = null) {
+function bindProfileActions(root, member, community = null, moderate = null, manageTitles = null) {
  const menu = root.querySelector('.wired-profile-actions');
  if (!menu) return;
  const summary = menu.querySelector('summary');
@@ -926,6 +927,7 @@ function bindProfileActions(root, member, community = null, moderate = null) {
   close();
   void toggleWiredBlock(member.id);
  };
+ if (manageTitles) menu.querySelector('[data-profile-action="titles"]').onclick = () => { close(); manageTitles(); };
  if (moderate) menu.querySelector('[data-profile-action="moderate"]').onclick = () => { close(); moderate(); };
 }
 
@@ -4100,6 +4102,65 @@ async function strikeCommunityMember(community,userId){
   toast('Strike recorded and member notified.');
  }catch(error){toast(errorText(error));}
 }
+function manageCommunityProfileTitles(badges, cid, userId, name, titles) {
+ const dialog = openProfileReportDialog('Manage Titles', `<p>${escapeHTML(name)}</p>
+  <ul class="community-title-editor-list"></ul>
+  <form>
+   <label>New title <input name="title" maxlength="40" required></label>
+   <button type="submit" class="primary small">Add Title</button>
+   <p class="hint" role="status"></p>
+  </form>`);
+ const list = dialog.querySelector('ul');
+ const form = dialog.querySelector('form');
+ const input = form.elements.title;
+ const status = dialog.querySelector('[role="status"]');
+ const table = sb.from('community_profile_titles');
+ const renderTitles = () => {
+  badges.innerHTML = titles.map(title => `<li>${escapeHTML(title)}</li>`).join('');
+  badges.hidden = titles.length === 0;
+  list.innerHTML = titles.map((title, index) => `<li><span>${escapeHTML(title)}</span>
+   <button type="button" class="ghost small" data-remove-title="${index}" aria-label="Remove title ${escapeHTML(title)}">Remove</button></li>`).join('');
+ };
+ const save = async (title, remove) => {
+  const controls = [...dialog.querySelectorAll('form input, form button, [data-remove-title]')];
+  controls.forEach(control => { control.disabled = true; });
+  status.textContent = '';
+  try {
+   const query = remove
+    ? table.delete().eq('community_id', cid).eq('user_id', userId).eq('title', title)
+    : table.insert({community_id:cid,user_id:userId,title});
+   const {data,error} = await query.select('title').single();
+   if (error) throw error;
+   if (remove) titles.splice(titles.indexOf(data.title), 1);
+   else { titles.push(data.title); input.value = ''; }
+   renderTitles();
+   status.textContent = remove ? 'Title removed.' : 'Title added.';
+  } catch (error) {
+   status.textContent = error.code === '23505' ? 'This title is already assigned.' : errorText(error);
+  } finally {
+   controls.forEach(control => { control.disabled = false; });
+   if (dialog.open) input.focus();
+  }
+ };
+ form.onsubmit = event => {
+  event.preventDefault();
+  const title = input.value.trim();
+  if (title) void save(title, false);
+  else status.textContent = 'Enter a title.';
+ };
+ list.onclick = event => {
+  const button = event.target.closest('[data-remove-title]');
+  if (button) void save(titles[Number(button.dataset.removeTitle)], true);
+ };
+ dialog.addEventListener('cancel', event => {
+  if (input.disabled) event.preventDefault();
+ });
+ const close = dialog.querySelector('[data-profile-report-close]');
+ close.onclick = () => { if (!input.disabled) dialog.close(); };
+ renderTitles();
+ input.focus();
+}
+
 let communityProfileRequest=0;
 async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,stillSelected=()=>true){
  const community=state.activeCommunity,uid=state.user?.id;
@@ -4110,11 +4171,14 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
  state.communityProfileId=userId;
  saveWiredRoute();
  try{
-  const [{data:local,error},{data:global,error:ge},{data:follows,error:fe},{data:relationships,error:re}]=await Promise.all([
+  const staff=!community.is_banned&&['owner','mod'].includes(state.activeCommunityRole);
+  const [{data:local,error},{data:global,error:ge},{data:follows,error:fe},{data:relationships,error:re},titleRows,membership]=await Promise.all([
    sb.from('community_profiles').select('nickname,bio,avatar_url,cover_url,show_global_companion').eq('community_id',cid).eq('user_id',userId).maybeSingle(),
    sb.from('profiles').select('username,avatar_url').eq('id',userId).maybeSingle(),
    sb.from('community_profile_follows').select('follower_id,following_id').eq('community_id',cid),
-   sb.from('community_relationships').select('id,requester_id,recipient_id,status,ended_by').eq('community_id',cid).in('status',['pending','accepted']).or('and(requester_id.eq.'+uid+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+uid+')').limit(1)
+   sb.from('community_relationships').select('id,requester_id,recipient_id,status,ended_by').eq('community_id',cid).in('status',['pending','accepted']).or('and(requester_id.eq.'+uid+',recipient_id.eq.'+userId+'),and(requester_id.eq.'+userId+',recipient_id.eq.'+uid+')').limit(1),
+   sb.from('community_profile_titles').select('title').eq('community_id',cid).eq('user_id',userId).order('created_at').order('title'),
+   staff ? sb.from('community_members').select('banned,banned_until').eq('community_id',cid).eq('user_id',userId).maybeSingle() : {data:null}
   ]);
   if(!isCurrent())return;
   if(error||ge||fe||re)throw error||ge||fe||re;
@@ -4152,6 +4216,9 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   const panel=document.createElement('section');panel.className='card community-local-profile-detail';
   const own=userId===uid;
   const canModerate=!own&&['owner','mod'].includes(state.activeCommunityRole);
+  const target=membership.data;
+  const canManageTitles=staff&&!titleRows.error&&!!target&&!target.banned&&(!target.banned_until||Date.parse(target.banned_until)<=Date.now());
+  const titles=(titleRows.data||[]).map(row=>row.title);
   const relationLabel=relationship?.status==='accepted'?'In a community relationship':relationship?.status==='pending'?'Relationship request pending':myActive?'Already in a community relationship':friends?'Request relationship':'Become mutual community friends to request a relationship';
   const avatar=local?.avatar_url||global?.avatar_url;
   const cover=local?.cover_url;
@@ -4159,11 +4226,14 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
   const editor=own?'<details class="card community-local-profile" id="communityProfileEditor"><summary>Edit community profile</summary><div id="communityLocalProfile">Loading…</div></details>':'';
   panel.innerHTML=`<header class="wired-local-profile-hero">
    ${cover?`<img class="wired-local-profile-cover" src="${escapeHTML(cover)}" alt="">`:""}
-   <div class="wired-local-profile-toolbar"><button type="button" class="ghost small" id="closeLocalProfile">← Back</button>${own?'<button type="button" class="ghost small" id="communityProfilePoints">Point stash</button>':profileActionsMarkup(true,canModerate)}</div>
+   <div class="wired-local-profile-toolbar"><button type="button" class="ghost small" id="closeLocalProfile">← Back</button>${own?'<button type="button" class="ghost small" id="communityProfilePoints">Point stash</button>':profileActionsMarkup(true,canModerate,canManageTitles)}</div>
    <div class="wired-local-profile-identity">
     <span class="community-local-avatar-wrap">${avatar?`<img class="community-local-avatar" src="${escapeHTML(avatar)}" alt="">`:'<span class="community-local-avatar community-local-avatar-fallback" aria-hidden="true">W</span>'}${communityAvatarLevelBadge({communityPoints:profileCommunityPoints})}</span>
     <small>${escapeHTML(community.name||"Community")}</small><h2>${escapeHTML(name)}</h2>
     ${communityLevelBadge({communityPoints:profileCommunityPoints})}
+    <ul class="community-profile-titles" aria-label="Community titles" ${titles.length?'':'hidden'}>${titles.map(title=>`<li>${escapeHTML(title)}</li>`).join('')}</ul>
+    ${titleRows.error?'<small>Community titles could not load.</small>':''}
+    ${own&&canManageTitles?'<button type="button" class="ghost small" id="communityManageOwnTitles">Manage Titles</button>':''}
     ${own?'<button type="button" class="ghost small" id="communityProfileEdit">Edit profile</button>':""}
    </div>
   </header>
@@ -4185,7 +4255,9 @@ async function openCommunityMemberProfile(userId,cid=state.activeCommunity?.id,s
    <div id="communityProfileComments" hidden><p class="hint">Loading comments…</p></div>
   </div>`;
   if(!own)panel.querySelector('.wired-local-profile-body .card-actions').insertAdjacentHTML('beforeend','<button type="button" class="ghost small" id="communitySendGiftBtn">Send Gift</button>');
-  bindProfileActions(panel,{id:userId,username:name},community,canModerate?()=>openMemberModeration(panel,community,userId,name):null);
+  const manageTitles=()=>manageCommunityProfileTitles(panel.querySelector('.community-profile-titles'),cid,userId,name,titles);
+  panel.querySelector('#communityManageOwnTitles')?.addEventListener('click',manageTitles);
+  bindProfileActions(panel,{id:userId,username:name},community,canModerate?()=>openMemberModeration(panel,community,userId,name):null,canManageTitles?manageTitles:null);
   const host=document.getElementById('view');
   if(!host)throw new Error('Community page is not available.');
   host.replaceChildren(panel);

@@ -2629,3 +2629,10 @@ button.post-author:hover,button.post-author:focus-visible{color:var(--bright);te
 .comment-section .profile-comment-footer button {
   width: auto;
 }
+
+.community-profile-titles{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:100%;margin:2px 0;padding:0;list-style:none}
+.community-profile-titles[hidden]{display:none}
+.community-profile-titles li{max-width:100%;padding:4px 10px;border:1px solid #ac72ea;border-radius:8px;background:#261434;color:#f5e6ff;font-size:.85rem;overflow-wrap:anywhere}
+.community-title-editor-list{list-style:none;margin:0;padding:0}
+.community-title-editor-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;overflow-wrap:anywhere}
+.community-title-editor-list li span{min-width:0}
