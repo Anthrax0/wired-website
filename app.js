@@ -2673,7 +2673,10 @@ function yokaiBasicAttack(fighter) {
 
 function yokaiDuelMoveName(fighter, move) {
   if (move === 1) return yokaiBasicAttack(fighter)[0];
-  if (move === 2 && fighter.skill) return fighter.skill;
+  if (move >= 2 && move < duelMoves.length) {
+    const name = (move === 2 && fighter.skill) || yokaiCareSkills[move - 2].name;
+    return `${duelMoves[move]}: ${name}`;
+  }
   return duelMoves[move];
 }
 
@@ -2853,11 +2856,12 @@ function yokaiDuelCard(duel, actor) {
   } else if (duel.status === 'active') {
     controls = `<p>Round ${duel.turn}${duel.deadline ? ` · <span data-duel-deadline="${escapeHTML(duel.deadline)}"></span>` : ""}</p>
       <p>${duel.my_move !== null ? 'Move locked in.' : 'Choose a move.'} ${duel.opponent_locked ? 'Opponent ready.' : ''}</p>
-      <div class="yokai-duel-moves">${duelMoveDisplayOrder.filter(index => index <= pet.tier + 1).map(index => {
+      <div class="yokai-duel-moves">${duelMoveDisplayOrder.map(index => {
+        const unlockLevel = index > pet.tier + 1 ? [15, 45, 90][index - 3] : null;
         const cooldown = index >= 2 ? Math.max(0, duel.ready[index - 2] - duel.turn) : Number(index === 0 && guardCoolingDown);
         const name = yokaiDuelMoveName(pet, index);
-        return `<button class="ghost" type="button" data-duel-move="${index}" ${duel.my_move !== null || cooldown ? 'disabled' : ''}>
-          ${escapeHTML(name)}${cooldown ? ` · ${cooldown} round${cooldown === 1 ? '' : 's'}` : ''}</button>`;
+        return `<button class="ghost" type="button" data-duel-move="${index}" ${duel.my_move !== null || cooldown || unlockLevel ? 'disabled' : ''}>
+          ${escapeHTML(name)}${unlockLevel ? ` · Unlocks at Lv. ${unlockLevel}` : cooldown ? ` · ${cooldown} round${cooldown === 1 ? '' : 's'}` : ''}</button>`;
       }).join('')}</div><button class="ghost" type="button" data-duel-leave>Forfeit</button>`;
   } else {
     const botWon = duel.is_bot && (duel.reason === 'Forfeit' || duel.reason === 'Turn timed out' || (!duel.challenger_hp && duel.opponent_hp > 0));
