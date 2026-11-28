@@ -2914,16 +2914,20 @@ async function refreshYokaiDuels() {
       }
       if (duel.status !== 'pending' || duel.opponent !== actor || duelInvitesSeen.has(duel.id)) continue;
       duelInvitesSeen.add(duel.id);
-      if (!host) toast(duel.challenger_name + ' challenged you. Open Yokai → Duel Arena.');
+      if (host?.dataset.duelArena !== 'matches') toast(duel.challenger_name + ' challenged you. Open Yokai → Duel Arena.');
     }
     if (earnedReward) void Promise.allSettled([loadPetParadise(), loadGlobalStore()]);
     if (!host) return;
     const botForm = host.querySelector('[data-duel-bot] form');
     if (botForm) botForm.hidden = duels.some(duel => duel.is_bot && duel.status === 'active');
-    host.querySelector('[data-duel-status]').textContent = duels.length ? '' : 'No duels yet. Choose a bot above or challenge a member from their global profile.';
+    const showingResults = host.dataset.duelArena === 'results';
+    const visibleDuels = duels.filter(duel => showingResults === (duel.status === 'finished'));
+    host.querySelector('[data-duel-status]').textContent = visibleDuels.length ? '' : showingResults
+      ? 'No past matches yet.'
+      : 'No active matches or invitations. Choose a bot above or challenge a member from their global profile.';
     const list = host.querySelector('[data-duel-list]');
     const existing = new Map([...list.children].map(card => [card.dataset.duelId, card]));
-    duels.forEach((duel, index) => {
+    visibleDuels.forEach((duel, index) => {
       const card = existing.get(duel.id) || document.createElement('article');
       existing.delete(duel.id);
       card.className = 'card yokai-duel-card';
@@ -2935,7 +2939,7 @@ async function refreshYokaiDuels() {
         const choice = card.querySelector('input[name="pet"]:checked')?.value;
         card.duelMarkup = markup;
         card.innerHTML = markup;
-        animateYokaiDuelMoves(card, duel, card.duelRenderedRound);
+        if (!showingResults) animateYokaiDuelMoves(card, duel, card.duelRenderedRound);
         card.duelRenderedRound = duel.history.at(-1)?.turn ?? 0;
         for (const input of card.querySelectorAll('input[name="pet"]')) if (input.value === choice) input.checked = true;
       }
@@ -3072,7 +3076,7 @@ function renderPetParadise(){
     <div class="yokai-pound-listings" tabindex="0" role="region" aria-label="Yokai Pound listings"></div>
     <button type="button" class="ghost" data-pound-more hidden>Load more listings</button>
   </section>`;
-  const arena = `<section class="pet-section" data-duel-arena><h2>Duel Arena</h2>
+  const arena = `<section class="pet-section" data-duel-arena="matches"><h2>Duel Arena</h2>
     <section class="card"><h3>Duel Rules</h3>
       <ul>
         <li><strong>Bot duels</strong> · 5 starts per day. A knockout win against a bot of the same rarity earns 10 base XP and 5 points.</li>
@@ -3087,9 +3091,17 @@ function renderPetParadise(){
       </ul>
     </section>
     ${yokaiBotChallengeMarkup(pets, state.petSpecies)}
+    <button type="button" class="yokai-sanctuary-choice" data-yokai-view="duel-results">
+      <span class="yokai-choice-symbol" aria-hidden="true">↗</span><strong>Past Match Results</strong>
+    </button>
     <h3>Matches</h3><p data-duel-status role="status">Loading duels…</p><div data-duel-list></div></section>`;
-  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:sanctuaryView==='duels'?back+arena:choices)+footer;
+  const results = `<button type="button" class="ghost yokai-sanctuary-back" data-yokai-view="duels">← Back to Duel Arena</button>
+    <section class="pet-section" data-duel-arena="results"><h2>Past Match Results</h2>
+      <p data-duel-status role="status">Loading results…</p><div data-duel-list></div>
+    </section>`;
+  v.innerHTML=hero+(sanctuaryView==='owned'?back+owned:sanctuaryView==='summon'?back+summon:sanctuaryView==='pound'?back+pound:sanctuaryView==='exchange'?back+exchange:sanctuaryView==='duels'?back+arena:sanctuaryView==='duel-results'?results:choices)+footer;
   if (sanctuaryView === 'duels') bindYokaiDuelArena(v.querySelector('[data-duel-arena]'));
+  if (sanctuaryView === 'duel-results') void refreshYokaiDuels();
   if (sanctuaryView === 'pound') void renderYokaiPound(v.querySelector('.yokai-pound'));
   if (sanctuaryView === 'exchange') void renderYokaiAdoptionExchanges(v.querySelector('.yokai-exchanges'));
   v.querySelectorAll('[data-yokai-view]').forEach(button=>button.addEventListener('click',()=>{
@@ -5275,7 +5287,7 @@ async function restoreWiredRoute(route){
   discoveryMode:route.discoveryMode||'',
   storeSection:['profile','yokai','gifts'].includes(route.storeSection)?route.storeSection:'home',
   sanctuaryCompanionId:route.sanctuaryCompanionId,
-  sanctuaryView:['owned','summon','pound','exchange','duels'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
+  sanctuaryView:['owned','summon','pound','exchange','duels','duel-results'].includes(route.sanctuaryView)?route.sanctuaryView:'home'
  });
  if(route.page==='store'&&wiredStoreSection==='gifts'&&route.giftTarget){
   wiredGiftTarget=route.giftTarget;
