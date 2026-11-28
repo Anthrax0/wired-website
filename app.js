@@ -2343,9 +2343,10 @@ async function renderYokaiPound(panel) {
     const free = item.opening_bid === 0;
     const hasBid = item.bid_points != null;
     const closingTime = item.ends_at ? new Date(item.ends_at) : null;
-    const reserveStatus = item.reserve_bid == null ? '' :
-      ' · Minimum ' + points(item.reserve_bid) + (hasBid && item.bid_points < item.reserve_bid
-        ? ' <small style="color:#ff858b">reserve not met</small>' : '');
+    const reserveStatus = typeof item.reserve_met !== 'boolean' ? '' :
+      '<small style="color:' + (item.reserve_met ? '#a9edbd' : '#ff858b') + '">' +
+      (item.reserve_met ? 'Reserve met' : 'Reserve not met') + '</small>';
+    const ownerReserve = item.mine && item.reserve_bid != null ? ' · Minimum ' + points(item.reserve_bid) : '';
     const minBid = hasBid ? item.bid_points + 1 : item.opening_bid;
     const id = escapeHTML(item.id);
     const action = (name, label, price = '') =>
@@ -2364,14 +2365,14 @@ async function renderYokaiPound(panel) {
       '</h3><p>' + escapeHTML(yokaiTypeName(item.species)) + ' · Level ' + Number(item.level) + ' · Listed by ' +
       escapeHTML(item.seller || 'WIRED member') + '</p><p>' + (free ? 'Free adoption' :
         (hasBid ? 'Highest adoption offer · ' + points(item.bid_points) + (item.is_high_bidder ? ' (yours)' : '') : 'Opening bid · ' + points(item.opening_bid))) +
-      reserveStatus + '</p>' + (closingTime ? '<p>Ends ' + escapeHTML(closingTime.toLocaleString()) + '</p>' : '') +
+      ownerReserve + '</p>' + reserveStatus + (closingTime ? '<p>Ends ' + escapeHTML(closingTime.toLocaleString()) + '</p>' : '') +
       '<div class="yokai-pound-actions">' + controls + '</div></div></article>';
   }
 
   async function load(reset) {
     const start = reset ? 0 : offset;
     more.disabled = true;
-    const {data, error} = await sb.rpc('list_yokai_pound_timed', {p_offset:start});
+    const {data, error} = await sb.rpc('list_yokai_pound_timed_v2', {p_offset:start});
     more.disabled = false;
     if (error) throw error;
     if (!panel.isConnected || state.user?.id !== owner) return;
