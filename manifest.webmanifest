@@ -8,13 +8,13 @@
   "theme_color": "#090711",
   "icons": [
     {
-      "src": "assets/wired-icon-192.png",
+      "src": "assets/wired-retro-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/wired-icon-512.png",
+      "src": "assets/wired-retro-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
